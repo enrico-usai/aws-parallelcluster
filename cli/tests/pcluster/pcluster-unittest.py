@@ -31,7 +31,7 @@ except ImportError:
 
 
 test_log_stream = StringIO()
-config_file = "cli/tests/config"
+config_file = "cli/tests/pcluster.config.ini"
 with open("cloudformation/aws-parallelcluster.cfn.json") as f:
     cfncluster_json_data = json.load(f)
     version_on_file = cfncluster_json_data["Mappings"]["PackagesVersions"]["default"]["cfncluster"]

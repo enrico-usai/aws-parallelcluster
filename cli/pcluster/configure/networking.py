@@ -12,16 +12,15 @@ from future.backports import datetime
 
 import abc
 import logging
-import os
 import sys
 from enum import Enum
 
 import boto3
 import pkg_resources
 
+from pcluster.configure.subnet_computation import evaluate_cidr, get_subnet_cidr
 from pcluster.configure.utils import handle_client_exception
 from pcluster.networking.vpc_factory import VpcFactory
-from pcluster.configure.subnet_computation import evaluate_cidr, get_subnet_cidr
 from pcluster.utils import get_stack_output_value, get_templates_bucket_path, verify_stack_creation
 
 DEFAULT_AWS_REGION_NAME = "us-east-1"
@@ -193,23 +192,21 @@ def _validate_cidr(cidr):
 
 
 @handle_client_exception
-def get_vpc_subnets(aws_region_name, vpc_id):
+def get_vpc_subnets(vpc_id):
     """Return a list of the subnets cidr contained in the vpc."""
-    conn = ec2_conn(aws_region_name)
+    conn = ec2_conn()
     subnets = conn.describe_subnets(Filters=[{"Name": "vpcId", "Values": [vpc_id]}])["Subnets"]
     return [subnet["CidrBlock"] for subnet in subnets]
 
 
 @handle_client_exception
-def _get_vpc_cidr(aws_region_name, vpc_id):
-    return ec2_conn(aws_region_name).describe_vpcs(VpcIds=[vpc_id])["Vpcs"][0]["CidrBlock"]
+def _get_vpc_cidr(vpc_id):
+    return ec2_conn().describe_vpcs(VpcIds=[vpc_id])["Vpcs"][0]["CidrBlock"]
 
 
 @handle_client_exception
-def _get_internet_gateway_id(aws_region_name, vpc_id):
-    response = ec2_conn(aws_region_name).describe_internet_gateways(
-        Filters=[{"Name": "attachment.vpc-id", "Values": [vpc_id]}]
-    )
+def _get_internet_gateway_id(vpc_id):
+    response = ec2_conn().describe_internet_gateways(Filters=[{"Name": "attachment.vpc-id", "Values": [vpc_id]}])
     return response["InternetGateways"][0]["InternetGatewayId"] if response["InternetGateways"] else ""
 
 
@@ -219,20 +216,9 @@ def _get_availability_zone(aws_region_name):
     return ""
 
 
-def _evaluate_aws_region(aws_region_name):
-    if aws_region_name:
-        region = aws_region_name
-    elif os.environ.get("AWS_DEFAULT_REGION"):
-        region = os.environ.get("AWS_DEFAULT_REGION")
-    else:
-        region = DEFAULT_AWS_REGION_NAME
-    return region
-
-
 @handle_client_exception
-def ec2_conn(aws_region_name):
-    region = _evaluate_aws_region(aws_region_name)
-    ec2 = boto3.client("ec2", region_name=region)
+def ec2_conn():
+    ec2 = boto3.client("ec2")
     return ec2
 
 
