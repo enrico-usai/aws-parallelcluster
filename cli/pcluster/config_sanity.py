@@ -517,6 +517,7 @@ class ResourceValidator(object):
                     self.__fail(resource_type, "Volume %s does not exist." % resource_value)
 
                 self.__fail(resource_type, e.response.get("Error").get("Message"))
+        # TODO arrivato a qui
         # EFS file system Id
         elif resource_type == "EFSFSId":
             try:

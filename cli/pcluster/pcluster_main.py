@@ -8,12 +8,6 @@
 # or in the "LICENSE.txt" file accompanying this file. This file is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES
 # OR CONDITIONS OF ANY KIND, express or implied. See the License for the specific language governing permissions and
 # limitations under the License.
-
-# FIXME
-# pylint: disable=too-many-locals
-# pylint: disable=too-many-branches
-# pylint: disable=too-many-statements
-
 from __future__ import absolute_import, print_function
 
 import datetime
@@ -37,31 +31,31 @@ from botocore.exceptions import ClientError
 from tabulate import tabulate
 
 from pcluster.utils import get_installed_version, get_stack_output_value, verify_stack_creation
-
-from . import cfnconfig, utils
+import pcluster.utils as utils
+from pcluster.config.mapping import ALIASES, AWS, GLOBAL, CLUSTER
+from pcluster.config.pcluster_config import PclusterConfig
+from pcluster.utils import get_installed_version, get_stack_output_value, verify_stack_creation
 
 if sys.version_info[0] >= 3:
     from urllib.request import urlretrieve
 else:
     from urllib import urlretrieve  # pylint: disable=no-name-in-module
 
-LOGGER = logging.getLogger("pcluster.pcluster")
+LOGGER = logging.getLogger(__name__)
 
 
-def create_bucket_with_batch_resources(stack_name, aws_client_config, resources_dir):
+def create_bucket_with_batch_resources(stack_name, resources_dir, region):
     random_string = "".join(random.choice(string.ascii_lowercase + string.digits) for _ in range(16))
     s3_bucket_name = "-".join([stack_name.lower(), random_string])
 
     try:
-        utils.create_s3_bucket(bucket_name=s3_bucket_name, aws_client_config=aws_client_config)
-        utils.upload_resources_artifacts(
-            bucket_name=s3_bucket_name, root=resources_dir, aws_client_config=aws_client_config
-        )
+        utils.create_s3_bucket(bucket_name=s3_bucket_name, region=region)
+        utils.upload_resources_artifacts(bucket_name=s3_bucket_name, root=resources_dir)
     except boto3.client("s3").exceptions.BucketAlreadyExists:
         LOGGER.error("Bucket %s already exists. Please retry cluster creation.", s3_bucket_name)
         raise
     except Exception:
-        utils.delete_s3_bucket(bucket_name=s3_bucket_name, aws_client_config=aws_client_config)
+        utils.delete_s3_bucket(bucket_name=s3_bucket_name)
         raise
     return s3_bucket_name
 
@@ -75,18 +69,20 @@ def create(args):  # noqa: C901 FIXME!!!
     LOGGER.debug("Building cluster config based on args %s", str(args))
 
     # Build the config based on args
-    config = cfnconfig.ParallelClusterConfig(args)
-    aws_client_config = dict(
-        region_name=config.region,
-        aws_access_key_id=config.aws_access_key_id,
-        aws_secret_access_key=config.aws_secret_access_key,
+    pcluster_config = PclusterConfig(
+        region=args.region,
+        config_file=args.config_file,
+        file_sections=[AWS, GLOBAL, CLUSTER],
+        cluster_label=args.cluster_template,
     )
+    # FIXME verify if template url must be passed
+    cfn_template_url, cfn_params, cfn_tags = pcluster_config.to_cfn(tags=args.tags)
 
     # Get the MasterSubnetId and use it to determine AvailabilityZone
-    if "MasterSubnetId" in config.parameters:
-        master_subnet_id = config.parameters["MasterSubnetId"]
+    if "MasterSubnetId" in cfn_params:
+        master_subnet_id = cfn_params["MasterSubnetId"]
         try:
-            ec2 = utils.boto3_client("ec2", aws_client_config)
+            ec2 = boto3.client("ec2")
             availability_zone = (
                 ec2.describe_subnets(SubnetIds=[master_subnet_id]).get("Subnets")[0].get("AvailabilityZone")
             )
@@ -94,31 +90,45 @@ def create(args):  # noqa: C901 FIXME!!!
             LOGGER.critical(e.response.get("Error").get("Message"))
             sys.stdout.flush()
             sys.exit(1)
-        config.parameters["AvailabilityZone"] = availability_zone
+        cfn_params["AvailabilityZone"] = availability_zone
 
     capabilities = ["CAPABILITY_IAM"]
     batch_temporary_bucket = None
     try:
-        cfn = utils.boto3_client("cloudformation", aws_client_config)
+        cfn = boto3.client("cloudformation")
         stack_name = "parallelcluster-" + args.cluster_name
 
         # If scheduler is awsbatch create bucket with resources
-        if config.parameters["Scheduler"] == "awsbatch":
+        if cfn_params["Scheduler"] == "awsbatch":
             batch_resources = pkg_resources.resource_filename(__name__, "resources/batch")
             batch_temporary_bucket = create_bucket_with_batch_resources(
-                stack_name=stack_name, aws_client_config=aws_client_config, resources_dir=batch_resources
+                stack_name=stack_name, resources_dir=batch_resources, region=pcluster_config.region
             )
-            config.parameters["ResourcesS3Bucket"] = batch_temporary_bucket
+            cfn_params["ResourcesS3Bucket"] = batch_temporary_bucket
 
         LOGGER.info("Creating stack named: %s", stack_name)
 
-        cfn_params = [{"ParameterKey": key, "ParameterValue": value} for key, value in config.parameters.items()]
-        tags = [{"Key": t, "Value": config.tags[t]} for t in config.tags]
+        # append extra parameters and tags
+        if args.extra_parameters:
+            cfn_params.update(dict(args.extra_parameters))
+        if args.tags:
+            # TODO remove from PclusterConfig
+            try:
+                if args.tags is not None:
+                    for key in args.tags:
+                        cfn_tags[key] = args.tags[key]
+            except AttributeError:
+                pass
+
+        cfn_params = [{"ParameterKey": key, "ParameterValue": value} for key, value in cfn_params.items()]
+        tags = []
+        if cfn_tags:
+            tags.extend([{"Key": t, "Value": cfn_tags[t]} for t in cfn_tags])
         tags.append({"Key": "Version", "Value": version()})
 
         stack = cfn.create_stack(
             StackName=stack_name,
-            TemplateURL=config.template_url,
+            TemplateURL=cfn_template_url,
             Parameters=cfn_params,
             Capabilities=capabilities,
             DisableRollback=args.norollback,
@@ -138,7 +148,7 @@ def create(args):  # noqa: C901 FIXME!!!
         LOGGER.critical(e.response.get("Error").get("Message"))
         sys.stdout.flush()
         if batch_temporary_bucket:
-            utils.delete_s3_bucket(bucket_name=batch_temporary_bucket, aws_client_config=aws_client_config)
+            utils.delete_s3_bucket(bucket_name=batch_temporary_bucket)
         sys.exit(1)
     except KeyboardInterrupt:
         LOGGER.info("\nExiting...")
@@ -147,12 +157,12 @@ def create(args):  # noqa: C901 FIXME!!!
         LOGGER.critical("ERROR: KeyError - reason:")
         LOGGER.critical(e)
         if batch_temporary_bucket:
-            utils.delete_s3_bucket(bucket_name=batch_temporary_bucket, aws_client_config=aws_client_config)
+            utils.delete_s3_bucket(bucket_name=batch_temporary_bucket)
         sys.exit(1)
     except Exception as e:
         LOGGER.critical(e)
         if batch_temporary_bucket:
-            utils.delete_s3_bucket(bucket_name=batch_temporary_bucket, aws_client_config=aws_client_config)
+            utils.delete_s3_bucket(bucket_name=batch_temporary_bucket)
         sys.exit(1)
 
 
@@ -194,32 +204,29 @@ def is_ganglia_enabled(parameters):
 def update(args):  # noqa: C901 FIXME!!!
     LOGGER.info("Updating: %s", args.cluster_name)
     stack_name = "parallelcluster-" + args.cluster_name
-    config = cfnconfig.ParallelClusterConfig(args)
+    pcluster_config = PclusterConfig(
+        region=args.region,
+        config_file=args.config_file,
+        file_sections=[AWS, GLOBAL, CLUSTER],
+        cluster_label=args.cluster_template,
+    )
+    _, cfn_params, _ = pcluster_config.to_cfn()
+
     capabilities = ["CAPABILITY_IAM"]
 
-    cfn = boto3.client(
-        "cloudformation",
-        region_name=config.region,
-        aws_access_key_id=config.aws_access_key_id,
-        aws_secret_access_key=config.aws_secret_access_key,
-    )
+    cfn = boto3.client("cloudformation")
 
-    if config.parameters.get("Scheduler") != "awsbatch":
-        asg = boto3.client(
-            "autoscaling",
-            region_name=config.region,
-            aws_access_key_id=config.aws_access_key_id,
-            aws_secret_access_key=config.aws_secret_access_key,
-        )
+    if cfn_params.get("Scheduler") != "awsbatch":
+        asg = boto3.client("autoscaling")
 
         if not args.reset_desired:
-            asg_name = get_asg_name(stack_name, config)
+            asg_name = get_asg_name(stack_name, pcluster_config)
             desired_capacity = (
                 asg.describe_auto_scaling_groups(AutoScalingGroupNames=[asg_name])
                 .get("AutoScalingGroups")[0]
                 .get("DesiredCapacity")
             )
-            config.parameters["DesiredSize"] = str(desired_capacity)
+            cfn_params["DesiredSize"] = str(desired_capacity)
     else:
         if args.reset_desired:
             LOGGER.info("reset_desired flag does not work with awsbatch scheduler")
@@ -227,30 +234,28 @@ def update(args):  # noqa: C901 FIXME!!!
 
         for parameter in params:
             if parameter.get("ParameterKey") == "ResourcesS3Bucket":
-                config.parameters["ResourcesS3Bucket"] = parameter.get("ParameterValue")
+                cfn_params["ResourcesS3Bucket"] = parameter.get("ParameterValue")
 
     # Get the MasterSubnetId and use it to determine AvailabilityZone
-    if "MasterSubnetId" in config.parameters:
-        master_subnet_id = config.parameters["MasterSubnetId"]
+    if "MasterSubnetId" in cfn_params:
+        master_subnet_id = cfn_params["MasterSubnetId"]
         try:
-            ec2 = boto3.client(
-                "ec2",
-                region_name=config.region,
-                aws_access_key_id=config.aws_access_key_id,
-                aws_secret_access_key=config.aws_secret_access_key,
-            )
+            ec2 = boto3.client("ec2")
             availability_zone = (
                 ec2.describe_subnets(SubnetIds=[master_subnet_id]).get("Subnets")[0].get("AvailabilityZone")
             )
         except ClientError as e:
             LOGGER.critical(e.response.get("Error").get("Message"))
             sys.exit(1)
-        config.parameters["AvailabilityZone"] = availability_zone
+        cfn_params["AvailabilityZone"] = availability_zone
 
     try:
-        LOGGER.debug(config.parameters)
+        LOGGER.debug(cfn_params)
+        if args.extra_parameters:
+            LOGGER.debug("Adding extra parameters to the CFN parameters")
+            cfn_params.update(dict(args.extra_parameters))
 
-        cfn_params = [{"ParameterKey": key, "ParameterValue": value} for key, value in config.parameters.items()]
+        cfn_params = [{"ParameterKey": key, "ParameterValue": value} for key, value in cfn_params.items()]
         LOGGER.info("Calling update_stack")
         cfn.update_stack(
             StackName=stack_name, UsePreviousTemplate=True, Parameters=cfn_params, Capabilities=capabilities
@@ -278,74 +283,61 @@ def update(args):  # noqa: C901 FIXME!!!
 
 
 def start(args):
-    # Set resource limits on compute fleet or awsbatch ce to min/max/desired = 0/max/0
+    # Set resource limits on compute fleet or awsbatch CE to min/max/desired = 0/max/0
     stack_name = "parallelcluster-" + args.cluster_name
-    config = cfnconfig.ParallelClusterConfig(args)
+    pcluster_config = PclusterConfig(
+        region=args.region,
+        config_file=args.config_file,
+        file_sections=[AWS, CLUSTER],
+        cluster_name=args.cluster_name
+    )
+    cluster_config = pcluster_config.get("cluster")
 
-    if config.parameters.get("Scheduler") == "awsbatch":
+    if cluster_config.get("scheduler") == "awsbatch":
         LOGGER.info("Enabling AWS Batch compute environment : %s", args.cluster_name)
-        max_vcpus = (
-            config.parameters.get("MaxSize")
-            if config.parameters.get("MaxSize") and int(config.parameters.get("MaxSize")) >= 0
-            else 20
-        )
-        desired_vcpus = (
-            config.parameters.get("DesiredSize")
-            if config.parameters.get("DesiredSize") and int(config.parameters.get("DesiredSize")) >= 0
-            else 4
-        )
-        min_vcpus = (
-            config.parameters.get("MinSize")
-            if config.parameters.get("MinSize") and int(config.parameters.get("MinSize")) > 0
-            else 0
-        )
-        ce_name = get_batch_ce(stack_name, config)
-        start_batch_ce(
-            ce_name=ce_name, config=config, min_vcpus=min_vcpus, desired_vcpus=desired_vcpus, max_vcpus=max_vcpus
-        )
+        max_vcpus = cluster_config.get("max_vcpus")
+        desired_vcpus = cluster_config.get("desired_vcpus")
+        min_vcpus = cluster_config.get("min_vcpus")
+        ce_name = get_batch_ce(stack_name)
+        start_batch_ce(ce_name=ce_name, min_vcpus=min_vcpus, desired_vcpus=desired_vcpus, max_vcpus=max_vcpus)
     else:
         LOGGER.info("Starting compute fleet : %s", args.cluster_name)
 
         # Set asg limits
-        max_queue_size = (
-            config.parameters.get("MaxSize")
-            if config.parameters.get("MaxSize") and int(config.parameters.get("MaxSize")) >= 0
-            else 10
+        max_queue_size = cluster_config.get("max_queue_size")
+        min_desired_size = (
+            cluster_config.get("initial_queue_size", 0) if cluster_config.get("mantain_initial_size") else 0
         )
-        desired_queue_size = (
-            config.parameters.get("DesiredSize")
-            if config.parameters.get("DesiredSize") and int(config.parameters.get("DesiredSize")) >= 0
-            else 2
-        )
-        min_queue_size = (
-            config.parameters.get("MinSize")
-            if config.parameters.get("MinSize") and int(config.parameters.get("MinSize")) > 0
-            else 0
-        )
+        desired_queue_size = min_desired_size
+        min_queue_size = min_desired_size
 
-        asg_name = get_asg_name(stack_name=stack_name, config=config)
-        set_asg_limits(
-            asg_name=asg_name, config=config, min=min_queue_size, max=max_queue_size, desired=desired_queue_size
-        )
+        asg_name = get_asg_name(stack_name=stack_name)
+        set_asg_limits(asg_name=asg_name, min=min_queue_size, max=max_queue_size, desired=desired_queue_size)
 
 
 def stop(args):
     # Set resource limits on compute fleet or awsbatch ce to min/max/desired = 0/0/0
     stack_name = "parallelcluster-" + args.cluster_name
-    config = cfnconfig.ParallelClusterConfig(args)
+    pcluster_config = PclusterConfig(
+        region=args.region,
+        config_file=args.config_file,
+        file_sections=[AWS, CLUSTER],
+        cluster_name=args.cluster_name,
+    )
+    cluster_config = pcluster_config.get("cluster")
 
-    if config.parameters.get("Scheduler") == "awsbatch":
+    if cluster_config.get("scheduler") == "awsbatch":
         LOGGER.info("Disabling AWS Batch compute environment : %s", args.cluster_name)
-        ce_name = get_batch_ce(stack_name, config)
-        stop_batch_ce(ce_name=ce_name, config=config)
+        ce_name = get_batch_ce(stack_name)
+        stop_batch_ce(ce_name=ce_name)
     else:
         LOGGER.info("Stopping compute fleet : %s", args.cluster_name)
         # Set Resource limits
-        asg_name = get_asg_name(stack_name=stack_name, config=config)
-        set_asg_limits(asg_name=asg_name, config=config, min=0, max=0, desired=0)
+        asg_name = get_asg_name(stack_name=stack_name)
+        set_asg_limits(asg_name=asg_name, min=0, max=0, desired=0)
 
 
-def get_batch_ce(stack_name, config):
+def get_batch_ce(stack_name):
     """
     Get name of the AWS Batch Compute Environment.
 
@@ -353,13 +345,7 @@ def get_batch_ce(stack_name, config):
     :param config: config
     :return: ce_name or exit if not found
     """
-    cfn = boto3.client(
-        "cloudformation",
-        region_name=config.region,
-        aws_access_key_id=config.aws_access_key_id,
-        aws_secret_access_key=config.aws_secret_access_key,
-    )
-
+    cfn = boto3.client("cloudformation")
     try:
         outputs = cfn.describe_stacks(StackName=stack_name).get("Stacks")[0].get("Outputs")
         return get_stack_output_value(outputs, "BatchComputeEnvironmentArn")
@@ -382,7 +368,8 @@ def colorize(stack_status, args):
     """
     Color the output, COMPLETE = green, FAILED = red, IN_PROGRESS = yellow.
 
-    :param status: stack status
+    :param stack_status: stack status
+    :param args: args
     :return: colorized status string
     """
     if not args.color:
@@ -395,13 +382,8 @@ def colorize(stack_status, args):
 
 
 def list_stacks(args):
-    config = cfnconfig.ParallelClusterConfig(args)
-    cfn = boto3.client(
-        "cloudformation",
-        region_name=config.region,
-        aws_access_key_id=config.aws_access_key_id,
-        aws_secret_access_key=config.aws_secret_access_key,
-    )
+    pcluster_config = PclusterConfig(region=args.region, config_file=args.config_file, file_sections=[AWS])
+    cfn = boto3.client("cloudformation")
     try:
         stacks = cfn.describe_stacks().get("Stacks")
         result = []
@@ -410,7 +392,7 @@ def list_stacks(args):
                 pcluster_version = get_version(stack)
                 result.append(
                     [
-                        stack.get("StackName")[len("parallelcluster-") :],  # noqa: E203
+                        stack.get("StackName")[len("parallelcluster-"):],  # noqa: E203
                         colorize(stack.get("StackStatus"), args),
                         pcluster_version,
                     ]
@@ -424,16 +406,10 @@ def list_stacks(args):
         sys.exit(0)
 
 
-def get_master_server_id(stack_name, config):
+def _get_master_server_id(stack_name):
     # returns the physical id of the master server
     # if no master server returns []
-    cfn = boto3.client(
-        "cloudformation",
-        region_name=config.region,
-        aws_access_key_id=config.aws_access_key_id,
-        aws_secret_access_key=config.aws_secret_access_key,
-    )
-
+    cfn = boto3.client("cloudformation")
     try:
         resources = cfn.describe_stack_resource(StackName=stack_name, LogicalResourceId="MasterServer")
         return resources.get("StackResourceDetail").get("PhysicalResourceId")
@@ -442,15 +418,9 @@ def get_master_server_id(stack_name, config):
         sys.exit(1)
 
 
-def poll_master_server_state(stack_name, config):
-    ec2 = boto3.client(
-        "ec2",
-        region_name=config.region,
-        aws_access_key_id=config.aws_access_key_id,
-        aws_secret_access_key=config.aws_secret_access_key,
-    )
-
-    master_id = get_master_server_id(stack_name, config)
+def _poll_master_server_state(stack_name):
+    ec2 = boto3.client("ec2")
+    master_id = _get_master_server_id(stack_name)
 
     try:
         instance = ec2.describe_instance_status(InstanceIds=[master_id]).get("InstanceStatuses")[0]
@@ -485,14 +455,8 @@ def poll_master_server_state(stack_name, config):
     return state
 
 
-def get_ec2_instances(stack, config):
-    cfn = boto3.client(
-        "cloudformation",
-        region_name=config.region,
-        aws_access_key_id=config.aws_access_key_id,
-        aws_secret_access_key=config.aws_secret_access_key,
-    )
-
+def get_ec2_instances(stack):
+    cfn = boto3.client("cloudformation")
     try:
         resources = cfn.describe_stack_resources(StackName=stack).get("StackResources")
     except ClientError as e:
@@ -509,13 +473,8 @@ def get_ec2_instances(stack, config):
     return instances
 
 
-def get_asg_name(stack_name, config):
-    cfn = boto3.client(
-        "cloudformation",
-        region_name=config.region,
-        aws_access_key_id=config.aws_access_key_id,
-        aws_secret_access_key=config.aws_secret_access_key,
-    )
+def get_asg_name(stack_name):
+    cfn = boto3.client("cloudformation")
     try:
         resources = cfn.describe_stack_resources(StackName=stack_name).get("StackResources")
         return [r for r in resources if r.get("LogicalResourceId") == "ComputeFleet"][0].get("PhysicalResourceId")
@@ -528,28 +487,16 @@ def get_asg_name(stack_name, config):
         sys.exit(1)
 
 
-def set_asg_limits(asg_name, config, min, max, desired):
-    asg = boto3.client(
-        "autoscaling",
-        region_name=config.region,
-        aws_access_key_id=config.aws_access_key_id,
-        aws_secret_access_key=config.aws_secret_access_key,
-    )
-
+def set_asg_limits(asg_name, min, max, desired):
+    asg = boto3.client("autoscaling")
     asg.update_auto_scaling_group(
         AutoScalingGroupName=asg_name, MinSize=int(min), MaxSize=int(max), DesiredCapacity=int(desired)
     )
 
 
-def get_asg_instances(stack, config):
-    asg = boto3.client(
-        "autoscaling",
-        region_name=config.region,
-        aws_access_key_id=config.aws_access_key_id,
-        aws_secret_access_key=config.aws_secret_access_key,
-    )
-
-    asg_name = get_asg_name(stack, config)
+def get_asg_instances(stack):
+    asg = boto3.client("autoscaling")
+    asg_name = get_asg_name(stack)
     asg = asg.describe_auto_scaling_groups(AutoScalingGroupNames=[asg_name]).get("AutoScalingGroups")[0]
     name = [tag.get("Value") for tag in asg.get("Tags") if tag.get("Key") == "aws:cloudformation:logical-id"][0]
 
@@ -560,13 +507,8 @@ def get_asg_instances(stack, config):
     return temp_instances
 
 
-def start_batch_ce(ce_name, config, min_vcpus, desired_vcpus, max_vcpus):
-    batch = boto3.client(
-        "batch",
-        region_name=config.region,
-        aws_access_key_id=config.aws_access_key_id,
-        aws_secret_access_key=config.aws_secret_access_key,
-    )
+def start_batch_ce(ce_name, min_vcpus, desired_vcpus, max_vcpus):
+    batch = boto3.client("batch")
     try:
         batch.update_compute_environment(
             computeEnvironment=ce_name,
@@ -582,35 +524,36 @@ def start_batch_ce(ce_name, config, min_vcpus, desired_vcpus, max_vcpus):
         sys.exit(1)
 
 
-def stop_batch_ce(ce_name, config):
-    batch = boto3.client(
-        "batch",
-        region_name=config.region,
-        aws_access_key_id=config.aws_access_key_id,
-        aws_secret_access_key=config.aws_secret_access_key,
-    )
+def stop_batch_ce(ce_name):
+    batch = boto3.client("batch")
 
     batch.update_compute_environment(computeEnvironment=ce_name, state="DISABLED")
 
 
 def instances(args):
-    stack = "parallelcluster-" + args.cluster_name
+    stack_name = "parallelcluster-" + args.cluster_name
+    pcluster_config = PclusterConfig(
+        region=args.region,
+        config_file=args.config_file,
+        file_sections=[AWS, CLUSTER],
+        cluster_name=args.cluster_name,
+    )
+    cluster_config = pcluster_config.get("cluster")
 
-    config = cfnconfig.ParallelClusterConfig(args)
     instances = []
-    instances.extend(get_ec2_instances(stack, config))
+    instances.extend(get_ec2_instances(stack_name))
 
-    if config.parameters.get("Scheduler") != "awsbatch":
-        instances.extend(get_asg_instances(stack, config))
+    if cluster_config.get("scheduler") != "awsbatch":
+        instances.extend(get_asg_instances(stack_name))
 
     for instance in instances:
         print("%s         %s" % (instance[0], instance[1]))
 
-    if config.parameters.get("Scheduler") == "awsbatch":
+    if cluster_config.get("scheduler") == "awsbatch":
         LOGGER.info("Run 'awsbhosts --cluster %s' to list the compute instances", args.cluster_name)
 
 
-def _get_master_server_ip(stack_name, config):
+def _get_master_server_ip(stack_name):
     """
     Get the IP Address of the MasterServer.
 
@@ -618,14 +561,9 @@ def _get_master_server_ip(stack_name, config):
     :param config: Config object
     :return private/public ip address
     """
-    ec2 = boto3.client(
-        "ec2",
-        region_name=config.region,
-        aws_access_key_id=config.aws_access_key_id,
-        aws_secret_access_key=config.aws_secret_access_key,
-    )
+    ec2 = boto3.client("ec2")
 
-    master_id = get_master_server_id(stack_name, config)
+    master_id = _get_master_server_id(stack_name)
     if not master_id:
         LOGGER.info("MasterServer not running. Can't SSH")
         sys.exit(1)
@@ -653,18 +591,14 @@ def _get_param_value(params, key_name):
 
 def command(args, extra_args):  # noqa: C901 FIXME!!!
     stack = "parallelcluster-" + args.cluster_name
-    config = cfnconfig.ParallelClusterConfig(args)
-    if args.command in config.aliases:
-        config_command = config.aliases[args.command]
+    pcluster_config = PclusterConfig(config_file=args.config_file, file_sections=[AWS, GLOBAL, ALIASES])
+
+    if args.command in pcluster_config.get("aliases"):
+        config_command = pcluster_config.get("aliases").get(args.command)
     else:
         config_command = "ssh {CFN_USER}@{MASTER_IP} {ARGS}"
 
-    cfn = boto3.client(
-        "cloudformation",
-        region_name=config.region,
-        aws_access_key_id=config.aws_access_key_id,
-        aws_secret_access_key=config.aws_secret_access_key,
-    )
+    cfn = boto3.client("cloudformation")
     try:
         stack_result = cfn.describe_stacks(StackName=stack).get("Stacks")[0]
         status = stack_result.get("StackStatus")
@@ -677,7 +611,7 @@ def command(args, extra_args):  # noqa: C901 FIXME!!!
         elif status in valid_status:
             outputs = stack_result.get("Outputs")
             username = get_stack_output_value(outputs, "ClusterUser")
-            ip = get_stack_output_value(outputs, "MasterPublicIP") or _get_master_server_ip(stack, config)
+            ip = get_stack_output_value(outputs, "MasterPublicIP") or _get_master_server_ip(stack)
 
             if not username:
                 LOGGER.info("Failed to get cluster %s username.", args.cluster_name)
@@ -688,7 +622,7 @@ def command(args, extra_args):  # noqa: C901 FIXME!!!
                 sys.exit(1)
         else:
             # Stack is in CREATING, CREATED_FAILED, or ROLLBACK_COMPLETE but MasterServer is running
-            ip = _get_master_server_ip(stack, config)
+            ip = _get_master_server_ip(stack)
             template = cfn.get_template(StackName=stack)
             mappings = template.get("TemplateBody").get("Mappings").get("OSFeatures")
             base_os = _get_param_value(stack_result.get("Parameters"), "BaseOS")
@@ -720,15 +654,9 @@ def command(args, extra_args):  # noqa: C901 FIXME!!!
 
 def status(args):  # noqa: C901 FIXME!!!
     stack_name = "parallelcluster-" + args.cluster_name
-    config = cfnconfig.ParallelClusterConfig(args)
+    pcluster_config = PclusterConfig(region=args.region, config_file=args.config_file, file_sections=[AWS])
 
-    cfn = boto3.client(
-        "cloudformation",
-        region_name=config.region,
-        aws_access_key_id=config.aws_access_key_id,
-        aws_secret_access_key=config.aws_secret_access_key,
-    )
-
+    cfn = boto3.client("cloudformation")
     try:
         status = cfn.describe_stacks(StackName=stack_name).get("Stacks")[0].get("StackStatus")
         sys.stdout.write("\rStatus: %s" % status)
@@ -753,7 +681,7 @@ def status(args):  # noqa: C901 FIXME!!!
             sys.stdout.write("\rStatus: %s\n" % status)
             sys.stdout.flush()
             if status in ["CREATE_COMPLETE", "UPDATE_COMPLETE"]:
-                state = poll_master_server_state(stack_name, config)
+                state = _poll_master_server_state(stack_name)
                 if state == "running":
                     stack = cfn.describe_stacks(StackName=stack_name).get("Stacks")[0]
                     _print_stack_outputs(stack)
@@ -786,15 +714,9 @@ def delete(args):
     LOGGER.info("Deleting: %s", args.cluster_name)
     stack = "parallelcluster-" + args.cluster_name
 
-    config = cfnconfig.ParallelClusterConfig(args)
-
-    cfn = boto3.client(
-        "cloudformation",
-        region_name=config.region,
-        aws_access_key_id=config.aws_access_key_id,
-        aws_secret_access_key=config.aws_secret_access_key,
-    )
-
+    # FIXME we are only initializing the AWS section
+    pcluster_config = PclusterConfig(region=args.region, config_file=args.config_file, file_sections=[AWS])
+    cfn = boto3.client("cloudformation")
     try:
         # delete_stack does not raise an exception if stack does not exist
         # Use describe_stacks to explicitly check if the stack exists
@@ -836,25 +758,25 @@ def delete(args):
         sys.exit(0)
 
 
-def get_cookbook_url(config, tmpdir):
-    if config.args.custom_ami_cookbook is not None:
-        return config.args.custom_ami_cookbook
+def _get_cookbook_url(region, template_url, args, tmpdir):
+    if args.custom_ami_cookbook is not None:
+        return args.custom_ami_cookbook
 
-    cookbook_version = get_cookbook_version(config, tmpdir)
-    s3_suffix = ".cn" if config.region.startswith("cn") else ""
+    cookbook_version = _get_cookbook_version(template_url, tmpdir)
+    s3_suffix = ".cn" if region.startswith("cn") else ""
     return "https://s3.%s.amazonaws.com%s/%s-aws-parallelcluster/cookbooks/%s.tgz" % (
-        config.region,
+        region,
         s3_suffix,
-        config.region,
+        region,
         cookbook_version,
     )
 
 
-def get_cookbook_version(config, tmpdir):
+def _get_cookbook_version(template_url, tmpdir):
     tmp_template_file = os.path.join(tmpdir, "aws-parallelcluster-template.json")
     try:
-        LOGGER.info("Template: %s", config.template_url)
-        urlretrieve(url=config.template_url, filename=tmp_template_file)
+        LOGGER.info("Template: %s", template_url)
+        urlretrieve(url=template_url, filename=tmp_template_file)
 
         with open(tmp_template_file) as cfn_file:
             cfn_data = json.load(cfn_file)
@@ -862,21 +784,21 @@ def get_cookbook_version(config, tmpdir):
         return cfn_data.get("Mappings").get("PackagesVersions").get("default").get("cookbook")
 
     except IOError as e:
-        LOGGER.error("Unable to download template at URL %s", config.template_url)
+        LOGGER.error("Unable to download template at URL %s", template_url)
         LOGGER.critical("Error: %s", str(e))
         sys.exit(1)
     except (ValueError, AttributeError) as e:
-        LOGGER.error("Unable to parse template at URL %s", config.template_url)
+        LOGGER.error("Unable to parse template at URL %s", template_url)
         LOGGER.critical("Error: %s", str(e))
         sys.exit(1)
 
 
-def get_cookbook_dir(config, tmpdir):
+def _get_cookbook_dir(region, template_url, args, tmpdir):
     cookbook_url = ""
     try:
         tmp_cookbook_archive = os.path.join(tmpdir, "aws-parallelcluster-cookbook.tgz")
 
-        cookbook_url = get_cookbook_url(config, tmpdir)
+        cookbook_url = _get_cookbook_url(region, template_url, args, tmpdir)
         LOGGER.info("Cookbook: %s", cookbook_url)
 
         urlretrieve(url=cookbook_url, filename=tmp_cookbook_archive)
@@ -892,15 +814,10 @@ def get_cookbook_dir(config, tmpdir):
         sys.exit(1)
 
 
-def dispose_packer_instance(results, config):
+def _dispose_packer_instance(results):
     time.sleep(2)
     try:
-        ec2_client = boto3.client(
-            "ec2",
-            region_name=config.region,
-            aws_access_key_id=config.aws_access_key_id,
-            aws_secret_access_key=config.aws_secret_access_key,
-        )
+        ec2_client = boto3.client("ec2")
         """ :type : pyboto3.ec2 """
 
         instance = ec2_client.describe_instance_status(
@@ -916,7 +833,7 @@ def dispose_packer_instance(results, config):
         sys.exit(1)
 
 
-def run_packer(packer_command, packer_env, config):
+def run_packer(packer_command, packer_env):
     erase_line = "\x1b[2K"
     _command = shlex.split(packer_command)
     results = {}
@@ -967,7 +884,7 @@ def run_packer(packer_command, packer_env, config):
     finally:
         dev_null.close()
         if results.get("PACKER_INSTANCE_ID"):
-            dispose_packer_instance(results, config)
+            _dispose_packer_instance(results)
 
 
 def print_create_ami_results(results):
@@ -991,10 +908,17 @@ def create_ami(args):
 
     instance_type = args.instance_type
     try:
-        config = cfnconfig.ParallelClusterConfig(args)
+        # FIXME it doesn't work if there is no a default section
+        pcluster_config = PclusterConfig(
+            region=args.region,
+            config_file=args.config_file,
+            file_sections=[AWS, GLOBAL, CLUSTER],
+            cluster_label="default",
+        )
 
-        vpc_id = args.vpc_id if args.vpc_id else config.parameters.get("VPCId")
-        subnet_id = args.subnet_id if args.subnet_id else config.parameters.get("MasterSubnetId")
+        vpc_config = pcluster_config.get("cluster").get("vpc")[0]
+        vpc_id = args.vpc_id if args.vpc_id else vpc_config.get("vpc_id")
+        subnet_id =  args.subnet_id if args.subnet_id else vpc_config.get("master_subnet_id")
 
         packer_env = {
             "CUSTOM_AMI_ID": args.base_ami_id,
@@ -1004,20 +928,21 @@ def create_ami(args):
             "AWS_SUBNET_ID": subnet_id,
         }
 
-        if config.aws_access_key_id:
-            packer_env["AWS_ACCESS_KEY_ID"] = config.aws_access_key_id
-        if config.aws_secret_access_key:
-            packer_env["AWS_SECRET_ACCESS_KEY"] = config.aws_secret_access_key
+        aws_config = pcluster_config.get("aws")
+        if aws_config and aws_config.get("aws_access_key_id"):
+            packer_env["AWS_ACCESS_KEY_ID"] = aws_config.get("aws_access_key_id")
+        if aws_config and aws_config.get("aws_secret_access_key"):
+            packer_env["AWS_SECRET_ACCESS_KEY"] = aws_config.get("aws_secret_access_key")
 
         LOGGER.info("Base AMI ID: %s", args.base_ami_id)
         LOGGER.info("Base AMI OS: %s", args.base_ami_os)
         LOGGER.info("Instance Type: %s", instance_type)
-        LOGGER.info("Region: %s", config.region)
+        LOGGER.info("Region: %s", pcluster_config.get("region"))
         LOGGER.info("VPC ID: %s", vpc_id)
         LOGGER.info("Subnet ID: %s", subnet_id)
 
         tmp_dir = mkdtemp()
-        cookbook_dir = get_cookbook_dir(config, tmp_dir)
+        cookbook_dir = _get_cookbook_dir(pcluster_config.get("region"), pcluster_config.get("template_url"), args, tmp_dir)
 
         packer_command = (
             cookbook_dir
@@ -1025,11 +950,11 @@ def create_ami(args):
             + args.base_ami_os
             + " --partition region"
             + " --region "
-            + config.region
+            + pcluster_config.get("region")
             + " --custom"
         )
 
-        results = run_packer(packer_command, packer_env, config)
+        results = run_packer(packer_command, packer_env)
     except KeyboardInterrupt:
         LOGGER.info("\nExiting...")
         sys.exit(0)
