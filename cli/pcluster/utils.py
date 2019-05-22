@@ -27,38 +27,25 @@ import boto3
 import pkg_resources
 from botocore.exceptions import ClientError
 
-LOGGER = logging.getLogger("pcluster.pcluster")
+LOGGER = logging.getLogger(__name__)
+
+PCLUSTER_STACK_PREFIX = "parallelcluster-"
 
 
-def boto3_client(service, aws_client_config):
-    return boto3.client(
-        service,
-        region_name=aws_client_config["region_name"],
-        aws_access_key_id=aws_client_config["aws_access_key_id"],
-        aws_secret_access_key=aws_client_config["aws_secret_access_key"],
-    )
+def get_stack_name(cluster_name):
+    return PCLUSTER_STACK_PREFIX + cluster_name
 
 
-def boto3_resource(service, aws_client_config):
-    return boto3.resource(
-        service,
-        region_name=aws_client_config["region_name"],
-        aws_access_key_id=aws_client_config["aws_access_key_id"],
-        aws_secret_access_key=aws_client_config["aws_secret_access_key"],
-    )
-
-
-def create_s3_bucket(bucket_name, aws_client_config):
+def create_s3_bucket(bucket_name, region):
     """
     Create a new S3 bucket.
 
     :param bucket_name: name of the S3 bucket to create
-    :param aws_client_config: dictionary containing configuration params for boto3 client
+    :param region: aws region
     """
-    s3_client = boto3_client("s3", aws_client_config)
+    s3_client = boto3.client("s3")
     """ :type : pyboto3.s3 """
     try:
-        region = aws_client_config["region_name"]
         if region != "us-east-1":
             s3_client.create_bucket(Bucket=bucket_name, CreateBucketConfiguration={"LocationConstraint": region})
         else:
@@ -67,15 +54,14 @@ def create_s3_bucket(bucket_name, aws_client_config):
         print("Bucket already exists")
 
 
-def delete_s3_bucket(bucket_name, aws_client_config):
+def delete_s3_bucket(bucket_name):
     """
     Delete an S3 bucket together with all stored objects.
 
     :param bucket_name: name of the S3 bucket to delete
-    :param aws_client_config: dictionary containing configuration params for boto3 client
     """
     try:
-        bucket = boto3_resource("s3", aws_client_config).Bucket(bucket_name)
+        bucket = boto3.resource("s3").Bucket(bucket_name)
         bucket.objects.all().delete()
         bucket.delete()
     except boto3.client("s3").exceptions.NoSuchBucket:
@@ -102,7 +88,7 @@ def zip_dir(path):
     return file_out
 
 
-def upload_resources_artifacts(bucket_name, root, aws_client_config):
+def upload_resources_artifacts(bucket_name, root):
     """
     Upload to the specified S3 bucket the content of the directory rooted in root path.
 
@@ -111,9 +97,8 @@ def upload_resources_artifacts(bucket_name, root, aws_client_config):
 
     :param bucket_name: name of the S3 bucket where files are uploaded
     :param root: root directory containing the resources to upload.
-    :param aws_client_config: dictionary containing configuration params for boto3 client
     """
-    bucket = boto3_resource("s3", aws_client_config).Bucket(bucket_name)
+    bucket = boto3.resource("s3").Bucket(bucket_name)
     for res in os.listdir(root):
         if os.path.isdir(os.path.join(root, res)):
             bucket.upload_fileobj(zip_dir(os.path.join(root, res)), "%s/artifacts.zip" % res)
@@ -131,7 +116,7 @@ def _get_json_from_s3(region, file_name):
     :raises ClientError if unable to download the file
     :raises ValueError if unable to decode the file content
     """
-    s3 = boto3.resource("s3", region_name=region)
+    s3 = boto3.resource("s3")
     bucket_name = "{0}-aws-parallelcluster".format(region)
 
     file_contents = s3.Object(bucket_name, file_name).get()["Body"].read().decode("utf-8")
@@ -285,3 +270,73 @@ def check_if_latest_version():
             print("Info: There is a newer version %s of AWS ParallelCluster available." % latest)
     except Exception:
         pass
+
+
+def warn(message):
+    """Print a warning message."""
+    print("WARNING: {0}".format(message))
+
+
+def fail(message):
+    """Raise SystemExit exception and print an error message to the stderr."""
+    sys.exit("ERROR: {0}".format(message))
+
+
+def error(message, fail_on_error=True):
+    """Print an error message and Raise SystemExit exception to the stderr if fail_on_error is true."""
+    if fail_on_error:
+        fail(message)
+    else:
+        print("ERROR: {0}".format(message))
+
+
+def get_cfn_param(params, key_name):
+    """
+    Get parameter value from Cloudformation Stack Parameters.
+
+    :param params: Cloudformation Stack Parameters
+    :param key_name: Parameter Key
+    :return: ParameterValue if that parameter exists, otherwise None
+    """
+    param_value = next((i.get("ParameterValue") for i in params if i.get("ParameterKey") == key_name), "NONE")
+    return param_value.strip()
+
+
+def get_efs_mount_target_id(efs_fs_id, avail_zone):
+    """
+    Search for a Mount Target Id in given availability zone for the given EFS file system id.
+
+    :param efs_fs_id: EFS file system Id
+    :param avail_zone: Availability zone to verify
+    :return: the mount_target_id or None
+    """
+    mount_target_id = None
+    if efs_fs_id:
+        mount_targets = boto3.client("efs").describe_mount_targets(FileSystemId=efs_fs_id)
+
+        for mount_target in mount_targets.get("MountTargets"):
+            # Check to see if there is an existing mt in the az of the stack
+            mount_target_subnet = mount_target.get("SubnetId")
+            if avail_zone == get_avail_zone(mount_target_subnet):
+                mount_target_id = mount_target.get("MountTargetId")
+
+    return mount_target_id
+
+
+def get_avail_zone(subnet_id):
+    return boto3.client("ec2").describe_subnets(SubnetIds=[subnet_id]).get("Subnets")[0].get("AvailabilityZone")
+
+
+def get_latest_alinux_ami_id():
+    """Get latest alinux ami id."""
+    try:
+        alinux_ami_id = (
+            boto3.client("ssm")
+            .get_parameters_by_path(Path="/aws/service/ami-amazon-linux-latest")
+            .get("Parameters")[0]
+            .get("Value")
+        )
+    except ClientError as e:
+        fail("Unable to retrieve Amazon Linux AMI id.\n{0}".format(e.response.get("Error").get("Message")))
+
+    return alinux_ami_id
