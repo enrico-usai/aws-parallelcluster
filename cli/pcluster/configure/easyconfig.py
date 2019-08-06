@@ -172,29 +172,6 @@ def configure(args):
     pcluster_config.to_file()
 
 
-def _check_destination_directory(config_file):
-    # ensure that the directory for the config file exists (because
-    # ~/.parallelcluster is likely not to exist on first usage)
-    try:
-        config_folder = os.path.dirname(config_file) or "."
-        os.makedirs(config_folder)
-    except OSError as e:
-        if e.errno != errno.EEXIST:
-            raise  # can safely ignore EEXISTS for this purpose...
-
-
-def _write_config(config, sections):
-    for section in sections:
-        try:
-            config.add_section(section["name"])
-        except configparser.DuplicateSectionError:
-            pass
-        for key, value in section.items():
-            # Only update configuration if not set
-            if value is not None and key != "name":
-                config.set(section["name"], key, value)
-
-
 def _reset_config_params(section_map, config, parameters_to_remove):
     section_params = section_map.get("items")
 

@@ -18,6 +18,7 @@ from pcluster.config.params_types import (
     EBSSettingsParam,
     EFSSection,
     IntParam,
+    JsonParam,
     MaintainInitialSizeParam,
     MaxSizeParam,
     MinSizeParam,
@@ -429,7 +430,7 @@ CLUSTER = {
             "cfn": "PostInstallArgs",
         },
         "extra_json": {
-            # "type": json,  TODO
+            "type": JsonParam,
             "cfn": "ExtraJson",
         },
         "additional_cfn_template": {
@@ -437,6 +438,7 @@ CLUSTER = {
             "cfn": "AdditionalCfnTemplate",
         },
         "tags": {
+            "type": JsonParam,
             "default": "{}",
         },
         "custom_chef_cookbook": {

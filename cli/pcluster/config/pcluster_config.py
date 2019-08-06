@@ -11,7 +11,6 @@
 import configparser
 import errno
 import inspect
-import json
 import logging
 import os
 import stat
@@ -126,26 +125,11 @@ class PclusterConfig(object):
                 pcluster_version = pkg_resources.get_distribution("aws-parallelcluster").version
                 s3_suffix = ".cn" if self.region.startswith("cn") else ""
                 self.template_url = (
-                    "https://s3.%s.amazonaws.com%s/%s-aws-parallelcluster/templates/"
-                    "aws-parallelcluster-%s.cfn.json" % (self.region, s3_suffix, self.region, pcluster_version)
+                    "https://s3.{REGION}.amazonaws.com{SUFFIX}/{REGION}-aws-parallelcluster/templates/"
+                    "aws-parallelcluster-{VERSION}.cfn.json".format(
+                        REGION=self.region, SUFFIX=s3_suffix, VERSION=pcluster_version
+                    )
                 )
-
-    def __init_tags(self, tags=None):
-        """
-        Merge tags from config with tags from command line args.
-
-        Command line args take precedent and overwrite tags supplied in the config.
-        """
-        self.tags = {}
-        # get tags from config
-        self.tags = json.loads(self.cluster.get("tags"))
-        # override tags with tags from command line
-        try:
-            if tags is not None:
-                for key in tags:
-                    self.tags[key] = tags[key]
-        except AttributeError:
-            pass
 
     def __init_section_dict(self, config_parser, section_map, section_label=None):
         try:
@@ -155,9 +139,6 @@ class PclusterConfig(object):
         except NoSectionError as e:
             LOGGER.info(e)
             pass
-
-    def __str__(self):
-        return str(vars(self))
 
     def to_file(self):
         """
@@ -184,19 +165,17 @@ class PclusterConfig(object):
         with open(self.config_file, "w") as cf:
             self.config_parser.write(cf)
 
-    def to_cfn(self, tags=None):
+    def to_cfn(self):
         """
         Convert the internal representation of the cluster to a list of CFN parameters.
 
-        :return: the list of cfn parameters associated with the given configuration.
+        :return: the template_url, the list of cfn parameters associated with the given configuration and the tags
         """
         params = ClusterSection(
             CLUSTER, self.cluster.get("label")
         ).to_cfn(section_dict=self.cluster, pcluster_config=self)
 
-        self.__init_tags(tags)
-
-        return self.template_url, params, self.tags
+        return self.template_url, params, self.cluster.get("tags")
 
     def __from_file(self, involved_sections, cluster_label=None, config_parser=None, template_url=None):
         if GLOBAL in involved_sections:
@@ -240,7 +219,6 @@ class PclusterConfig(object):
         """
         Get the Availability zone of the Master Subnet, by searching in pcluster_config dictionary
 
-        :param pcluster_dict:
         :return: master avail zone
         """
         master_subnet_id = self.cluster.get("vpc")[0].get("master_subnet_id")

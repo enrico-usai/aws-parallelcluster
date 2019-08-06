@@ -9,8 +9,10 @@
 # OR CONDITIONS OF ANY KIND, express or implied. See the License for the specific language governing permissions and
 # limitations under the License.
 import logging
+import json
 import re
 from configparser import DuplicateSectionError, NoSectionError, NoOptionError
+from json import JSONDecodeError
 
 from pcluster.utils import fail, get_cfn_param, get_efs_mount_target_id, warn
 
@@ -206,6 +208,31 @@ class IntParam(Param):
             param_value = self.param_map.get("default", None)
 
         return param_value
+
+
+class JsonParam(Param):
+
+    def from_file(self, config_parser, parent_section_name):
+        try:
+            item_value = config_parser.get(parent_section_name, self.param_key)
+            param_value = {}
+            try:
+                if item_value:
+                    param_value = json.loads(item_value)
+            except (TypeError, JSONDecodeError) as e:
+                LOGGER.critical("Error parsing JSON parameter '{0}'. {1}".format(self.param_key), e)
+
+            self._check_allowed_values(param_value)
+
+        except NoOptionError:
+            param_value = self.param_map.get("default")
+            if param_value:
+                LOGGER.debug("Setting default value '{0}' for key '{1}'".format(param_value, self.param_key))
+        except NoSectionError as e:
+            LOGGER.error(e)
+            raise e
+
+        return self.param_key, param_value
 
 
 class SharedDirParam(Param):
