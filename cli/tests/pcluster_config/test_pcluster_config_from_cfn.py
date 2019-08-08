@@ -50,7 +50,7 @@ from tests.pcluster_config.defaults import DefaultDict, DefaultCfnParams
 def test_param_from_cfn_value(section_map, param_key, cfn_value, expected_value):
     param_map, param_type = get_param_map(section_map, param_key)
 
-    param_value = param_type(param_key, param_map).from_cfn_value(cfn_value)
+    param_value = param_type(param_key, param_map).from_string(cfn_value)
     assert_that(param_value).is_equal_to(expected_value)
 
 
@@ -156,7 +156,7 @@ def test_param_from_cfn(section_map, param_key, cfn_params_dict, expected_value)
         (EFS,
          {"EFSOptions": "test,NONE,NONE,NONE,NONE,NONE,NONE,NONE"},
          {
-             "label": "efs1",
+             "label": "default",
              "shared_dir": "test",
              "efs_fs_id": None,
              "performance_mode": "generalPurpose",
@@ -168,7 +168,7 @@ def test_param_from_cfn(section_map, param_key, cfn_params_dict, expected_value)
         (EFS,
          {"EFSOptions": "test,test,maxIO,test,1024,true,provisioned"},
          {
-             "label": "efs1",
+             "label": "default",
              "shared_dir": "test",
              "efs_fs_id": "test",
              "performance_mode": "maxIO",
@@ -185,7 +185,7 @@ def test_param_from_cfn(section_map, param_key, cfn_params_dict, expected_value)
         (RAID,
          {"RAIDOptions": "test,NONE,NONE,NONE,NONE,NONE,NONE,NONE"},
          {
-             "label": "raid1",
+             "label": "default",
              "shared_dir": "test",
              "raid_type": None,
              "num_of_raid_volumes": None,
@@ -198,7 +198,7 @@ def test_param_from_cfn(section_map, param_key, cfn_params_dict, expected_value)
         (RAID,
          {"RAIDOptions": "test,0,3,gp2,30,200,true,test"},
          {
-             "label": "raid1",
+             "label": "default",
              "shared_dir": "test",
              "raid_type": 0,
              "num_of_raid_volumes": 3,
@@ -216,7 +216,7 @@ def test_param_from_cfn(section_map, param_key, cfn_params_dict, expected_value)
         (FSX,
          {"FSXOptions": "test,NONE,NONE,NONE,NONE,NONE,NONE,NONE"},
          {
-             "label": "fsx1",
+             "label": "default",
              "shared_dir": "test",
              "fsx_fs_id": None,
              "storage_capacity": None,
@@ -229,7 +229,7 @@ def test_param_from_cfn(section_map, param_key, cfn_params_dict, expected_value)
         (FSX,
          {"FSXOptions": "test,test1,10,test2,20,test3,test4,test5"},
          {
-             "label": "fsx1",
+             "label": "default",
              "shared_dir": "test",
              "fsx_fs_id": "test1",
              "storage_capacity": 10,

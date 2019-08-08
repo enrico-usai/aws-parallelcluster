@@ -41,7 +41,7 @@ if sys.version_info[0] >= 3:
 else:
     from urllib import urlretrieve  # pylint: disable=no-name-in-module
 
-LOGGER = logging.getLogger(__name__)
+LOGGER = logging.getLogger("pcluster.cli")
 
 
 def create_bucket_with_batch_resources(stack_name, resources_dir, region):
@@ -74,6 +74,7 @@ def create(args):  # noqa: C901 FIXME!!!
         config_file=args.config_file,
         file_sections=[AWS, GLOBAL, CLUSTER],
         cluster_label=args.cluster_template,
+        fail_on_config_file_absence=True,
     )
     # FIXME verify if template url must be passed
     cfn_template_url, cfn_params, cfn_tags = pcluster_config.to_cfn(tags=args.tags)
@@ -112,7 +113,6 @@ def create(args):  # noqa: C901 FIXME!!!
         if args.extra_parameters:
             cfn_params.update(dict(args.extra_parameters))
         if args.tags:
-            # TODO remove from PclusterConfig
             try:
                 if args.tags is not None:
                     for key in args.tags:
@@ -209,6 +209,7 @@ def update(args):  # noqa: C901 FIXME!!!
         config_file=args.config_file,
         file_sections=[AWS, GLOBAL, CLUSTER],
         cluster_label=args.cluster_template,
+        fail_on_config_file_absence=True,
     )
     _, cfn_params, _ = pcluster_config.to_cfn()
 
@@ -288,8 +289,8 @@ def start(args):
     pcluster_config = PclusterConfig(
         region=args.region,
         config_file=args.config_file,
-        file_sections=[AWS, CLUSTER],
-        cluster_name=args.cluster_name
+        file_sections=[AWS],
+        cluster_name=args.cluster_name,
     )
     cluster_config = pcluster_config.get("cluster")
 
@@ -382,7 +383,11 @@ def colorize(stack_status, args):
 
 
 def list_stacks(args):
-    pcluster_config = PclusterConfig(region=args.region, config_file=args.config_file, file_sections=[AWS])
+    pcluster_config = PclusterConfig(
+        region=args.region,
+        config_file=args.config_file,
+        file_sections=[AWS],
+    )
     cfn = boto3.client("cloudformation")
     try:
         stacks = cfn.describe_stacks().get("Stacks")
@@ -547,7 +552,7 @@ def instances(args):
         instances.extend(get_asg_instances(stack_name))
 
     for instance in instances:
-        print("%s         %s" % (instance[0], instance[1]))
+        LOGGER.info("%s         %s" % (instance[0], instance[1]))
 
     if cluster_config.get("scheduler") == "awsbatch":
         LOGGER.info("Run 'awsbhosts --cluster %s' to list the compute instances", args.cluster_name)
@@ -654,7 +659,11 @@ def command(args, extra_args):  # noqa: C901 FIXME!!!
 
 def status(args):  # noqa: C901 FIXME!!!
     stack_name = "parallelcluster-" + args.cluster_name
-    pcluster_config = PclusterConfig(region=args.region, config_file=args.config_file, file_sections=[AWS])
+    pcluster_config = PclusterConfig(
+        region=args.region,
+        config_file=args.config_file,
+        file_sections=[AWS],
+    )
 
     cfn = boto3.client("cloudformation")
     try:
@@ -715,7 +724,11 @@ def delete(args):
     stack = "parallelcluster-" + args.cluster_name
 
     # FIXME we are only initializing the AWS section
-    pcluster_config = PclusterConfig(region=args.region, config_file=args.config_file, file_sections=[AWS])
+    pcluster_config = PclusterConfig(
+        region=args.region,
+        config_file=args.config_file,
+        file_sections=[AWS],
+    )
     cfn = boto3.client("cloudformation")
     try:
         # delete_stack does not raise an exception if stack does not exist
@@ -914,6 +927,7 @@ def create_ami(args):
             config_file=args.config_file,
             file_sections=[AWS, GLOBAL, CLUSTER],
             cluster_label="default",
+            fail_on_config_file_absence=True,
         )
 
         vpc_config = pcluster_config.get("cluster").get("vpc")[0]

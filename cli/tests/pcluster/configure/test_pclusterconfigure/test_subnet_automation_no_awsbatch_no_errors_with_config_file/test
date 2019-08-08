@@ -25,4 +25,3 @@ sanity_check = true
 
 [aliases]
 ssh = ssh {CFN_USER}@{MASTER_IP} {ARGS}
-

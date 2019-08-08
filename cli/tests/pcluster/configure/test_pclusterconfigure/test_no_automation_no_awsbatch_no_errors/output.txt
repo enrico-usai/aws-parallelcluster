@@ -44,4 +44,3 @@ Allowed values for Master Subnet ID:
 Allowed values for Compute Subnet ID:
 1. subnet-11 | ParallelClusterPublicSubnet | Subnet size: 256
 2. subnet-12 | ParallelClusterPrivateSubnet | Subnet size: 4096
-The configuration is valid

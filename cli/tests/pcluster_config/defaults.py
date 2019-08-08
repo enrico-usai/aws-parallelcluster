@@ -13,6 +13,7 @@ from enum import Enum
 
 
 DEFAULT_CLUSTER_DICT = {
+    "label": "default",
     "key_name": None,
     "template_url": None,
     "base_os": "alinux",
@@ -44,9 +45,9 @@ DEFAULT_CLUSTER_DICT = {
     "pre_install_args": None,
     "post_install": None,
     "post_install_args": None,
-    "extra_json": None,
+    "extra_json": {},
     "additional_cfn_template": None,
-    "tags": "{}",
+    "tags": {},
     "custom_chef_cookbook": None,
     "custom_awsbatch_template_url": None,
     "scaling": [],
@@ -58,10 +59,12 @@ DEFAULT_CLUSTER_DICT = {
 }
 
 DEFAULT_SCALING_DICT = {
+    "label": "default",
     "scaledown_idletime": 10,
 }
 
 DEFAULT_VPC_DICT = {
+    "label": "default",
     "vpc_id": None,
     "master_subnet_id": None,
     "ssh_from": "0.0.0.0/0",
@@ -73,6 +76,7 @@ DEFAULT_VPC_DICT = {
 }
 
 DEFAULT_EBS_DICT = {
+    "label": "default",
     "shared_dir": None,
     "ebs_snapshot_id": None,
     "volume_type": "gp2",
@@ -84,6 +88,7 @@ DEFAULT_EBS_DICT = {
 }
 
 DEFAULT_EFS_DICT = {
+    "label": "default",
     "shared_dir": None,
     "efs_fs_id": None,
     "performance_mode": "generalPurpose",
@@ -94,6 +99,7 @@ DEFAULT_EFS_DICT = {
 }
 
 DEFAULT_RAID_DICT = {
+    "label": "default",
     "shared_dir": None,
     "raid_type": None,
     "num_of_raid_volumes": None,
@@ -105,6 +111,7 @@ DEFAULT_RAID_DICT = {
 }
 
 DEFAULT_FSX_DICT = {
+    "label": "default",
     "shared_dir": None,
     "fsx_fs_id": None,
     "storage_capacity": None,

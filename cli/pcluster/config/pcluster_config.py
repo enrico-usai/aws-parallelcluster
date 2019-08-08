@@ -25,7 +25,6 @@ from pcluster.utils import fail
 
 LOGGER = logging.getLogger(__name__)
 
-
 class PclusterConfig(object):
     """Manage ParallelCluster Config."""
     def __init__(
@@ -36,22 +35,22 @@ class PclusterConfig(object):
             region=None,
             template_url=None,
             cluster_name=None,
+            fail_on_config_file_absence=False,
     ):
-        # always parse the configuration file if there, to get common sections (aws, global)
-        self._init_config_parser(config_file)
-
-        # init AWS section and general attributes
+        # always parse the configuration file if there, to get AWS section
+        self._init_config_parser(config_file, fail_on_config_file_absence)
+        # init AWS section
         self.__init_section_dict(self.config_parser, AWS)
         self.__init_region(region)
         self.__init_aws_credentials()
 
-        # init pcluster_config object, from cfn or from file
+        # init pcluster_config object, from cfn or from config_file
         if cluster_name:
             self.__from_cfn(cluster_name)
         else:
             self.__from_file(file_sections, cluster_label, self.config_parser, template_url)
 
-    def _init_config_parser(self, config_file):
+    def _init_config_parser(self, config_file, fail_on_config_file_absence=True):
         """
         Parse the config file and initialize config_file and config_parser attributes
         :param config_file: The config file to parse
@@ -60,16 +59,20 @@ class PclusterConfig(object):
             config_file if config_file else os.path.expanduser(os.path.join("~", ".parallelcluster", "config"))
         )
         if not os.path.isfile(self.config_file):
-            fail(
-                "Config file {0} not found.\n"
-                "You can copy a template from {1}{2}examples{2}config "
-                "or execute the 'pcluster configure' command".format(
-                    self.config_file,
-                    os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe()))),
-                    os.path.sep,
+            if fail_on_config_file_absence:
+                fail(
+                    "Config file {0} not found.\n"
+                    "You can copy a template from {1}{2}examples{2}config "
+                    "or execute the 'pcluster configure' command".format(
+                        self.config_file,
+                        os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe()))),
+                        os.path.sep,
+                    )
                 )
-            )
-        LOGGER.debug("Parsing configuration file %s", self.config_file)
+            else:
+                LOGGER.debug("Configuration file doesn't exist. %s", self.config_file)
+        else:
+            LOGGER.debug("Parsing configuration file %s", self.config_file)
         self.config_parser = configparser.ConfigParser(inline_comment_prefixes=("#", ";"))
         self.config_parser.read(self.config_file)
 
@@ -105,10 +108,7 @@ class PclusterConfig(object):
         elif os.environ.get("AWS_DEFAULT_REGION"):
             self.region = os.environ.get("AWS_DEFAULT_REGION")
         else:
-            try:
-                self.region = self.get("aws").get("aws_region_name", "us-east-1")
-            except AttributeError:
-                self.region = "us-east-1"
+            self.region = self.get("aws").get("aws_region_name")
 
     def __init_template_url(self, template_url=None):
         """
@@ -135,10 +135,11 @@ class PclusterConfig(object):
         try:
             section_type = section_map.get("type", Section)
             section_key, section_value = section_type(section_map, section_label).from_file(config_parser)
-            setattr(self, section_key, section_value)
         except NoSectionError as e:
-            LOGGER.info(e)
+            #LOGGER.info(e)
+            section_key, section_value = section_type(section_map, section_label).from_map()
             pass
+        setattr(self, section_key, section_value)
 
     def to_file(self):
         """
@@ -146,6 +147,8 @@ class PclusterConfig(object):
 
         NOTE: aws, global, aliases sections will be excluded from this transformation.
         """
+        self.__validate([CLUSTER])
+
         ClusterSection(CLUSTER, self.cluster.get("label")).to_file(self.cluster, self.config_parser)
 
         # ensure that the directory for the config file exists
@@ -171,30 +174,29 @@ class PclusterConfig(object):
 
         :return: the template_url, the list of cfn parameters associated with the given configuration and the tags
         """
+        # validate PclusterConfig object
+        self.__validate([CLUSTER])
+
         params = ClusterSection(
             CLUSTER, self.cluster.get("label")
         ).to_cfn(section_dict=self.cluster, pcluster_config=self)
 
         return self.template_url, params, self.cluster.get("tags")
 
-    def __from_file(self, involved_sections, cluster_label=None, config_parser=None, template_url=None):
-        if GLOBAL in involved_sections:
+    def __from_file(self, file_sections, cluster_label=None, config_parser=None, template_url=None):
+        if GLOBAL in file_sections:
             self.__init_section_dict(config_parser, GLOBAL)
-        if ALIASES in involved_sections:
+        if ALIASES in file_sections:
             self.__init_section_dict(config_parser, ALIASES)
 
         # get cluster by cluster_label
-        if CLUSTER in involved_sections:
+        if CLUSTER in file_sections:
             if not cluster_label:
                 global_config = self.get("global")
                 cluster_label = global_config.get("cluster_template", "default") if global_config else "default"
 
             self.__init_section_dict(config_parser, CLUSTER, cluster_label)
             self.__init_template_url(template_url)
-
-        # validate PclusterConfig object
-        # TODO fail only if sanity_check is true
-        self.__validate(involved_sections)
 
     def __from_cfn(self, cluster_name):
         stack_name = "parallelcluster-" + cluster_name
@@ -203,17 +205,19 @@ class PclusterConfig(object):
         stack = cfn_client.describe_stacks(StackName=stack_name).get("Stacks")[0]
 
         section_key, section_dict = ClusterSection(CLUSTER).from_cfn(stack.get("Parameters", []))
-        # TODO put in common setattr with set_dict
         setattr(self, section_key, section_dict)
 
-    def __validate(self, involved_sections):
-        for section_map in involved_sections:
+    def __validate(self, file_sections):
+        global_config = self.get("global")
+        fail_on_error = global_config.get("sanity_check", True) if global_config else True
+
+        for section_map in file_sections:
             section_key = section_map.get("key")
             section_type = section_map.get("type", Section)
             section_label = self.get(section_key).get("label", None)
             section_type(
                 section_map, section_label
-            ).validate(section_dict=self.get(section_key, None), pcluster_dict=self)
+            ).validate(section_dict=self.get(section_key, None), pcluster_dict=self, fail_on_error=fail_on_error)
 
     def get_master_avail_zone(self):
         """

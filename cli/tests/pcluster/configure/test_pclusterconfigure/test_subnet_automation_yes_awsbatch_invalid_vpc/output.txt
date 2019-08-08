@@ -32,4 +32,3 @@ Allowed values for VPC ID:
 2. vpc-2 | ParallelClusterVPC-20190624105051 | 0 subnets inside
 3. vpc-3 | default | 3 subnets inside
 4. vpc-4 | ParallelClusterVPC-20190626095403 | 1 subnets inside
-The configuration is valid

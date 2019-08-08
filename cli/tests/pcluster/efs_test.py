@@ -1,71 +1,37 @@
-import unittest
-
 import argparse
+import os
 
-from pcluster import cfnconfig
+from pcluster.config.mapping import AWS, GLOBAL, CLUSTER
+from pcluster.config.pcluster_config import PclusterConfig
 
-config_file = "tests/pcluster/config_efs"
-test_cluster_template = "unittest"
+from assertpy import assert_that
+
 args = argparse.Namespace()
-args.config_file = config_file
-args.cluster_template = test_cluster_template
+args.config_file = os.path.abspath("pcluster/input.txt")
+args.cluster_template = "unittest"
 
 
-def create():
-    """Empty function to simulate the create function in pcluster."""
-    return
+def test_efs_params(mocker):
+    """Unit tests for parsing EFS related options."""
+    global args
+    mocker.patch("pcluster.config.params_types.get_efs_mount_target_id", return_value="mount_target_id")
 
+    pcluster_config = PclusterConfig(
+        config_file=args.config_file,
+        file_sections=[AWS, GLOBAL, CLUSTER],
+        cluster_label=args.cluster_template,
+        fail_on_config_file_absence=True,
+    )
+    pcluster_config.get_master_avail_zone = mocker.MagicMock(return_value="fake_avail_zone")
+    _, cfn_params, _ = pcluster_config.to_cfn()
 
-def update():
-    """Empty function to simulate the update function in pcluster."""
-    return
+    efs_options = [opt.strip() for opt in cfn_params.get("EFSOptions").split(",")]
+    assert_that(efs_options[0]).is_equal_to("efs_shared")
+    assert_that(efs_options[1]).is_equal_to("fs-12345")
+    assert_that(efs_options[2]).is_equal_to("maxIO")
+    assert_that(efs_options[3]).is_equal_to("key1")
+    assert_that(efs_options[4]).is_equal_to("1020")
+    assert_that(efs_options[5]).is_equal_to("true")
+    assert_that(efs_options[6]).is_equal_to("provisioned")
+    assert_that(len(efs_options)).is_equal_to(8)
 
-
-class TestEFSConfigParser(unittest.TestCase):
-    """Unit testing module for parsing EFS related options."""
-
-    def test_efs_create(self):
-        """Unit tests for parsing EFS related options when pcluster create is called."""
-        global args
-        args.func = create
-        config = cfnconfig.ParallelClusterConfig(args)
-        efs_options = [opt.strip() for opt in config.parameters["EFSOptions"].split(",")]
-        self.assertEqual(efs_options[0], "efs_shared", msg="Unexpected shared_dir")
-        self.assertEqual(efs_options[1], "fs-12345", msg="Unexpected efs_fs_id")
-        self.assertEqual(efs_options[2], "maxIO", msg="Unexpected performance_mode")
-        self.assertEqual(efs_options[3], "key1", msg="Unexpected efs_kms_key_id")
-        self.assertEqual(efs_options[4], "1020", msg="Unexpected provisioned_throughput")
-        self.assertEqual(efs_options[5], "true", msg="Unexpected encrypted")
-        self.assertEqual(efs_options[6], "provisioned", msg="Unexpected throughput_mode")
-        self.assertEqual(
-            len(efs_options),
-            8,
-            "Unexpected number of EFS parameters: %s "
-            "\nExpected 8 parameters, 7 configurable parameters"
-            "and 1 parameter reserved for passing mount point state to stack" % len(efs_options),
-        )
-
-    def test_efs_update(self):
-        """Unit tests for parsing EFS related options when pcluster update is called."""
-        global args
-        args.func = update
-        config = cfnconfig.ParallelClusterConfig(args)
-        efs_options = [opt.strip() for opt in config.parameters["EFSOptions"].split(",")]
-        self.assertEqual(efs_options[0], "efs_shared", msg="Unexpected shared_dir")
-        self.assertEqual(efs_options[1], "fs-12345", msg="Unexpected efs_fs_id")
-        self.assertEqual(efs_options[2], "maxIO", msg="Unexpected performance_mode")
-        self.assertEqual(efs_options[3], "key1", msg="Unexpected efs_kms_key_id")
-        self.assertEqual(efs_options[4], "1020", msg="Unexpected provisioned_throughput")
-        self.assertEqual(efs_options[5], "true", msg="Unexpected encrypted")
-        self.assertEqual(efs_options[6], "provisioned", msg="Unexpected throughput_mode")
-        self.assertEqual(
-            len(efs_options),
-            8,
-            "Unexpected number of EFS parameters: %s "
-            "\nExpected 8 parameters, 7 configurable parameters"
-            "and 1 parameter reserved for passing mount point state to stack" % len(efs_options),
-        )
-
-
-if __name__ == "__main__":
-    unittest.main()

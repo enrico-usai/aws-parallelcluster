@@ -14,7 +14,7 @@ import re
 from configparser import DuplicateSectionError, NoSectionError, NoOptionError
 from json import JSONDecodeError
 
-from pcluster.utils import fail, get_cfn_param, get_efs_mount_target_id, warn
+from pcluster.utils import error, get_cfn_param, get_efs_mount_target_id, warn
 
 LOGGER = logging.getLogger(__name__)
 
@@ -28,8 +28,16 @@ class Param(object):
     def to_cfn_value(self, param_value):
         return str(param_value if param_value is not None else self.param_map.get("default", "NONE"))
 
-    def from_cfn_value(self, cfn_value):
-        return self.param_map.get("default", None) if cfn_value.strip() == "NONE" else cfn_value.strip()
+    def from_string(self, string_value):
+        param_value = self.get_default_value()
+
+        if isinstance(string_value, str):
+            string_value = string_value.strip()
+
+        if string_value is not None and string_value != "NONE":
+            param_value = string_value
+
+        return param_value
 
     def from_file(self, config_parser, parent_section_name):
         try:
@@ -37,7 +45,7 @@ class Param(object):
             self._check_allowed_values(param_value)
 
         except NoOptionError:
-            param_value = self.param_map.get("default")
+            param_value = self.get_default_value()
             if param_value:
                 LOGGER.debug("Setting default value '{0}' for key '{1}'".format(param_value, self.param_key))
         except NoSectionError as e:
@@ -46,8 +54,11 @@ class Param(object):
 
         return self.param_key, param_value
 
+    def from_map(self):
+        return self.param_key, self.get_default_value()
+
     def to_file(self, config_parser, parent_section_dict, parent_section_name, param_value):
-        if param_value is not None and param_value != self.param_map.get("default"):
+        if param_value is not None and param_value != self.get_default_value():
             config_parser.set(parent_section_name, self.param_key, str(param_value))
         else:
             # remove parameter from config_parser if there
@@ -62,19 +73,19 @@ class Param(object):
         if allowed_values:
             if isinstance(allowed_values, list):
                 if param_value not in allowed_values:
-                    fail(
+                    error(
                         "The configuration parameter '{0}' has an invalid value '{1}'\n"
-                        "Allowed values are: {2}".format(self.param_key, param_value, allowed_values)
+                        "Allowed values are: {2}".format(self.param_key, param_value, allowed_values),
                     )
             else:
                 # convert to regex
                 if not re.compile(allowed_values).match(str(param_value)):
-                    fail(
+                    error(
                         "The configuration parameter '{0}' has an invalid value '{1}'\n"
-                        "Allowed values are: {2}".format(self.param_key, param_value, allowed_values)
+                        "Allowed values are: {2}".format(self.param_key, param_value, allowed_values),
                     )
 
-    def validate(self, param_value, section_dict, pcluster_dict):
+    def validate(self, param_value, section_dict, pcluster_dict, fail_on_error=True):
         validation_func = self.param_map.get("validator", None)
 
         if not validation_func:
@@ -84,10 +95,10 @@ class Param(object):
         else:
             errors, warnings = validation_func(self.param_key, param_value, pcluster_dict)
             if errors:
-                fail(
-                    "The configuration parameter '{0}' has an invalid value '{1}'\n{2}".format(
-                        self.param_key, param_value, "\n".join(errors)
-                    )
+                error(
+                    "The configuration parameter '{0}' has an invalid value '{1}'\n"
+                    "{2}".format(self.param_key, param_value, "\n".join(errors)),
+                    fail_on_error,
                 )
             elif warnings:
                 warn(
@@ -112,7 +123,10 @@ class Param(object):
         cfn_converter = self.param_map.get("cfn", None)
         cfn_value = get_cfn_param(cfn_params, cfn_converter) if cfn_converter else "NONE"
 
-        return self.param_key, self.from_cfn_value(cfn_value)
+        return self.param_key, self.from_string(cfn_value)
+
+    def get_default_value(self):
+        return self.param_map.get("default", None)
 
 
 class FloatParam(Param):
@@ -123,22 +137,27 @@ class FloatParam(Param):
             self._check_allowed_values(param_value)
 
         except NoOptionError:
-            param_value = self.param_map.get("default")
+            param_value = self.get_default_value()
             if param_value:
                 LOGGER.debug("Setting default value '{0}' for key '{1}'".format(param_value, self.param_key))
         except NoSectionError as e:
             LOGGER.error(e)
             raise e
         except ValueError:
-            fail("Configuration parameter '{0}' must be a Float".format(self.param_key))
+            error("Configuration parameter '{0}' must be a Float".format(self.param_key))
 
         return self.param_key, param_value
 
-    def from_cfn_value(self, cfn_value):
+    def from_string(self, string_value):
+        param_value = self.get_default_value()
+
         try:
-            param_value = float(cfn_value.strip())
+            if string_value is not None:
+                if isinstance(string_value, str):
+                    string_value = string_value.strip()
+                param_value = float(string_value)
         except ValueError:
-            param_value = self.param_map.get("default", None)
+            pass
 
         return param_value
 
@@ -150,19 +169,19 @@ class BoolParam(Param):
             param_value = config_parser.getboolean(parent_section_name, self.param_key)
             self._check_allowed_values(param_value)
         except NoOptionError:
-            param_value = self.param_map.get("default")
+            param_value = self.get_default_value()
             if param_value:
                 LOGGER.debug("Setting default value '{0}' for key '{1}'".format(param_value, self.param_key))
         except NoSectionError as e:
             LOGGER.error(e)
             raise e
         except ValueError:
-            fail("Configuration parameter '{0}' must be a Boolean".format(self.param_key))
+            error("Configuration parameter '{0}' must be a Boolean".format(self.param_key))
 
         return self.param_key, param_value
 
     def to_file(self, config_parser, parent_section_dict, parent_section_name, param_value):
-        if param_value != self.param_map.get("default"):
+        if param_value != self.get_default_value():
             config_parser.set(parent_section_name, self.param_key, self.to_cfn_value(param_value))
         else:
             # remove parameter from config_parser if there
@@ -173,12 +192,21 @@ class BoolParam(Param):
 
     def to_cfn_value(self, param_value):
         if param_value is None:
-            param_value = self.param_map.get("default")
+            param_value = self.get_default_value()
 
         return "true" if param_value else "false"
 
-    def from_cfn_value(self, cfn_value):
-        return self.param_map.get("default") if cfn_value.strip() == "NONE" else cfn_value.strip() == "true"
+    def from_string(self, string_value):
+        param_value = self.get_default_value()
+
+        if string_value is not None:
+            if isinstance(string_value, str):
+                string_value = string_value.strip()
+
+            if string_value != "NONE":
+                param_value = string_value == "true"
+
+        return param_value
 
 
 class IntParam(Param):
@@ -188,7 +216,7 @@ class IntParam(Param):
             param_value = config_parser.getint(parent_section_name, self.param_key)
             self._check_allowed_values(param_value)
         except NoOptionError:
-            param_value = self.param_map.get("default")
+            param_value = self.get_default_value()
             if param_value:
                 LOGGER.debug("Setting default value '{0}' for key '{1}'".format(param_value, self.param_key))
                 return self.param_key, param_value
@@ -197,15 +225,19 @@ class IntParam(Param):
             LOGGER.error(e)
             raise e
         except ValueError:
-            fail("Configuration parameter '{0}' must be an Integer".format(self.param_key))
+            error("Configuration parameter '{0}' must be an Integer".format(self.param_key))
 
         return self.param_key, param_value
 
-    def from_cfn_value(self, cfn_value):
+    def from_string(self, string_value):
+        param_value = self.get_default_value()
         try:
-            param_value = int(cfn_value.strip())
+            if string_value is not None:
+                if isinstance(string_value, str):
+                    string_value = string_value.strip()
+                param_value = int(string_value)
         except ValueError:
-            param_value = self.param_map.get("default", None)
+            pass
 
         return param_value
 
@@ -215,17 +247,11 @@ class JsonParam(Param):
     def from_file(self, config_parser, parent_section_name):
         try:
             item_value = config_parser.get(parent_section_name, self.param_key)
-            param_value = {}
-            try:
-                if item_value:
-                    param_value = json.loads(item_value)
-            except (TypeError, JSONDecodeError) as e:
-                LOGGER.critical("Error parsing JSON parameter '{0}'. {1}".format(self.param_key), e)
-
+            param_value = self.from_string(item_value)
             self._check_allowed_values(param_value)
 
         except NoOptionError:
-            param_value = self.param_map.get("default")
+            param_value = self.get_default_value()
             if param_value:
                 LOGGER.debug("Setting default value '{0}' for key '{1}'".format(param_value, self.param_key))
         except NoSectionError as e:
@@ -233,6 +259,23 @@ class JsonParam(Param):
             raise e
 
         return self.param_key, param_value
+
+    def from_string(self, string_value):
+        param_value = self.get_default_value()
+        try:
+            if string_value is not None:
+                if isinstance(string_value, str):
+                    string_value = string_value.strip()
+
+                if string_value != "NONE":
+                    param_value = json.loads(string_value)
+        except (TypeError, JSONDecodeError) as e:
+            error("Error parsing JSON parameter '{0}'. {1}".format(self.param_key), e)
+
+        return param_value
+
+    def get_default_value(self):
+        return self.param_map.get("default", {})
 
 
 class SharedDirParam(Param):
@@ -248,7 +291,7 @@ class SharedDirParam(Param):
 
     def to_file(self, config_parser, parent_section_dict, parent_section_name, param_value):
         # if contains ebs_settings --> single SharedDir
-        if not parent_section_dict.get("ebs"):
+        if not parent_section_dict.get("ebs") and param_value != self.get_default_value():
             config_parser.set(parent_section_name, self.param_key, parent_section_dict.get("shared_dir"))
         # else do nothing, let the EBSSettings parse the item
 
@@ -360,7 +403,7 @@ class SettingsParam(Param):
                     ).from_file(config_parser)
                     settings_dict.append(section_dict)
         except NoOptionError:
-            param_value = self.param_map.get("default")
+            param_value = self.get_default_value()
             if param_value:
                 LOGGER.debug("Setting default value '{0}' for key '{1}'".format(param_value, self.param_key))
                 return self.param_key, param_value
@@ -404,20 +447,28 @@ class SettingsParam(Param):
             )
         return cfn_params
 
-    def validate(self, param_value, parent_section_dict, pcluster_dict):
+    def validate(self, param_value, parent_section_dict, pcluster_dict, fail_on_error=True):
         # do not validate parameter but validate related sections
         sections = parent_section_dict.get(self.related_section_key, [])
         for section_dict in sections:
             self.related_section_type(
                 self.related_section_map, section_dict.get("label")
-            ).validate(section_dict, pcluster_dict)
+            ).validate(section_dict, pcluster_dict, fail_on_error)
 
     def from_cfn(self, cfn_params):
         sections = []
 
         # TODO fixme the label if available
-        label = "{0}1".format(self.related_section_key)
+        label = "default"
         section_key, section_dict = self.related_section_type(self.related_section_map, label).from_cfn(cfn_params)
+        sections.append(section_dict)
+
+        return section_key, sections
+
+    def from_map(self):
+        sections = []
+        label = "default"
+        section_key, section_dict = self.related_section_type(self.related_section_map, label).from_map()
         sections.append(section_dict)
 
         return section_key, sections
@@ -471,7 +522,7 @@ class EBSSettingsParam(SettingsParam):
 
                     param_type = param_map.get("type", Param)
                     cfn_value = get_cfn_param(cfn_params, cfn_converter).split(",")[index]
-                    item_value = param_type(param_key, param_map).from_cfn_value(cfn_value)
+                    item_value = param_type(param_key, param_map).from_string(cfn_value)
                     section_dict[param_key] = item_value
 
                     if item_value != param_map.get("default", None):
@@ -488,10 +539,24 @@ class Section(object):
     def __init__(self, section_map, section_label=None):
         self.section_map = section_map
         self.section_key = section_map.get("key")
-        self.section_label = section_label
+        if self.section_map.get("has_label", True):
+            self.section_label = section_label or "default"
+        else:
+            self.section_label = ""
 
     def __get_section_name(self):
         return self.section_key + (" {0}".format(self.section_label) if self.section_label else "")
+
+    def get_param_default_value(self, param_key):
+        param_map = self.section_map.get("items").get(param_key, None)
+        param_type = param_map.get("type", Param)
+        return param_type(param_key, param_map).get_default_value()
+
+    def get_param_from_string(self, param_key, param_value):
+        param_map = self.section_map.get("items").get(param_key)
+        param_type = param_map.get("type", Param)
+        return param_type(param_key, param_map).from_string(param_value)
+        # TODO fix
 
     def from_file(self, config_parser):
         """
@@ -518,7 +583,7 @@ class Section(object):
             not_valid_keys = [key for key, value in config_parser.items(section_name) if key not in section_map_items]
 
             if not_valid_keys:
-                fail(
+                error(
                     "The configuration parameters '{0}' are not allowed in the [{1}] section".format(
                         ",".join(not_valid_keys), section_name
                     )
@@ -526,7 +591,7 @@ class Section(object):
 
         return self.section_key, section_dict
 
-    def validate(self, section_dict, pcluster_dict):
+    def validate(self, section_dict, pcluster_dict, fail_on_error=True):
         if section_dict:
             section_name = self.__get_section_name()
 
@@ -535,7 +600,10 @@ class Section(object):
             if validation_func:
                 errors, warnings = validation_func(section_name, section_dict, pcluster_dict)
                 if errors:
-                    fail("The section [{0}] is wrongly configured\n{1}".format(section_name, "\n".join(errors)))
+                    error(
+                        "The section [{0}] is wrongly configured\n"
+                        "{1}".format(section_name, "\n".join(errors)), fail_on_error,
+                    )
                 elif warnings:
                     warn("The section [{0}] is wrongly configured\n{1}".format(section_name, "\n".join(warnings)))
                 else:
@@ -548,7 +616,7 @@ class Section(object):
                 param_value = section_dict.get(param_key, None)
 
                 param_type = param_map.get("type", Param)
-                param_type(param_key, param_map).validate(param_value, section_dict, pcluster_dict)
+                param_type(param_key, param_map).validate(param_value, section_dict, pcluster_dict, fail_on_error)
 
     def to_file(self, section_dict, config_parser):
 
@@ -597,7 +665,6 @@ class Section(object):
 
         # TODO get the label if saved in cfn
         section_dict = {}
-        label = "{0}1".format(self.section_key)
         label_added = False
 
         cfn_converter = self.section_map.get("cfn", None)
@@ -615,13 +682,13 @@ class Section(object):
                     cfn_value = "NONE"
 
                 param_type = param_map.get("type", Param)
-                item_value = param_type(param_key, param_map).from_cfn_value(cfn_value)
+                item_value = param_type(param_key, param_map).from_string(cfn_value)
 
-                if not label_added and item_value != param_map.get("default", None):
+                #if not label_added and item_value != param_map.get("default", None):
                     # add "label" to the section dict
                     # only if at least one value is different from the default one
-                    section_dict["label"] = label
-                    label_added = True
+                section_dict["label"] = self.section_label
+                label_added = True
 
                 section_dict[param_key] = item_value
                 cfn_param_index += 1
@@ -629,9 +696,36 @@ class Section(object):
             for param_key, param_map in self.section_map.get("items").items():
                 param_type = param_map.get("type", Param)
                 item_key, item_value = param_type(param_key, param_map).from_cfn(cfn_params)
+
+                #if not label_added and item_value != param_map.get("default", None):
+                    # add "label" to the section dict
+                    # only if at least one value is different from the default one
+                section_dict["label"] = self.section_label
+                label_added = True
+
                 section_dict[item_key] = item_value
 
         return self.section_key, section_dict
+
+    def from_map(self):
+        section_dict = {}
+        label_added = False
+
+        for param_key, param_map in self.section_map.get("items").items():
+            param_type = param_map.get("type", Param)
+            item_key, item_value = param_type(param_key, param_map).from_map()
+
+            #if not label_added and item_value != param_map.get("default", None):
+                # add "label" to the section dict
+                # only if at least one value is different from the default one
+            section_dict["label"] = self.section_label
+            #label_added = True
+
+            section_dict[item_key] = item_value
+
+        return self.section_key, section_dict
+
+    # TODO def set_param(self, param_key, param_value):
 
 
 class EFSSection(Section):
@@ -648,18 +742,20 @@ class EFSSection(Section):
         ]
 
         if cfn_items[0] == "NONE":
+            efs_section_valid = False
+
             # first item is NONE --> set all values to NONE
             cfn_items = ["NONE"] * len(cfn_items)
-        cfn_value = ",".join(cfn_items)
+        else:
+            # latest CFN param will identify if create or no a Mount Target for the given EFS FS Id
+            master_avail_zone = pcluster_config.get_master_avail_zone()
+            mount_target_id = get_efs_mount_target_id(
+                efs_fs_id=section_dict.get("efs_fs_id"), avail_zone=master_avail_zone
+            )
+            efs_section_valid = True if mount_target_id else False
 
-        # latest CFN param will identify if create or no a Mount Target for the given EFS FS Id
-        master_avail_zone = pcluster_config.get_master_avail_zone()
-        mount_target_id = get_efs_mount_target_id(
-            efs_fs_id=section_dict.get("efs_fs_id"), avail_zone=master_avail_zone
-        )
-        cfn_value += ",{0}".format("Valid" if mount_target_id else "NONE")
-
-        cfn_params.update({cfn_converter: cfn_value})
+        cfn_items.append("Valid" if efs_section_valid else "NONE")
+        cfn_params.update({cfn_converter: ",".join(cfn_items)})
         return cfn_params
 
 
@@ -675,7 +771,3 @@ class ClusterSection(Section):
 
         return self.section_key, section_dict
 
-
-def get_default_param(section_map, param_key):
-    param_map = section_map.get("items").get(param_key, None)
-    return param_map.get("default", None) if param_map else None

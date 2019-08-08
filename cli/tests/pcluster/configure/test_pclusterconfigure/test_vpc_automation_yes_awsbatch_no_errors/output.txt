@@ -28,4 +28,3 @@ Allowed values for EC2 Key Pair Name:
 5. key5
 6. key6
 Beginning VPC creation. Please do not leave the terminal until the creation is finalized
-The configuration is valid

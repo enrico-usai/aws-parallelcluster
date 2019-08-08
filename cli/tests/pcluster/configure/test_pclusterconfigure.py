@@ -7,6 +7,7 @@ from configparser import ConfigParser
 from assertpy import assert_that
 from pcluster.configure.easyconfig import configure
 from pcluster.configure.networking import NetworkConfiguration
+from pcluster.config.pcluster_config import PclusterConfig
 
 EASYCONFIG = "pcluster.configure.easyconfig."
 NETWORKING = "pcluster.configure.networking."
@@ -108,7 +109,8 @@ def _mock_create_network_configuration(mocker, public_subnet_id, private_subnet_
 
 
 def _mock_parallel_cluster_config(mocker):
-    mocker.patch(EASYCONFIG + "cfnconfig.ParallelClusterConfig")
+    mocker.patch("pcluster.config.pcluster_config.PclusterConfig")
+    mocker.patch.object(PclusterConfig, "_PclusterConfig__validate")
 
 
 def _launch_config(mocker, path, remove_path=True):
@@ -132,9 +134,17 @@ def _are_configurations_equals(path_verify, path_verified):
     dict2 = {s: dict(config_expected.items(s)) for s in config_expected.sections()}
     for section_name, section in dict1.items():
         for key, value in section.items():
-            if dict2[section_name][key] != value:
-                print("In section {0}, parameter {1} is different.".format(section_name, key))
-                print("It is {0} but it should be {1}".format(value, dict2[section_name][key]))
+            try:
+                if dict2[section_name][key] != value:
+                    print(
+                        "\nTest failed: Parameter '{0}' in section '{1}' is different from the expected one.".format(
+                            key, section_name
+                        )
+                    )
+                    print("The value is '{0}' but it should be '{1}'".format(value, dict2[section_name][key]))
+                    return False
+            except KeyError:
+                print("\nTest failed: Parameter '{0}' doesn't exist in section '{1}'.".format(key, section_name))
                 return False
     return True
 

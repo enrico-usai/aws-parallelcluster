@@ -107,16 +107,16 @@ def test_param_to_cfn(section_map, param_key, section_dict, expected_cfn_params)
         # EFSSection
         (EFS, DefaultDict["efs"].value, DefaultCfnParams["efs"].value),
         (EFS, {"shared_dir": "NONE"}, DefaultCfnParams["efs"].value),
-        (EFS, {"shared_dir": "test"}, {"EFSOptions": "test,NONE,generalPurpose,NONE,NONE,false,bursting,NONE"}),
+        (EFS, {"shared_dir": "test"}, {"EFSOptions": "test,NONE,generalPurpose,NONE,NONE,false,bursting,Valid"}),
         (EFS, {
             "shared_dir": "test",
-            "efs_fs_id": "FIXME",
-            "performance_mode": "test2",
-            "efs_kms_key_id": "test3",
+            "efs_fs_id": "test2",
+            "performance_mode": "test3",
+            "efs_kms_key_id": "test4",
             "provisioned_throughput": 10,
             "encrypted": True,
-            "throughput_mode": "test6",
-        }, {"EFSOptions": "test,NONE,test2,test3,10,true,test6,Valid"}),
+            "throughput_mode": "test5",
+        }, {"EFSOptions": "test,test2,test3,test4,10,true,test5,Valid"}),
         (EFS, {
             "shared_dir": "test",
             "efs_fs_id": None,
@@ -125,7 +125,7 @@ def test_param_to_cfn(section_map, param_key, section_dict, expected_cfn_params)
             "provisioned_throughput": 1024,
             "encrypted": False,
             "throughput_mode": "test3",
-        }, {"EFSOptions": "test,NONE,test1,test2,1024,false,test3,NONE"}),
+        }, {"EFSOptions": "test,NONE,test1,test2,1024,false,test3,Valid"}),
     ]
 )
 def test_section_to_cfn(mocker, section_map, section_dict, expected_cfn_params):
@@ -137,7 +137,7 @@ def test_section_to_cfn(mocker, section_map, section_dict, expected_cfn_params):
 
     section_type = section_map.get("type")
     if section_map == EFS:
-        mocker.patch("pcluster.utils.get_efs_mount_target_id", return_value="mount_target_id")
+        mocker.patch("pcluster.config.params_types.get_efs_mount_target_id", return_value="valid_mount_target_id")
         mocker.patch("pcluster.config.pcluster_config.PclusterConfig.get_master_avail_zone")
 
     cfn_params = section_type(section_map).to_cfn(section_dict, PclusterConfig())

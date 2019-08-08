@@ -56,18 +56,24 @@ from pcluster.config.validators import (
 AWS = {
     "type": Section,
     "key": "aws",
+    "has_label": False,
     "items": {
         "aws_access_key_id": {},
         "aws_secret_access_key": {},
-        "aws_region_name": {},
+        "aws_region_name": {
+            "default": "us-east-1",
+        },
     }
 }
 
 GLOBAL = {
     "type": Section,
     "key": "global",
+    "has_label": False,
     "items": {
-        "cluster_template": {},
+        "cluster_template": {
+            "default": "default",
+        },
         "update_check": {
             "type": BoolParam,
             "default": True,
@@ -82,6 +88,7 @@ GLOBAL = {
 ALIASES = {
     "type": Section,
     "key": "aliases",
+    "has_label": False,
     "items": {
         "ssh": {
             "default": "ssh {CFN_USER}@{MASTER_IP} {ARGS}"
@@ -439,7 +446,6 @@ CLUSTER = {
         },
         "tags": {
             "type": JsonParam,
-            "default": "{}",
         },
         "custom_chef_cookbook": {
             "cfn": "CustomChefCookbook",

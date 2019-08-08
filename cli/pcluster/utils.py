@@ -280,6 +280,14 @@ def fail(message):
     sys.exit("ERROR: {0}".format(message))
 
 
+def error(message, fail_on_error=True):
+    """Print an error message and Raise SystemExit exception to the stderr if fail_on_error is true."""
+    if fail_on_error:
+        fail(message)
+    else:
+        print("ERROR: {0}".format(message))
+
+
 def get_cfn_param(params, key_name):
     """
     Get parameter value from Cloudformation Stack Parameters.

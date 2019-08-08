@@ -20,10 +20,10 @@ import textwrap
 import argparse
 from botocore.exceptions import NoCredentialsError
 
-import pcluster.pcluster_main as pcluster
+import pcluster.commands as pcluster
 import pcluster.configure.easyconfig as easyconfig
 
-LOGGER = logging.getLogger(__name__)
+LOGGER = logging.getLogger("pcluster.cli")
 
 
 def create(args):
@@ -60,7 +60,7 @@ def update(args):
 
 def version(args):
     version = pcluster.version()
-    LOGGER.info(version)
+    print(version)
 
 
 def start(args):
@@ -76,13 +76,12 @@ def create_ami(args):
 
 
 def config_logger():
-    logger = logging.getLogger(__name__)
-    logger.setLevel(logging.DEBUG)
+    LOGGER.setLevel(logging.DEBUG)
 
     ch = logging.StreamHandler(sys.stdout)
     ch.setLevel(logging.INFO)
     ch.setFormatter(logging.Formatter("%(message)s"))
-    logger.addHandler(ch)
+    LOGGER.addHandler(ch)
 
     logfile = os.path.expanduser(os.path.join("~", ".parallelcluster", "pcluster-cli.log"))
     try:
@@ -94,7 +93,7 @@ def config_logger():
     fh = logging.FileHandler(logfile)
     fh.setLevel(logging.DEBUG)
     fh.setFormatter(logging.Formatter("%(asctime)s - %(levelname)s - %(name)s - %(message)s"))
-    logger.addHandler(fh)
+    LOGGER.addHandler(fh)
 
 
 def _addarg_config(subparser):
@@ -368,14 +367,13 @@ Variables substituted::
 
 def main():
     config_logger()
-    logger = logging.getLogger(__name__)
 
     # TODO remove logger
-    logger.debug("pcluster CLI starting")
+    LOGGER.debug("pcluster CLI starting")
 
     parser = _get_parser()
     args, extra_args = parser.parse_known_args()
-    logger.debug(args)
+    LOGGER.debug(args)
 
     try:
         if args.func.__name__ == "command":
@@ -387,14 +385,14 @@ def main():
                 sys.exit(1)
             args.func(args)
     except NoCredentialsError:
-        logger.error("AWS Credentials not found.")
+        LOGGER.error("AWS Credentials not found.")
         sys.exit(1)
     except KeyboardInterrupt:
-        logger.info("Exiting...")
+        LOGGER.info("Exiting...")
         sys.exit(1)
-    except Exception as e:
-        logger.error("Unexpected error of type %s: %s", type(e).__name__, e)
-        sys.exit(1)
+    #except Exception as e:
+        #LOGGER.error("Unexpected error of type %s: %s", type(e).__name__, e)
+        #sys.exit(1)
 
 
 if __name__ == "__main__":

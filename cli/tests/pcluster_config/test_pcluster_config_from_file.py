@@ -73,28 +73,43 @@ def test_param_from_file(section_map, param_key, param_value, expected_value, ex
     "section_map, config_parser_dict, expected_dict_keys, expected_message",
     [
         # default
-        (CLUSTER, {"cluster": {}}, {}, None),
-        (SCALING, {"scaling": {}}, {}, None),
-        (VPC, {"vpc": {}}, {}, None),
-        (EBS, {"ebs": {}}, {}, None),
-        (EFS, {"efs": {}}, {}, None),
-        (RAID, {"raid": {}}, {}, None),
-        (FSX, {"fsx": {}}, {}, None),
+        (CLUSTER, {"cluster default": {}}, {}, None),
+        (SCALING, {"scaling default": {}}, {}, None),
+        (VPC, {"vpc default": {}}, {}, None),
+        (EBS, {"ebs default": {}}, {}, None),
+        (EFS, {"efs default": {}}, {}, None),
+        (RAID, {"raid default": {}}, {}, None),
+        (FSX, {"fsx default": {}}, {}, None),
         # right value
-        (CLUSTER, {"cluster": {"key_name": "test"}}, {"key_name": "test"}, None),
-        (CLUSTER, {"cluster": {"base_os": "alinux"}}, {"base_os": "alinux"}, None),
+        (CLUSTER, {"cluster default": {"key_name": "test"}}, {"key_name": "test"}, None),
+        (CLUSTER, {"cluster default": {"base_os": "alinux"}}, {"base_os": "alinux"}, None),
         # invalid value
-        (CLUSTER, {"cluster": {"base_os": "wrong_value"}}, None, "has an invalid value"),
+        (CLUSTER, {"cluster default": {"base_os": "wrong_value"}}, None, "has an invalid value"),
         # invalid key
-        (CLUSTER, {"cluster": {"invalid_key": "fake_value"}}, None, "'invalid_key' are not allowed in the .* section"),
-        (CLUSTER, {"cluster": {"invalid_key": "fake_value", "invalid_key2": "fake_value"}}, None,
+        (
+                CLUSTER,
+                {"cluster default": {"invalid_key": "fake_value"}},
+                None,
+                "'invalid_key' are not allowed in the .* section"
+        ),
+        (CLUSTER, {"cluster default": {"invalid_key": "fake_value", "invalid_key2": "fake_value"}}, None,
          "'invalid_key,invalid_key2' are not allowed in the .* section"),
-        (SCALING, {"scaling": {"invalid_key": "fake_value"}}, None, "'invalid_key' are not allowed in the .* section"),
-        (VPC, {"vpc": {"invalid_key": "fake_value"}}, None, "'invalid_key' are not allowed in the .* section"),
-        (EBS, {"ebs": {"invalid_key": "fake_value"}}, None, "'invalid_key' are not allowed in the .* section"),
-        (EFS, {"efs": {"invalid_key": "fake_value"}}, None, "'invalid_key' are not allowed in the .* section"),
-        (RAID, {"raid": {"invalid_key": "fake_value"}}, None, "'invalid_key' are not allowed in the .* section"),
-        (FSX, {"fsx": {"invalid_key": "fake_value"}}, None, "'invalid_key' are not allowed in the .* section"),
+        (
+                SCALING,
+                {"scaling default": {"invalid_key": "fake_value"}},
+                None,
+                "'invalid_key' are not allowed in the .* section"
+        ),
+        (VPC, {"vpc default": {"invalid_key": "fake_value"}}, None, "'invalid_key' are not allowed in the .* section"),
+        (EBS, {"ebs default": {"invalid_key": "fake_value"}}, None, "'invalid_key' are not allowed in the .* section"),
+        (EFS, {"efs default": {"invalid_key": "fake_value"}}, None, "'invalid_key' are not allowed in the .* section"),
+        (
+                RAID,
+                {"raid default": {"invalid_key": "fake_value"}},
+                None,
+                "'invalid_key' are not allowed in the .* section"
+        ),
+        (FSX, {"fsx default": {"invalid_key": "fake_value"}}, None, "'invalid_key' are not allowed in the .* section"),
     ]
 )
 def test_section_from_file(section_map, config_parser_dict, expected_dict_keys, expected_message):
