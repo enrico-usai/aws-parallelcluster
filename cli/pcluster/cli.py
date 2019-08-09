@@ -133,8 +133,7 @@ status by calling "pcluster status mycluster".
 
 Examples::
 
-  $ pcluster create mycluster
-  $ pcluster create mycluster --tags \'{ "Key1" : "Value1" , "Key2" : "Value2" }\'"""
+  $ pcluster create mycluster"""
     )
     pcreate = subparsers.add_parser(
         "create",
@@ -162,8 +161,20 @@ Examples::
         "--cluster-template",
         help="Indicates which section of the configuration file to use for cluster creation.",
     )
-    pcreate.add_argument("-p", "--extra-parameters", type=json.loads, help="Adds extra parameters to the stack create.")
-    pcreate.add_argument("-g", "--tags", type=json.loads, help="Specifies additional tags to be added to the stack.")
+    pcreate.add_argument(
+        "-p",
+        "--extra-parameters",
+        type=json.loads,
+        help='Adds extra parameters to pass as input to the CloudFormation template.\n'
+             'They must be in the form: {"ParameterKey1": "ParameterValue1", "ParameterKey2": "ParameterValue2"}',
+    )
+    pcreate.add_argument(
+        "-g",
+        "--tags",
+        type=json.loads,
+        help='Specifies additional tags to be added to the stack.\n'
+             'They must be in the form: {"Key1": "Value1", "Key2": "Value2"}'
+    )
     pcreate.set_defaults(func=create)
 
     # update command subparser
@@ -188,7 +199,12 @@ Examples::
     pupdate.add_argument(
         "-t", "--cluster-template", help="Indicates which section of the configuration file to use for cluster update."
     )
-    pupdate.add_argument("-p", "--extra-parameters", help="Adds extra parameters to the stack update.")
+    pupdate.add_argument(
+        "-p",
+        "--extra-parameters",
+        help='Adds extra parameters to pass as input to the CloudFormation template.\n'
+             'They must be in the form: {"ParameterKey1": "ParameterValue1", "ParameterKey2": "ParameterValue2"}'
+    )
     pupdate.add_argument(
         "-rd",
         "--reset-desired",

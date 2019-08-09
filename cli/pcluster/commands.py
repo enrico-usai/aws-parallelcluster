@@ -76,8 +76,7 @@ def create(args):  # noqa: C901 FIXME!!!
         cluster_label=args.cluster_template,
         fail_on_config_file_absence=True,
     )
-    # FIXME verify if template url must be passed
-    cfn_template_url, cfn_params, cfn_tags = pcluster_config.to_cfn(tags=args.tags)
+    region, cfn_template_url, cfn_params, cfn_tags = pcluster_config.to_cfn()
 
     # Get the MasterSubnetId and use it to determine AvailabilityZone
     if "MasterSubnetId" in cfn_params:
@@ -98,6 +97,7 @@ def create(args):  # noqa: C901 FIXME!!!
     try:
         cfn = boto3.client("cloudformation")
         stack_name = "parallelcluster-" + args.cluster_name
+        pcluster_version = get_installed_version()
 
         # If scheduler is awsbatch create bucket with resources
         if cfn_params["Scheduler"] == "awsbatch":
@@ -109,27 +109,46 @@ def create(args):  # noqa: C901 FIXME!!!
 
         LOGGER.info("Creating stack named: %s", stack_name)
 
-        # append extra parameters and tags
-        if args.extra_parameters:
-            cfn_params.update(dict(args.extra_parameters))
+        # Determine the CloudFormation Template URL to use
+        # order is 1) CLI arg 2) Config file 3) default for version + region
+        if args.template_url:
+            template_url = args.template_url
+        else:
+            if cfn_template_url:
+                template_url = cfn_template_url
+            else:
+                template_url = (
+                    "https://s3.{REGION}.amazonaws.com{SUFFIX}/{REGION}-aws-parallelcluster/templates/"
+                    "aws-parallelcluster-{VERSION}.cfn.json".format(
+                        REGION=region,
+                        SUFFIX=".cn" if region.startswith("cn") else "",
+                        VERSION=pcluster_version
+                    )
+                )
+
+        # prepare tags by adding the pcluster version and merging tags defined in command-line and configuration file
+        tags = []
         if args.tags:
+            # override tags with values from command line parameter
             try:
-                if args.tags is not None:
-                    for key in args.tags:
-                        cfn_tags[key] = args.tags[key]
+                for key in args.tags:
+                    cfn_tags[key] = args.tags[key]
             except AttributeError:
                 pass
-
-        cfn_params = [{"ParameterKey": key, "ParameterValue": value} for key, value in cfn_params.items()]
-        tags = []
         if cfn_tags:
-            tags.extend([{"Key": t, "Value": cfn_tags[t]} for t in cfn_tags])
-        tags.append({"Key": "Version", "Value": version()})
+            tags.extend([{"Key": tag, "Value": cfn_tags[tag]} for tag in cfn_tags])
+        tags.append({"Key": "Version", "Value": pcluster_version})
 
+        # append extra parameters from command-line
+        if args.extra_parameters:
+            cfn_params.update(dict(args.extra_parameters))
+
+        # prepare input parameters for stack creation and create the stack
+        params = [{"ParameterKey": key, "ParameterValue": value} for key, value in cfn_params.items()]
         stack = cfn.create_stack(
             StackName=stack_name,
-            TemplateURL=cfn_template_url,
-            Parameters=cfn_params,
+            TemplateURL=template_url,
+            Parameters=params,
             Capabilities=capabilities,
             DisableRollback=args.norollback,
             Tags=tags,

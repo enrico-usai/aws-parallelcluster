@@ -33,7 +33,6 @@ class PclusterConfig(object):
             file_sections=[AWS, GLOBAL],
             cluster_label=None,  # args.cluster_template
             region=None,
-            template_url=None,
             cluster_name=None,
             fail_on_config_file_absence=False,
     ):
@@ -48,7 +47,7 @@ class PclusterConfig(object):
         if cluster_name:
             self.__from_cfn(cluster_name)
         else:
-            self.__from_file(file_sections, cluster_label, self.config_parser, template_url)
+            self.__from_file(file_sections, cluster_label, self.config_parser)
 
     def _init_config_parser(self, config_file, fail_on_config_file_absence=True):
         """
@@ -110,27 +109,6 @@ class PclusterConfig(object):
         else:
             self.region = self.get("aws").get("aws_region_name")
 
-    def __init_template_url(self, template_url=None):
-        """
-        Determine the CloudFormation URL to be used and initialize the corresponding attribute.
-
-        Order is 1) CLI arg 2) Config file 3) default for version + region
-        """
-        if template_url is not None:
-            self.template_url = template_url
-        else:
-            if self.cluster.get("template_url"):
-                self.template_url = self.cluster.get("template_url")
-            else:
-                pcluster_version = pkg_resources.get_distribution("aws-parallelcluster").version
-                s3_suffix = ".cn" if self.region.startswith("cn") else ""
-                self.template_url = (
-                    "https://s3.{REGION}.amazonaws.com{SUFFIX}/{REGION}-aws-parallelcluster/templates/"
-                    "aws-parallelcluster-{VERSION}.cfn.json".format(
-                        REGION=self.region, SUFFIX=s3_suffix, VERSION=pcluster_version
-                    )
-                )
-
     def __init_section_dict(self, config_parser, section_map, section_label=None):
         try:
             section_type = section_map.get("type", Section)
@@ -172,7 +150,8 @@ class PclusterConfig(object):
         """
         Convert the internal representation of the cluster to a list of CFN parameters.
 
-        :return: the template_url, the list of cfn parameters associated with the given configuration and the tags
+        :return: the region, the template_url,
+        the list of cfn parameters associated with the given configuration and the tags
         """
         # validate PclusterConfig object
         self.__validate([CLUSTER])
@@ -181,9 +160,9 @@ class PclusterConfig(object):
             CLUSTER, self.cluster.get("label")
         ).to_cfn(section_dict=self.cluster, pcluster_config=self)
 
-        return self.template_url, params, self.cluster.get("tags")
+        return self.region, self.cluster.get("template_url"), params, self.cluster.get("tags")
 
-    def __from_file(self, file_sections, cluster_label=None, config_parser=None, template_url=None):
+    def __from_file(self, file_sections, cluster_label=None, config_parser=None):
         if GLOBAL in file_sections:
             self.__init_section_dict(config_parser, GLOBAL)
         if ALIASES in file_sections:
@@ -196,7 +175,6 @@ class PclusterConfig(object):
                 cluster_label = global_config.get("cluster_template", "default") if global_config else "default"
 
             self.__init_section_dict(config_parser, CLUSTER, cluster_label)
-            self.__init_template_url(template_url)
 
     def __from_cfn(self, cluster_name):
         stack_name = "parallelcluster-" + cluster_name
