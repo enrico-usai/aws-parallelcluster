@@ -13,6 +13,6 @@ from pcluster.config.params_types import Param
 
 
 def get_param_map(section_map, param_key):
-    param_map = section_map.get("items").get(param_key)
+    param_map = section_map.get("params").get(param_key)
     return param_map, param_map.get("type", Param)
 

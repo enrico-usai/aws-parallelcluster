@@ -156,7 +156,7 @@ def configure(args):
 
     # Update configuration values according to user's choices
     pcluster_config.region = aws_region_name
-    #cluster_items = CLUSTER.get("items")
+    #cluster_items = CLUSTER.get("params")
     cluster_config["label"] = cluster_label
     for param_key, param_value in cluster_parameters.items():
         #param_map = cluster_items.get(param_key)

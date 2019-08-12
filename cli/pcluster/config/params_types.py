@@ -423,7 +423,7 @@ class SettingsParam(Param):
         # create sections
         for section_dict in sections:
 
-            for param_key, param_map in self.related_section_map.get("items").items():
+            for param_key, param_map in self.related_section_map.get("params").items():
                 param_value = section_dict.get(param_key, None)
 
                 if not settings_param_created and param_value != param_map.get("default", None):
@@ -490,7 +490,7 @@ class EBSSettingsParam(SettingsParam):
 
         if sections:
             number_of_ebs_volumes = len(sections)
-            for param_key, param_map in self.related_section_map.get("items").items():
+            for param_key, param_map in self.related_section_map.get("params").items():
                 param = param_map.get("type", Param)(param_key, param_map)
 
                 cfn_value_list = [param.to_cfn_value(section_dict.get(param_key)) for section_dict in sections]
@@ -516,7 +516,7 @@ class EBSSettingsParam(SettingsParam):
             section_dict = {"label": label}
             # TODO fixme the label if available
 
-            for param_key, param_map in self.related_section_map.get("items").items():
+            for param_key, param_map in self.related_section_map.get("params").items():
                 cfn_converter = param_map.get("cfn", None)
                 if cfn_converter:
 
@@ -539,21 +539,18 @@ class Section(object):
     def __init__(self, section_map, section_label=None):
         self.section_map = section_map
         self.section_key = section_map.get("key")
-        if self.section_map.get("has_label", True):
-            self.section_label = section_label or "default"
-        else:
-            self.section_label = ""
+        self.section_label = section_label or self.section_map.get("label", "")
 
     def __get_section_name(self):
         return self.section_key + (" {0}".format(self.section_label) if self.section_label else "")
 
     def get_param_default_value(self, param_key):
-        param_map = self.section_map.get("items").get(param_key, None)
+        param_map = self.section_map.get("params").get(param_key, None)
         param_type = param_map.get("type", Param)
         return param_type(param_key, param_map).get_default_value()
 
     def get_param_from_string(self, param_key, param_value):
-        param_map = self.section_map.get("items").get(param_key)
+        param_map = self.section_map.get("params").get(param_key)
         param_type = param_map.get("type", Param)
         return param_type(param_key, param_map).from_string(param_value)
         # TODO fix
@@ -571,7 +568,7 @@ class Section(object):
         if self.section_label:
             section_dict["label"] = self.section_label
 
-        section_map_items = self.section_map.get("items")
+        section_map_items = self.section_map.get("params")
         section_name = self.__get_section_name()
 
         for param_key, param_map in section_map_items.items():
@@ -612,7 +609,7 @@ class Section(object):
                 LOGGER.debug("Configuration section '[{0}]' has not validators".format(section_name))  # TODO remove
 
             # validate items
-            for param_key, param_map in self.section_map.get("items").items():
+            for param_key, param_map in self.section_map.get("params").items():
                 param_value = section_dict.get(param_key, None)
 
                 param_type = param_map.get("type", Param)
@@ -623,7 +620,7 @@ class Section(object):
         config_section_name = self.__get_section_name()
         config_section_created = False
 
-        for param_key, param_map in self.section_map.get("items").items():
+        for param_key, param_map in self.section_map.get("params").items():
             param_value = section_dict.get(param_key, None)
 
             if not config_section_created and param_value != param_map.get("default", None):
@@ -646,7 +643,7 @@ class Section(object):
             # it is a section converted to a single CFN parameter
             cfn_items = [
                 param_map.get("type", Param)(param_key, param_map).to_cfn_value(section_dict.get(param_key))
-                for param_key, param_map in self.section_map.get("items").items()
+                for param_key, param_map in self.section_map.get("params").items()
             ]
 
             if cfn_items[0] == "NONE":
@@ -656,7 +653,7 @@ class Section(object):
             cfn_params.update({cfn_converter: ",".join(cfn_items)})
         else:
             # get value from config object
-            for param_key, param_map in self.section_map.get("items").items():
+            for param_key, param_map in self.section_map.get("params").items():
                 param_type = param_map.get("type", Param)
                 cfn_params.update(param_type(param_key, param_map).to_cfn(section_dict, pcluster_config))
         return cfn_params
@@ -673,7 +670,7 @@ class Section(object):
             cfn_values = get_cfn_param(cfn_params, cfn_converter).split(",")
 
             cfn_param_index = 0
-            for param_key, param_map in self.section_map.get("items").items():
+            for param_key, param_map in self.section_map.get("params").items():
                 try:
                     cfn_value = cfn_values[cfn_param_index]
                 except IndexError:
@@ -693,7 +690,7 @@ class Section(object):
                 section_dict[param_key] = item_value
                 cfn_param_index += 1
         else:
-            for param_key, param_map in self.section_map.get("items").items():
+            for param_key, param_map in self.section_map.get("params").items():
                 param_type = param_map.get("type", Param)
                 item_key, item_value = param_type(param_key, param_map).from_cfn(cfn_params)
 
@@ -711,7 +708,7 @@ class Section(object):
         section_dict = {}
         label_added = False
 
-        for param_key, param_map in self.section_map.get("items").items():
+        for param_key, param_map in self.section_map.get("params").items():
             param_type = param_map.get("type", Param)
             item_key, item_value = param_type(param_key, param_map).from_map()
 
@@ -738,7 +735,7 @@ class EFSSection(Section):
         cfn_converter = self.section_map.get("cfn", None)
         cfn_items = [
             param_map.get("type", Param)(param_key, param_map).to_cfn_value(section_dict.get(param_key))
-            for param_key, param_map in self.section_map.get("items").items()
+            for param_key, param_map in self.section_map.get("params").items()
         ]
 
         if cfn_items[0] == "NONE":
@@ -764,7 +761,7 @@ class ClusterSection(Section):
     def from_cfn(self, cfn_params):
         section_dict = {"label": get_cfn_param(cfn_params, "CLITemplate")}
 
-        for param_key, param_map in self.section_map.get("items").items():
+        for param_key, param_map in self.section_map.get("params").items():
             param_type = param_map.get("type", Param)
             item_key, item_value = param_type(param_key, param_map).from_cfn(cfn_params)
             section_dict[item_key] = item_value

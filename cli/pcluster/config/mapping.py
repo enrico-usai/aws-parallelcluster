@@ -56,8 +56,7 @@ from pcluster.config.validators import (
 AWS = {
     "type": Section,
     "key": "aws",
-    "has_label": False,
-    "items": {
+    "params": {
         "aws_access_key_id": {},
         "aws_secret_access_key": {},
         "aws_region_name": {
@@ -69,8 +68,7 @@ AWS = {
 GLOBAL = {
     "type": Section,
     "key": "global",
-    "has_label": False,
-    "items": {
+    "params": {
         "cluster_template": {
             "default": "default",
         },
@@ -88,8 +86,7 @@ GLOBAL = {
 ALIASES = {
     "type": Section,
     "key": "aliases",
-    "has_label": False,
-    "items": {
+    "params": {
         "ssh": {
             "default": "ssh {CFN_USER}@{MASTER_IP} {ARGS}"
         },
@@ -99,7 +96,8 @@ ALIASES = {
 SCALING = {
     "type": Section,
     "key": "scaling",
-    "items": {
+    "label": "default",
+    "params": {
         "scaledown_idletime": {
             "type": IntParam,
             "default": 10,
@@ -111,7 +109,8 @@ SCALING = {
 VPC = {
     "type": Section,
     "key": "vpc",
-    "items": {
+    "label": "default",
+    "params": {
         "vpc_id": {
             "cfn": "VPCId",
             "validator": ec2_vpc_id_validator,
@@ -152,7 +151,8 @@ VPC = {
 EBS = {
     "type": Section,
     "key": "ebs",
-    "items": {
+    "label": "default",
+    "params": {
         "shared_dir": {
             "cfn": "SharedDir",
         },
@@ -192,9 +192,10 @@ EBS = {
 EFS = {
     "key": "efs",
     "type": EFSSection,
+    "label": "default",
     "cfn": "EFSOptions",
     "validator": efs_validator,
-    "items": OrderedDict({
+    "params": OrderedDict({
         "shared_dir": {},
         "efs_fs_id": {
             "validator": efs_id_validator,
@@ -222,9 +223,10 @@ EFS = {
 
 RAID = {
     "key": "raid",
+    "label": "default",
     "type": Section,
     "cfn": "RAIDOptions",
-    "items":  OrderedDict({
+    "params":  OrderedDict({
         "shared_dir": {
         },
         "raid_type": {
@@ -264,10 +266,11 @@ RAID = {
 
 FSX = {
     "key": "fsx",
+    "label": "default",
     "type": Section,
     "validator": fsx_validator,
     "cfn": "FSXOptions",
-    "items": OrderedDict({
+    "params": OrderedDict({
         "shared_dir": {},
         "fsx_fs_id": {
             "validator": fsx_id_validator,
@@ -289,9 +292,10 @@ FSX = {
 
 CLUSTER = {
     "key": "cluster",
+    "label": "default",
     "type": ClusterSection,
     "validator": cluster_validator,
-    "items": {
+    "params": {
         # Basic configuration
         "key_name": {
             "cfn": "KeyName",
