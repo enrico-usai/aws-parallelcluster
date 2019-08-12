@@ -39,6 +39,7 @@ from pcluster.config.validators import (
     ec2_subnet_id_validator,
     ec2_volume_validator,
     ec2_vpc_id_validator,
+    efa_validator,
     efs_id_validator,
     efs_validator,
     fsx_validator,
@@ -413,6 +414,11 @@ CLUSTER = {
             "cfn": "S3ReadWriteResource",
         },
         # Customization
+        "enable_efa": {
+            "allowed_values": ["compute"],
+            "cfn": "EFA",
+            "validator": efa_validator,
+        },
         "ephemeral_dir": {
             "default": "/scratch",
             "cfn": "EphemeralDir",

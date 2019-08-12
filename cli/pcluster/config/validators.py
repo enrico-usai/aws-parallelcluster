@@ -379,7 +379,6 @@ def fsx_validator(section_name, section_dict, pcluster_dict):
     return errors, warnings
 
 
-
 def fsx_id_validator(param_key, param_value, pcluster_dict):
     errors = []
     warnings = []
@@ -548,3 +547,77 @@ def _get_pcluster_user_policy(partition, region, account_id):
         (["s3:GetObject"], "arn:%s:s3:::%s-aws-parallelcluster/*" % (partition, region)),
         (["sqs:ListQueues"], "*"),
     ]
+
+
+def efa_validator(param_key, param_value, pcluster_dict):
+    errors = []
+    warnings = []
+
+    supported_features = get_supported_features(pcluster_dict.get("region"), "efa")
+    allowed_instances = supported_features.get("instances")
+    if pcluster_dict.cluster.get("compute_instance_type") not in allowed_instances:
+        errors.append(
+            "When using 'enable_efa = {0}' it is required to set the 'compute_instance_type' parameter "
+            "to one of the following values : {1}".format(param_value, allowed_instances)
+        )
+
+    allowed_oses = ["alinux", "centos7", "ubuntu1604"]
+    if pcluster_dict.cluster.get("os") not in allowed_oses:
+        errors.append(
+            "When using 'enable_efa = {0}' it is required to set the 'base_os' parameter "
+            "to one of the following values : {1}".format(param_value, allowed_oses)
+        )
+
+    allowed_schedulers = ["sge", "slurm", "torque"]
+    if pcluster_dict.cluster.get("os") not in allowed_schedulers:
+        errors.append(
+            "When using 'enable_efa = {0}' it is required to set the 'scheduler' parameter "
+            "to one of the following values : {1}".format(param_value, allowed_schedulers)
+        )
+
+    if pcluster_dict.cluster.get("placement_group") is None:
+        errors.append(
+            "When using 'enable_efa = {0}' it is required to set the 'placement_group' parameter "
+            "to DYNAMIC or to an existing EC2 cluster placement group name".format(param_value)
+        )
+
+    vpc_security_group_id = pcluster_dict.cluster.get("vpc")[0].get("vpc_security_group_id")
+    if vpc_security_group_id:
+        try:
+            ec2 = boto3.client("ec2")
+            sg = ec2.describe_security_groups(GroupIds=[vpc_security_group_id]).get("SecurityGroups")[0]
+            in_rules = sg.get("IpPermissions")
+            out_rules = sg.get("IpPermissionsEgress")
+
+            allowed_in = False
+            allowed_out = False
+            for rule in in_rules:
+                # UserIdGroupPairs is always of length 1, so grabbing 0th object is ok
+                if (
+                        rule.get("IpProtocol") == "-1"
+                        and len(rule.get("UserIdGroupPairs")) > 0
+                        and rule.get("UserIdGroupPairs")[0].get("GroupId") == vpc_security_group_id
+                ):
+                    allowed_in = True
+                    break
+            for rule in out_rules:
+                if (
+                        rule.get("IpProtocol") == "-1"
+                        and len(rule.get("UserIdGroupPairs")) > 0
+                        and rule.get("UserIdGroupPairs")[0].get("GroupId") == vpc_security_group_id
+                ):
+                    allowed_out = True
+                    break
+            if not (allowed_in and allowed_out):
+                errors.append(
+                    "The VPC Security Group '{0}' set in the vpc_security_group_id parameter "
+                    "must allow all traffic in and out from itself. "
+                    "See https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/efa-start.html#efa-start-security".format(
+                        vpc_security_group_id
+                    )
+                )
+        except ClientError as e:
+            errors.append(e.response.get("Error").get("Message"))
+
+    return errors, warnings
+
