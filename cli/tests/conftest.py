@@ -8,6 +8,7 @@ from __future__ import print_function
 import boto3
 import pytest
 from botocore.stub import Stubber
+from jinja2 import Environment, FileSystemLoader
 
 
 @pytest.fixture
@@ -130,3 +131,33 @@ def awsbatchcliconfig_mock(request, mocker):
     for key, value in DEFAULT_AWSBATCHCLICONFIG_MOCK_CONFIG.items():
         setattr(mock.return_value, key, value)
     return mock
+
+
+@pytest.fixture()
+def pcluster_config_reader(test_datadir):
+    """
+    Define a fixture to render pcluster config templates associated to the running test.
+
+    The config for a given test is a pcluster.config.ini file stored in the configs_datadir folder.
+    The config can be written by using Jinja2 template engine.
+    The current renderer already replaces placeholders for current keys:
+        {{ region }}, {{ os }}, {{ instance }}, {{ scheduler}}, {{ key_name }},
+        {{ vpc_id }}, {{ public_subnet_id }}, {{ private_subnet_id }}
+    The current renderer injects options for custom templates and packages in case these
+    are passed to the cli and not present already in the cluster config.
+    Also sanity_check is set to true by default unless explicitly set in config.
+
+    :return: a _config_renderer(**kwargs) function which gets as input a dictionary of values to replace in the template
+    """
+    config_file = "pcluster.config.ini"
+
+    def _config_renderer(**kwargs):
+        config_file_path = test_datadir / config_file
+        #default_values = _get_default_template_values(vpc_stacks, region, request)
+        file_loader = FileSystemLoader(str(test_datadir))
+        env = Environment(loader=file_loader)
+        rendered_template = env.get_template(config_file).render(**{**kwargs})
+        config_file_path.write_text(rendered_template)
+        return config_file_path
+
+    return _config_renderer

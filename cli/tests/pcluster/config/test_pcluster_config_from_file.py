@@ -49,6 +49,10 @@ from tests.pcluster.config.defaults import DefaultDict
         (CLUSTER, "spot_bid_percentage", "0.0", 0.0, None),
         (CLUSTER, "spot_bid_percentage", "10", 10, None),
         (CLUSTER, "spot_bid_percentage", "3", 3, None),
+        # SettingsParam
+        (CLUSTER, "vpc_settings", "test1", None, "Section .* not found in the config file"),
+        (CLUSTER, "vpc_settings", "test1,test2", None, "is invalid. It can only contains a single .* section label"),
+        (CLUSTER, "vpc_settings", "test1, test2", None, "is invalid. It can only contains a single .* section label"),
     ]
 )
 def test_param_from_file(section_map, param_key, param_value, expected_value, expected_message):

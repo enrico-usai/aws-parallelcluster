@@ -48,9 +48,8 @@ class Param(object):
             param_value = self.get_default_value()
             if param_value:
                 LOGGER.debug("Setting default value '{0}' for key '{1}'".format(param_value, self.param_key))
-        except NoSectionError as e:
-            LOGGER.error(e)
-            raise e
+        except NoSectionError:
+            error("Section '[{0}]' not found in the config file.".format(parent_section_name))
 
         return self.param_key, param_value
 
@@ -140,9 +139,8 @@ class FloatParam(Param):
             param_value = self.get_default_value()
             if param_value:
                 LOGGER.debug("Setting default value '{0}' for key '{1}'".format(param_value, self.param_key))
-        except NoSectionError as e:
-            LOGGER.error(e)
-            raise e
+        except NoSectionError:
+            error("Section '[{0}]' not found in the config file.".format(parent_section_name))
         except ValueError:
             error("Configuration parameter '{0}' must be a Float".format(self.param_key))
 
@@ -173,8 +171,7 @@ class BoolParam(Param):
             if param_value:
                 LOGGER.debug("Setting default value '{0}' for key '{1}'".format(param_value, self.param_key))
         except NoSectionError as e:
-            LOGGER.error(e)
-            raise e
+            error("Section '[{0}]' not found in the config file.".format(parent_section_name))
         except ValueError:
             error("Configuration parameter '{0}' must be a Boolean".format(self.param_key))
 
@@ -222,8 +219,7 @@ class IntParam(Param):
                 return self.param_key, param_value
             pass
         except NoSectionError as e:
-            LOGGER.error(e)
-            raise e
+            error("Section '[{0}]' not found in the config file.".format(parent_section_name))
         except ValueError:
             error("Configuration parameter '{0}' must be an Integer".format(self.param_key))
 
@@ -255,8 +251,7 @@ class JsonParam(Param):
             if param_value:
                 LOGGER.debug("Setting default value '{0}' for key '{1}'".format(param_value, self.param_key))
         except NoSectionError as e:
-            LOGGER.error(e)
-            raise e
+            error("Section '[{0}]' not found in the config file.".format(parent_section_name))
 
         return self.param_key, param_value
 
@@ -385,7 +380,7 @@ class SettingsParam(Param):
 
     def from_file(self, config_parser, parent_section_name):
         """
-        From vpc_settings = a,b to vpc: [{label: a, ....}, {label: b, ....}]
+        From vpc_settings = a to vpc: [{label: a, ....}]
         :param config_parser:
         :param parent_section_name:
         :return:
@@ -397,9 +392,16 @@ class SettingsParam(Param):
         try:
             param_value = config_parser.get(parent_section_name, self.param_key)
             if param_value:
-                for section_label in param_value.split(','):
+                if "," in param_value:
+                    error(
+                        "The value of '{0}' parameter is invalid. "
+                        "It can only contains a single {1} section label.".format(
+                            self.param_key, section_key
+                        )
+                    )
+                else:
                     _, section_dict = section_type(
-                        self.related_section_map, section_label.strip()
+                        self.related_section_map, param_value.strip()
                     ).from_file(config_parser)
                     settings_dict.append(section_dict)
         except NoOptionError:
@@ -408,9 +410,8 @@ class SettingsParam(Param):
                 LOGGER.debug("Setting default value '{0}' for key '{1}'".format(param_value, self.param_key))
                 return self.param_key, param_value
             pass
-        except NoSectionError as e:
-            LOGGER.error(e)
-            raise e
+        except NoSectionError:
+            error("Section '[{0}]' not found in the config file.".format(self.related_section_key))
 
         return section_key, settings_dict
 
@@ -418,23 +419,32 @@ class SettingsParam(Param):
         sections = parent_section_dict.get(self.related_section_key, [])
 
         settings_param_created = False
-        settings_param_value = ",".join(section_dict.get("label") for section_dict in sections)
+        # The join should be useless form
+        if len(sections) > 1:
+            error(
+                "Unable to convert multiple dictionaries to a single settings parameter."
+                "'{0}' parameter can only contain a single '{1}' setting label".format(
+                    self.param_key, self.related_section_key
+                )
+            )
+        else:
+            section_dict = sections[0]
+            if section_dict:
+                settings_param_value = section_dict.get("label") if section_dict else None
 
-        # create sections
-        for section_dict in sections:
+                # create sections
+                for param_key, param_map in self.related_section_map.get("params").items():
+                    param_value = section_dict.get(param_key, None)
 
-            for param_key, param_map in self.related_section_map.get("params").items():
-                param_value = section_dict.get(param_key, None)
+                    if not settings_param_created and param_value != param_map.get("default", None):
+                        # add "*_settings = *" to the parent section
+                        # only if at least one value is different from the default one
+                        config_parser.set(parent_section_name, self.param_key, settings_param_value)
+                        settings_param_created = True
 
-                if not settings_param_created and param_value != param_map.get("default", None):
-                    # add "*_settings = *" to the parent section
-                    # only if at least one value is different from the default one
-                    config_parser.set(parent_section_name, self.param_key, settings_param_value)
-                    settings_param_created = True
-
-            self.related_section_type(
-                self.related_section_map, section_dict.get("label")
-            ).to_file(section_dict, config_parser)
+                self.related_section_type(
+                    self.related_section_map, section_dict.get("label")
+                ).to_file(section_dict, config_parser)
 
     def to_cfn(self, parent_section_dict, pcluster_config):
         cfn_params = {}
@@ -475,6 +485,58 @@ class SettingsParam(Param):
 
 
 class EBSSettingsParam(SettingsParam):
+
+    def from_file(self, config_parser, parent_section_name):
+        """
+        From ebs_settings = a,b to ebs: [{label: a, ....}, {label: b, ....}]
+        :param config_parser:
+        :param parent_section_name:
+        :return:
+        """
+        section_key = self.related_section_key
+        section_type = self.related_section_type
+        settings_dict = []
+
+        try:
+            param_value = config_parser.get(parent_section_name, self.param_key)
+            if param_value:
+                for section_label in param_value.split(','):
+                    _, section_dict = section_type(
+                        self.related_section_map, section_label.strip()
+                    ).from_file(config_parser)
+                    settings_dict.append(section_dict)
+        except NoOptionError:
+            param_value = self.get_default_value()
+            if param_value:
+                LOGGER.debug("Setting default value '{0}' for key '{1}'".format(param_value, self.param_key))
+                return self.param_key, param_value
+            pass
+        except NoSectionError:
+            error("Section '[{0}]' not found in the config file.".format(self.related_section_key))
+
+        return section_key, settings_dict
+
+    def to_file(self, config_parser, parent_section_dict, parent_section_name, param_value):
+        sections = parent_section_dict.get(self.related_section_key, [])
+
+        settings_param_created = False
+        settings_param_value = ",".join(section_dict.get("label") for section_dict in sections)
+
+        # create sections
+        for section_dict in sections:
+
+            for param_key, param_map in self.related_section_map.get("params").items():
+                param_value = section_dict.get(param_key, None)
+
+                if not settings_param_created and param_value != param_map.get("default", None):
+                    # add "*_settings = *" to the parent section
+                    # only if at least one value is different from the default one
+                    config_parser.set(parent_section_name, self.param_key, settings_param_value)
+                    settings_param_created = True
+
+            self.related_section_type(
+                self.related_section_map, section_dict.get("label")
+            ).to_file(section_dict, config_parser)
 
     def to_cfn(self, parent_section_dict, pcluster_config):
         """
