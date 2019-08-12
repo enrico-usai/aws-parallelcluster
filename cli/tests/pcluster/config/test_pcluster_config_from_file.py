@@ -14,8 +14,8 @@ import pytest
 from assertpy import assert_that
 
 from pcluster.config.mapping import CLUSTER, EBS, EFS, FSX, SCALING, RAID, VPC
-from tests.pcluster_config.utils import get_param_map
-from tests.pcluster_config.defaults import DefaultDict
+from tests.pcluster.config.utils import get_param_map
+from tests.pcluster.config.defaults import DefaultDict
 
 
 @pytest.mark.parametrize(

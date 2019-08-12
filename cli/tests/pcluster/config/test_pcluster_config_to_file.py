@@ -14,7 +14,7 @@ import pytest
 from assertpy import assert_that
 
 from pcluster.config.mapping import CLUSTER, SCALING
-from tests.pcluster_config.utils import get_param_map
+from tests.pcluster.config.utils import get_param_map
 
 
 @pytest.mark.parametrize(
