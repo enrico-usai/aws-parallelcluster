@@ -408,7 +408,8 @@ class SettingsParam(Param):
             param_value = self.get_default_value()
             if param_value:
                 LOGGER.debug("Setting default value '{0}' for key '{1}'".format(param_value, self.param_key))
-                return self.param_key, param_value
+                _, section_dict = section_type(self.related_section_map, param_value.strip()).from_map()
+                settings_dict.append(section_dict)
             pass
         except NoSectionError:
             error("Section '[{0}]' not found in the config file.".format(self.related_section_key))
@@ -428,7 +429,7 @@ class SettingsParam(Param):
                 )
             )
         else:
-            section_dict = sections[0]
+            section_dict = sections[0] if sections else None
             if section_dict:
                 settings_param_value = section_dict.get("label") if section_dict else None
 
@@ -469,7 +470,7 @@ class SettingsParam(Param):
         sections = []
 
         # TODO fixme the label if available
-        label = "default"
+        label = self.related_section_map.get("label", "")
         section_key, section_dict = self.related_section_type(self.related_section_map, label).from_cfn(cfn_params)
         sections.append(section_dict)
 
@@ -477,7 +478,7 @@ class SettingsParam(Param):
 
     def from_map(self):
         sections = []
-        label = "default"
+        label = self.related_section_map.get("label", "")
         section_key, section_dict = self.related_section_type(self.related_section_map, label).from_map()
         sections.append(section_dict)
 

@@ -17,6 +17,7 @@ from pcluster.config.params_types import (
     DesiredSizeParam,
     EBSSettingsParam,
     EFSSection,
+    FloatParam,
     IntParam,
     JsonParam,
     MaintainInitialSizeParam,
@@ -207,9 +208,8 @@ EFS = {
         },
         "efs_kms_key_id": {},
         "provisioned_throughput": {
-            #"default": 1024,
-            "allowed_values": "^[0-9]{1,4}(\.[0-9])?$",  # 0.0 to 1024.0
-            "type": IntParam,
+            "allowed_values": r"^([0-9]{1,3}|10[0-1][0-9]|102[0-4])(\.[0-9])?$",  # 0.0 to 1024.0
+            "type": FloatParam,
         },
         "encrypted": {
             "type": BoolParam,
@@ -467,10 +467,12 @@ CLUSTER = {
         # Settings
         "scaling_settings": {
             "type": SettingsParam,
+            "default": "default",
             "referred_section": SCALING,
         },
         "vpc_settings": {
             "type": SettingsParam,
+            "default": "default",
             "referred_section": VPC,
         },
         "ebs_settings": {

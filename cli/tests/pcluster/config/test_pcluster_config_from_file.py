@@ -40,7 +40,15 @@ from tests.pcluster.config.defaults import DefaultDict
         (SCALING, "scaledown_idletime", "wrong_value", None, "must be an Integer"),
         (SCALING, "scaledown_idletime", "10", 10, None),
         (SCALING, "scaledown_idletime", "3", 3, None),
-        # SpotBidPercentageParam --> FloatParam
+        # FloatParam + allowed_values
+        (EFS, "provisioned_throughput", "0.1", 0.1, None),
+        (EFS, "provisioned_throughput", "3", 3, None),
+        (EFS, "provisioned_throughput", "1024.9", 1024.9, None),
+        (EFS, "provisioned_throughput", "102000", None, "has an invalid value"),
+        (EFS, "provisioned_throughput", "0.01", None, "has an invalid value"),
+        (EFS, "provisioned_throughput", "1025", None, "has an invalid value"),
+        (EFS, "provisioned_throughput", "wrong_value", None, "must be a Float"),
+        # SpotBidPercentageParam
         (CLUSTER, "spot_bid_percentage", None, 0.0, None),
         (CLUSTER, "spot_bid_percentage", "", 0.0, None),
         (CLUSTER, "spot_bid_percentage", "NONE", None, "must be a Float"),
@@ -53,6 +61,10 @@ from tests.pcluster.config.defaults import DefaultDict
         (CLUSTER, "vpc_settings", "test1", None, "Section .* not found in the config file"),
         (CLUSTER, "vpc_settings", "test1,test2", None, "is invalid. It can only contains a single .* section label"),
         (CLUSTER, "vpc_settings", "test1, test2", None, "is invalid. It can only contains a single .* section label"),
+        # SettingsParam
+        (CLUSTER, "ebs_settings", "test1", None, "Section .* not found in the config file"),
+        (CLUSTER, "ebs_settings", "test1,test2", None, "Section .* not found in the config file"),
+        (CLUSTER, "ebs_settings", "test1, test2", None, "Section .* not found in the config file"),
     ]
 )
 def test_param_from_file(section_map, param_key, param_value, expected_value, expected_message):
@@ -74,7 +86,7 @@ def test_param_from_file(section_map, param_key, param_value, expected_value, ex
 
 
 @pytest.mark.parametrize(
-    "section_map, config_parser_dict, expected_dict_keys, expected_message",
+    "section_map, config_parser_dict, expected_dict_params, expected_message",
     [
         # default
         (CLUSTER, {"cluster default": {}}, {}, None),
@@ -116,15 +128,15 @@ def test_param_from_file(section_map, param_key, param_value, expected_value, ex
         (FSX, {"fsx default": {"invalid_key": "fake_value"}}, None, "'invalid_key' are not allowed in the .* section"),
     ]
 )
-def test_section_from_file(section_map, config_parser_dict, expected_dict_keys, expected_message):
+def test_section_from_file(section_map, config_parser_dict, expected_dict_params, expected_message):
     config_parser = configparser.ConfigParser()
     config_parser.read_dict(config_parser_dict)
 
     # update expected dictionary
     default_dict = DefaultDict[section_map.get("key")].value
     expected_dict = default_dict.copy()
-    if isinstance(expected_dict_keys, dict):
-        expected_dict.update(expected_dict_keys)
+    if isinstance(expected_dict_params, dict):
+        expected_dict.update(expected_dict_params)
 
     section_type = section_map.get("type")
     if expected_message:
