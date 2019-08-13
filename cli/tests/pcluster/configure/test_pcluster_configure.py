@@ -13,7 +13,7 @@ EASYCONFIG = "pcluster.configure.easyconfig."
 NETWORKING = "pcluster.configure.networking."
 UTILS = "pcluster.configure.utils."
 
-TEMP_PATH_FOR_CONFIG = os.path.join(tempfile.gettempdir(), "test_pclusterconfigure")
+TEMP_PATH_FOR_CONFIG = os.path.join(tempfile.gettempdir(), "test_pcluster_configure")
 PUBLIC_PRIVATE_CONFIGURATION = NetworkConfiguration.PUBLIC_PRIVATE.value.config_type
 PUBLIC_CONFIGURATION = NetworkConfiguration.PUBLIC.value.config_type
 
@@ -448,7 +448,7 @@ def general_wrapper_for_prompt_testing(
     master_id="subnet-11",
     compute_id="subnet-12",
 ):
-    path = os.path.join(tempfile.gettempdir(), "test_pclusterconfigure")
+    path = os.path.join(tempfile.gettempdir(), "test_pcluster_configure")
     MockHandler(mocker)
     input_composer = ComposeInput(aws_region_name=region, scheduler=scheduler)
     input_composer.add_first_flow(op_sys, min_size, max_size, master_instance, compute_instance, key)
