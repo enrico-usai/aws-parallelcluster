@@ -12,7 +12,7 @@ def main():
     print("\nInternal representation:")
     print(pcluster_config)
     print("\nCluster Internal representation:")
-    print(pcluster_config.get("cluster"))
+    print(pcluster_config.get_section("cluster"))
     print("\nBack to file:")
     config = pcluster_config.to_file()
     with open("tmp.config", "w") as file:
@@ -28,7 +28,7 @@ def main():
     print("\nInternal representation:")
     print(pcluster_config)
     print("\nCluster Internal representation:")
-    print(pcluster_config.get("cluster"))
+    print(pcluster_config.get_section("cluster"))
     print("\nBack to file:")
     config = pcluster_config.to_file()
     with open("tmp.config2", "w") as file:

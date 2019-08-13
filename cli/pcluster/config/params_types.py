@@ -402,7 +402,7 @@ class SettingsParam(Param):
                 else:
                     _, section_dict = section_type(
                         self.related_section_map, param_value.strip()
-                    ).from_file(config_parser)
+                    ).from_file(config_parser, fail_on_absence=True)
                     settings_dict.append(section_dict)
         except NoOptionError:
             param_value = self.get_default_value()
@@ -504,7 +504,7 @@ class EBSSettingsParam(SettingsParam):
                 for section_label in param_value.split(','):
                     _, section_dict = section_type(
                         self.related_section_map, section_label.strip()
-                    ).from_file(config_parser)
+                    ).from_file(config_parser, fail_on_absence=True)
                     settings_dict.append(section_dict)
         except NoOptionError:
             param_value = self.get_default_value()
@@ -618,7 +618,7 @@ class Section(object):
         return param_type(param_key, param_map).from_string(param_value)
         # TODO fix
 
-    def from_file(self, config_parser):
+    def from_file(self, config_parser, fail_on_absence=False):
         """
         Convert a section from the config_parser to the internal representation (dictionary).
 
@@ -634,20 +634,27 @@ class Section(object):
         section_map_items = self.section_map.get("params")
         section_name = self.__get_section_name()
 
-        for param_key, param_map in section_map_items.items():
-            param_type = param_map.get("type", Param)
+        if config_parser.has_section(section_name):
+            for param_key, param_map in section_map_items.items():
+                param_type = param_map.get("type", Param)
 
-            item_key, item_value = param_type(param_key, param_map).from_file(config_parser, section_name)
-            section_dict[item_key] = item_value
+                item_key, item_value = param_type(param_key, param_map).from_file(config_parser, section_name)
+                section_dict[item_key] = item_value
 
-            not_valid_keys = [key for key, value in config_parser.items(section_name) if key not in section_map_items]
+                not_valid_keys = [key for key, value in config_parser.items(section_name) if key not in section_map_items]
 
-            if not_valid_keys:
-                error(
-                    "The configuration parameters '{0}' are not allowed in the [{1}] section".format(
-                        ",".join(not_valid_keys), section_name
+                if not_valid_keys:
+                    error(
+                        "The configuration parameters '{0}' are not allowed in the [{1}] section".format(
+                            ",".join(not_valid_keys), section_name
+                        )
                     )
-                )
+        else:
+            if fail_on_absence:
+                error("Section '[{0}]' not found in the config file.")
+            else:
+                LOGGER.info("Section '[{0}]' not found in the config file. Using defaults.".format(section_name))
+                _, section_dict = self.from_map()
 
         return self.section_key, section_dict
 
@@ -769,7 +776,7 @@ class Section(object):
 
     def from_map(self):
         section_dict = {}
-        label_added = False
+        #label_added = False
 
         for param_key, param_map in self.section_map.get("params").items():
             param_type = param_map.get("type", Param)

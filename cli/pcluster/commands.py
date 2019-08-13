@@ -311,7 +311,7 @@ def start(args):
         file_sections=[AWS],
         cluster_name=args.cluster_name,
     )
-    cluster_config = pcluster_config.get("cluster")
+    cluster_config = pcluster_config.get_section("cluster")
 
     if cluster_config.get("scheduler") == "awsbatch":
         LOGGER.info("Enabling AWS Batch compute environment : %s", args.cluster_name)
@@ -344,7 +344,7 @@ def stop(args):
         file_sections=[AWS, CLUSTER],
         cluster_name=args.cluster_name,
     )
-    cluster_config = pcluster_config.get("cluster")
+    cluster_config = pcluster_config.get_section("cluster")
 
     if cluster_config.get("scheduler") == "awsbatch":
         LOGGER.info("Disabling AWS Batch compute environment : %s", args.cluster_name)
@@ -562,7 +562,7 @@ def instances(args):
         file_sections=[AWS, CLUSTER],
         cluster_name=args.cluster_name,
     )
-    cluster_config = pcluster_config.get("cluster")
+    cluster_config = pcluster_config.get_section("cluster")
 
     instances = []
     instances.extend(get_ec2_instances(stack_name))
@@ -617,8 +617,8 @@ def command(args, extra_args):  # noqa: C901 FIXME!!!
     stack = "parallelcluster-" + args.cluster_name
     pcluster_config = PclusterConfig(config_file=args.config_file, file_sections=[AWS, GLOBAL, ALIASES])
 
-    if args.command in pcluster_config.get("aliases"):
-        config_command = pcluster_config.get("aliases").get(args.command)
+    if args.command in pcluster_config.get_section("aliases"):
+        config_command = pcluster_config.get_section("aliases").get(args.command)
     else:
         config_command = "ssh {CFN_USER}@{MASTER_IP} {ARGS}"
 
@@ -949,7 +949,7 @@ def create_ami(args):
             fail_on_config_file_absence=True,
         )
 
-        vpc_config = pcluster_config.get("cluster").get("vpc")[0]
+        vpc_config = pcluster_config.get_section("cluster").get("vpc")[0]
         vpc_id = args.vpc_id if args.vpc_id else vpc_config.get("vpc_id")
         subnet_id =  args.subnet_id if args.subnet_id else vpc_config.get("master_subnet_id")
 
@@ -961,7 +961,8 @@ def create_ami(args):
             "AWS_SUBNET_ID": subnet_id,
         }
 
-        aws_config = pcluster_config.get("aws")
+        aws_config = pcluster_config.get_section("aws")
+        aws_region = aws_config.get("region")
         if aws_config and aws_config.get("aws_access_key_id"):
             packer_env["AWS_ACCESS_KEY_ID"] = aws_config.get("aws_access_key_id")
         if aws_config and aws_config.get("aws_secret_access_key"):
@@ -970,12 +971,12 @@ def create_ami(args):
         LOGGER.info("Base AMI ID: %s", args.base_ami_id)
         LOGGER.info("Base AMI OS: %s", args.base_ami_os)
         LOGGER.info("Instance Type: %s", instance_type)
-        LOGGER.info("Region: %s", pcluster_config.get("region"))
+        LOGGER.info("Region: %s", aws_region)
         LOGGER.info("VPC ID: %s", vpc_id)
         LOGGER.info("Subnet ID: %s", subnet_id)
 
         tmp_dir = mkdtemp()
-        cookbook_dir = _get_cookbook_dir(pcluster_config.get("region"), pcluster_config.get("template_url"), args, tmp_dir)
+        cookbook_dir = _get_cookbook_dir(aws_region, pcluster_config.get_section("cluster").get("template_url"), args, tmp_dir)
 
         packer_command = (
             cookbook_dir
@@ -983,7 +984,7 @@ def create_ami(args):
             + args.base_ami_os
             + " --partition region"
             + " --region "
-            + pcluster_config.get("region")
+            + aws_region
             + " --custom"
         )
 

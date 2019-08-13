@@ -108,16 +108,20 @@ def _list_instances():  # Specifying the region does not make any difference
 
 def configure(args):
     pcluster_config = PclusterConfig(config_file=args.config_file, file_sections=MAIN_SECTIONS)
-    cluster_config = pcluster_config.get("cluster")
+    cluster_config = pcluster_config.get_section("cluster")
 
-    global_config = pcluster_config.get("global")
+    global_config = pcluster_config.get_section("global")
     cluster_label = global_config.get("cluster_template", "default") if global_config else "default"
 
     vpc_config = cluster_config.get("vpc")[0] if cluster_config.get("vpc") else {}
     vpc_label = vpc_config.get("label", cluster_label)
 
     # Use built in boto regions as an available option
-    aws_region_name = prompt_iterable("AWS Region ID", get_regions(), default_value=pcluster_config.get("region"))
+    aws_region_name = prompt_iterable(
+        "AWS Region ID",
+        get_regions(),
+        default_value=pcluster_config.get_section("aws").get("region"),
+    )
 
     scheduler = prompt_iterable(
         "Scheduler",

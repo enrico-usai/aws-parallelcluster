@@ -75,9 +75,9 @@ class PclusterConfig(object):
         self.config_parser = configparser.ConfigParser(inline_comment_prefixes=("#", ";"))
         self.config_parser.read(self.config_file)
 
-    def get(self, attr_name, default_value=None):
+    def get_section(self, section_name, default_value=None):
         """Get the PclusterConfig attribute"""
-        return getattr(self, attr_name, default_value)
+        return getattr(self, section_name, default_value)
 
     def __init_aws_credentials(self):
         # set credentials in th environment to be available for all the boto3 calls
@@ -85,11 +85,11 @@ class PclusterConfig(object):
 
         # Init credentials by checking if they have been provided in config
         try:
-            aws_access_key_id = self.get("aws").get("aws_access_key_id", None)
+            aws_access_key_id = self.get_section("aws").get("aws_access_key_id", None)
             if aws_access_key_id:
                 os.environ["AWS_ACCESS_KEY_ID"] = aws_access_key_id
 
-            aws_secret_access_key = self.get("aws").get("aws_secret_access_key", None)
+            aws_secret_access_key = self.get_section("aws").get("aws_secret_access_key", None)
             if aws_secret_access_key:
                 os.environ["AWS_SECRET_ACCESS_KEY"] = aws_secret_access_key
         except AttributeError:
@@ -107,16 +107,16 @@ class PclusterConfig(object):
         elif os.environ.get("AWS_DEFAULT_REGION"):
             self.region = os.environ.get("AWS_DEFAULT_REGION")
         else:
-            self.region = self.get("aws").get("aws_region_name")
+            self.region = self.get_section("aws").get("aws_region_name")
 
-    def __init_section_dict(self, config_parser, section_map, section_label=None):
-        try:
-            section_type = section_map.get("type", Section)
-            section_key, section_value = section_type(section_map, section_label).from_file(config_parser)
-        except NoSectionError as e:
+    def __init_section_dict(self, config_parser, section_map, section_label=None, fail_on_absence=False):
+        #try:
+        section_type = section_map.get("type", Section)
+        section_key, section_value = section_type(section_map, section_label).from_file(config_parser, fail_on_absence)
+        #except NoSectionError as e:
             #LOGGER.info(e)
-            section_key, section_value = section_type(section_map, section_label).from_map()
-            pass
+            #section_key, section_value = section_type(section_map, section_label).from_map()
+            #pass
         setattr(self, section_key, section_value)
 
     def to_file(self):
@@ -127,7 +127,7 @@ class PclusterConfig(object):
         """
         self.__validate([CLUSTER])
 
-        ClusterSection(CLUSTER, self.cluster.get("label")).to_file(self.cluster, self.config_parser)
+        ClusterSection(CLUSTER, self.get_section("cluster").get("label")).to_file(self.get_section("cluster"), self.config_parser)
 
         # ensure that the directory for the config file exists
         if not os.path.isfile(self.config_file):
@@ -155,12 +155,13 @@ class PclusterConfig(object):
         """
         # validate PclusterConfig object
         self.__validate([CLUSTER])
+        cluster_config = self.get_section("cluster")
 
         params = ClusterSection(
-            CLUSTER, self.cluster.get("label")
-        ).to_cfn(section_dict=self.cluster, pcluster_config=self)
+            CLUSTER, cluster_config.get("label")
+        ).to_cfn(section_dict=cluster_config, pcluster_config=self)
 
-        return self.region, self.cluster.get("template_url"), params, self.cluster.get("tags")
+        return self.region, cluster_config.get("template_url"), params, cluster_config.get("tags")
 
     def __from_file(self, file_sections, cluster_label=None, config_parser=None):
         if GLOBAL in file_sections:
@@ -171,8 +172,7 @@ class PclusterConfig(object):
         # get cluster by cluster_label
         if CLUSTER in file_sections:
             if not cluster_label:
-                global_config = self.get("global")
-                cluster_label = global_config.get("cluster_template", "default") if global_config else "default"
+                cluster_label = self.get_section("global").get("cluster_template")
 
             self.__init_section_dict(config_parser, CLUSTER, cluster_label)
 
@@ -186,16 +186,15 @@ class PclusterConfig(object):
         setattr(self, section_key, section_dict)
 
     def __validate(self, file_sections):
-        global_config = self.get("global")
-        fail_on_error = global_config.get("sanity_check", True) if global_config else True
+        fail_on_error = self.get_section("global").get("sanity_check")
 
         for section_map in file_sections:
             section_key = section_map.get("key")
             section_type = section_map.get("type", Section)
-            section_label = self.get(section_key).get("label", None)
+            section_label = self.get_section(section_key).get("label", None)
             section_type(
                 section_map, section_label
-            ).validate(section_dict=self.get(section_key, None), pcluster_dict=self, fail_on_error=fail_on_error)
+            ).validate(section_dict=self.get_section(section_key, None), pcluster_dict=self, fail_on_error=fail_on_error)
 
     def get_master_avail_zone(self):
         """
@@ -203,7 +202,7 @@ class PclusterConfig(object):
 
         :return: master avail zone
         """
-        master_subnet_id = self.cluster.get("vpc")[0].get("master_subnet_id")
+        master_subnet_id = self.get_section("cluster").get("vpc")[0].get("master_subnet_id")
         master_avail_zone = (
             boto3.client("ec2").describe_subnets(SubnetIds=[master_subnet_id]).get("Subnets")[0].get("AvailabilityZone")
         )

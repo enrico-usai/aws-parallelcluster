@@ -58,10 +58,11 @@ from tests.pcluster.config.defaults import DefaultDict
         (CLUSTER, "spot_bid_percentage", "10", 10, None),
         (CLUSTER, "spot_bid_percentage", "3", 3, None),
         # SettingsParam
+        (CLUSTER, "scaling_settings", "test1", None, "Section .* not found in the config file"),
         (CLUSTER, "vpc_settings", "test1", None, "Section .* not found in the config file"),
         (CLUSTER, "vpc_settings", "test1,test2", None, "is invalid. It can only contains a single .* section label"),
         (CLUSTER, "vpc_settings", "test1, test2", None, "is invalid. It can only contains a single .* section label"),
-        # SettingsParam
+        # EBSSettingsParam
         (CLUSTER, "ebs_settings", "test1", None, "Section .* not found in the config file"),
         (CLUSTER, "ebs_settings", "test1,test2", None, "Section .* not found in the config file"),
         (CLUSTER, "ebs_settings", "test1, test2", None, "Section .* not found in the config file"),
