@@ -18,57 +18,7 @@ from tests.pcluster.config.utils import get_param_map
 from tests.pcluster.config.defaults import DefaultDict
 
 
-@pytest.mark.parametrize(
-    "section_map, param_key, param_value, expected_value, expected_message",
-    [
-        # Param
-        (CLUSTER, "key_name", None, None, None),
-        (CLUSTER, "key_name", "", None, None),
-        (CLUSTER, "key_name", "test", "test", None),
-        (CLUSTER, "key_name", "NONE", "NONE", None),
-        (CLUSTER, "key_name", "fake_value", "fake_value", None),
-        # BoolParam
-        (CLUSTER, "encrypted_ephemeral", None, False, None),
-        (CLUSTER, "encrypted_ephemeral", "", False, None),
-        (CLUSTER, "encrypted_ephemeral", "NONE", None, "must be a Boolean"),
-        (CLUSTER, "encrypted_ephemeral", "true", True, None),
-        (CLUSTER, "encrypted_ephemeral", "false", False, None),
-        # IntParam
-        (SCALING, "scaledown_idletime", None, 10, None),
-        (SCALING, "scaledown_idletime", "", 10, None),
-        (SCALING, "scaledown_idletime", "NONE", None, "must be an Integer"),
-        (SCALING, "scaledown_idletime", "wrong_value", None, "must be an Integer"),
-        (SCALING, "scaledown_idletime", "10", 10, None),
-        (SCALING, "scaledown_idletime", "3", 3, None),
-        # FloatParam + allowed_values
-        (EFS, "provisioned_throughput", "0.1", 0.1, None),
-        (EFS, "provisioned_throughput", "3", 3, None),
-        (EFS, "provisioned_throughput", "1024.9", 1024.9, None),
-        (EFS, "provisioned_throughput", "102000", None, "has an invalid value"),
-        (EFS, "provisioned_throughput", "0.01", None, "has an invalid value"),
-        (EFS, "provisioned_throughput", "1025", None, "has an invalid value"),
-        (EFS, "provisioned_throughput", "wrong_value", None, "must be a Float"),
-        # SpotBidPercentageParam
-        (CLUSTER, "spot_bid_percentage", None, 0.0, None),
-        (CLUSTER, "spot_bid_percentage", "", 0.0, None),
-        (CLUSTER, "spot_bid_percentage", "NONE", None, "must be a Float"),
-        (CLUSTER, "spot_bid_percentage", "wrong_value", None, "must be a Float"),
-        (CLUSTER, "spot_bid_percentage", "0.0009", 0.0009, None),
-        (CLUSTER, "spot_bid_percentage", "0.0", 0.0, None),
-        (CLUSTER, "spot_bid_percentage", "10", 10, None),
-        (CLUSTER, "spot_bid_percentage", "3", 3, None),
-        # SettingsParam
-        (CLUSTER, "scaling_settings", "test1", None, "Section .* not found in the config file"),
-        (CLUSTER, "vpc_settings", "test1", None, "Section .* not found in the config file"),
-        (CLUSTER, "vpc_settings", "test1,test2", None, "is invalid. It can only contains a single .* section label"),
-        (CLUSTER, "vpc_settings", "test1, test2", None, "is invalid. It can only contains a single .* section label"),
-        # EBSSettingsParam
-        (CLUSTER, "ebs_settings", "test1", None, "Section .* not found in the config file"),
-        (CLUSTER, "ebs_settings", "test1,test2", None, "Section .* not found in the config file"),
-        (CLUSTER, "ebs_settings", "test1, test2", None, "Section .* not found in the config file"),
-    ]
-)
-def test_param_from_file(section_map, param_key, param_value, expected_value, expected_message):
+def _assert_param_from_file(section_map, param_key, param_value, expected_value, expected_message):
     section_name = section_map.get("key")
     config_parser = configparser.ConfigParser()
     config_parser.add_section(section_name)
@@ -84,6 +34,113 @@ def test_param_from_file(section_map, param_key, param_value, expected_value, ex
     else:
         _, param_value = param_type(param_key, param_map).from_file(config_parser, section_name)
         assert_that(param_value).is_equal_to(expected_value)
+
+
+@pytest.mark.parametrize(
+    "param_key, param_value, expected_value, expected_message",
+    [
+        ("scaledown_idletime", None, 10, None),
+        ("scaledown_idletime", "", 10, None),
+        ("scaledown_idletime", "NONE", None, "must be an Integer"),
+        ("scaledown_idletime", "wrong_value", None, "must be an Integer"),
+        ("scaledown_idletime", "10", 10, None),
+        ("scaledown_idletime", "3", 3, None),
+    ]
+)
+def test_scaling_param_from_file(param_key, param_value, expected_value, expected_message):
+    _assert_param_from_file(SCALING, param_key, param_value, expected_value, expected_message)
+
+
+@pytest.mark.parametrize(
+    "param_key, param_value, expected_value, expected_message",
+    [
+        ("vpc_id", None, None, None),
+        ("vpc_id", "", None, None),
+        ("vpc_id", "wrong_value", None, "has an invalid value"),
+        ("vpc_id", "vpc-12345", None, "has an invalid value"),
+        ("vpc_id", "vpc-123456789", None, "has an invalid value"),
+        ("vpc_id", "wrong_value", None, "has an invalid value"),
+        ("vpc_id", "NONE", None, "has an invalid value"),
+        ("vpc_id", "vpc-12345678", "vpc-12345678", None),
+        ("vpc_id", "vpc-12345678901234567", "vpc-12345678901234567", None),
+        ("master_subnet_id", None, None, None),
+        ("master_subnet_id", "", None, None),
+        ("master_subnet_id", "wrong_value", None, "has an invalid value"),
+        ("master_subnet_id", "subnet-12345", None, "has an invalid value"),
+        ("master_subnet_id", "subnet-123456789", None, "has an invalid value"),
+        ("master_subnet_id", "wrong_value", None, "has an invalid value"),
+        ("master_subnet_id", "NONE", None, "has an invalid value"),
+        ("master_subnet_id", "subnet-12345678", "subnet-12345678", None),
+        ("master_subnet_id", "subnet-12345678901234567", "subnet-12345678901234567", None),
+        ("compute_subnet_id", None, None, None),
+        ("compute_subnet_id", "", None, None),
+        ("compute_subnet_id", "wrong_value", None, "has an invalid value"),
+        ("compute_subnet_id", "subnet-12345", None, "has an invalid value"),
+        ("compute_subnet_id", "subnet-123456789", None, "has an invalid value"),
+        ("compute_subnet_id", "wrong_value", None, "has an invalid value"),
+        ("compute_subnet_id", "NONE", None, "has an invalid value"),
+        ("compute_subnet_id", "subnet-12345678", "subnet-12345678", None),
+        ("compute_subnet_id", "subnet-12345678901234567", "subnet-12345678901234567", None),
+    ]
+)
+def test_vpc_param_from_file(param_key, param_value, expected_value, expected_message):
+    _assert_param_from_file(VPC, param_key, param_value, expected_value, expected_message)
+
+
+@pytest.mark.parametrize(
+    "param_key, param_value, expected_value, expected_message",
+    [
+        ("provisioned_throughput", "0.1", 0.1, None),
+        ("provisioned_throughput", "3", 3, None),
+        ("provisioned_throughput", "1024.9", 1024.9, None),
+        ("provisioned_throughput", "102000", None, "has an invalid value"),
+        ("provisioned_throughput", "0.01", None, "has an invalid value"),
+        ("provisioned_throughput", "1025", None, "has an invalid value"),
+        ("provisioned_throughput", "wrong_value", None, "must be a Float"),
+    ]
+)
+def test_efs_param_from_file(param_key, param_value, expected_value, expected_message):
+    _assert_param_from_file(EFS, param_key, param_value, expected_value, expected_message)
+
+
+@pytest.mark.parametrize(
+    "param_key, param_value, expected_value, expected_message",
+    [
+        # Param
+        ("key_name", None, None, None),
+        ("key_name", "", None, None),
+        ("key_name", "test", "test", None),
+        ("key_name", "NONE", "NONE", None),
+        ("key_name", "fake_value", "fake_value", None),
+        ("base_os", None, "alinux", None),
+        ("base_os", "", "alinux", None),
+        ("base_os", "wrong_value", None, "has an invalid value"),
+        ("base_os", "NONE", None, "has an invalid value"),
+        ("base_os", "alinux", "alinux", None),
+        ("encrypted_ephemeral", None, False, None),
+        ("encrypted_ephemeral", "", False, None),
+        ("encrypted_ephemeral", "NONE", None, "must be a Boolean"),
+        ("encrypted_ephemeral", "true", True, None),
+        ("encrypted_ephemeral", "false", False, None),
+        ("spot_bid_percentage", None, 0.0, None),
+        ("spot_bid_percentage", "", 0.0, None),
+        ("spot_bid_percentage", "NONE", None, "must be a Float"),
+        ("spot_bid_percentage", "wrong_value", None, "must be a Float"),
+        ("spot_bid_percentage", "0.0009", 0.0009, None),
+        ("spot_bid_percentage", "0.0", 0.0, None),
+        ("spot_bid_percentage", "10", 10, None),
+        ("spot_bid_percentage", "3", 3, None),
+        ("scaling_settings", "test1", None, "Section .* not found in the config file"),
+        ("vpc_settings", "test1", None, "Section .* not found in the config file"),
+        ("vpc_settings", "test1,test2", None, "is invalid. It can only contains a single .* section label"),
+        ("vpc_settings", "test1, test2", None, "is invalid. It can only contains a single .* section label"),
+        ("ebs_settings", "test1", None, "Section .* not found in the config file"),
+        ("ebs_settings", "test1,test2", None, "Section .* not found in the config file"),
+        ("ebs_settings", "test1, test2", None, "Section .* not found in the config file"),
+    ]
+)
+def test_cluster_param_from_file(param_key, param_value, expected_value, expected_message):
+    _assert_param_from_file(CLUSTER, param_key, param_value, expected_value, expected_message)
 
 
 @pytest.mark.parametrize(

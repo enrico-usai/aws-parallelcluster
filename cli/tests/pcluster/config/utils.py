@@ -16,3 +16,11 @@ def get_param_map(section_map, param_key):
     param_map = section_map.get("params").get(param_key)
     return param_map, param_map.get("type", Param)
 
+
+def merge_dicts(*args):
+    """Merge multiple dictionaries into a new dictionary as a shallow copy."""
+    merged_dict = {}
+    for input_dict in args:
+        merged_dict.update(input_dict)
+    return merged_dict
+

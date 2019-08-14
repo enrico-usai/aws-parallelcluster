@@ -274,21 +274,27 @@ class JsonParam(Param):
 
 
 class SharedDirParam(Param):
+    """
+    Class to manage the shared_dir configuration parameter.
 
+    We need this class since the same CFN input parameter "SharedDir" is populated
+    from the "shared" parameter of the cluster section (e.g. SharedDir = /shared)
+    and the "shared" parameter of the ebs sections (e.g. SharedDir = /shared1,/shared2,NONE,NONE,NONE).
+    """
     def to_cfn(self, parent_section_dict, pcluster_config):
         cfn_params = {}
         # if contains ebs_settings --> single SharedDir
         if not parent_section_dict.get("ebs"):
             cfn_value = parent_section_dict.get("shared_dir")
             cfn_params.update({self.param_map.get("cfn"): str(cfn_value)})
-        # else let the EBSSettings parse the item
+        # else: there are ebs volumes, let the EBSSettings populate the SharedDir CFN parameter.
         return cfn_params
 
     def to_file(self, config_parser, parent_section_dict, parent_section_name, param_value):
         # if contains ebs_settings --> single SharedDir
         if not parent_section_dict.get("ebs") and param_value != self.get_default_value():
             config_parser.set(parent_section_name, self.param_key, parent_section_dict.get("shared_dir"))
-        # else do nothing, let the EBSSettings parse the item
+        # else: there are ebs volumes, let the EBSSettings parse the SharedDir CFN parameter.
 
 
 class SpotPriceParam(IntParam):
@@ -354,7 +360,7 @@ class MaintainInitialSizeParam(BoolParam):
         if parent_section_dict.get("scheduler") != "awsbatch":
             cfn_value = parent_section_dict.get("mantain_initial_size")
             min_size_value = parent_section_dict.get("initial_queue_size", "0") if cfn_value else "0"
-            cfn_params.update({"MinSize": str(min_size_value)})
+            cfn_params.update({self.param_map.get("cfn"): str(min_size_value)})
 
         return cfn_params
 
@@ -450,12 +456,22 @@ class SettingsParam(Param):
     def to_cfn(self, parent_section_dict, pcluster_config):
         cfn_params = {}
         sections = parent_section_dict.get(self.related_section_key, [])
-        for section_dict in sections:
-            cfn_params.update(
-                self.related_section_type(
-                    self.related_section_map, section_dict.get("label")
-                ).to_cfn(section_dict, pcluster_config)
+
+        if len(sections) > 1:
+            error(
+                "Unable to convert multiple dictionaries to a single settings parameter."
+                "'{0}' parameter can only contain a single '{1}' setting label".format(
+                    self.param_key, self.related_section_key
+                )
             )
+        else:
+            section_dict = sections[0] if sections else None
+            section_label = section_dict.get("label") if section_dict else None
+            # Call to_cfn also if section_dict is None, to populate with default values (e.g. NONE)
+            cfn_params.update(self.related_section_type(
+                self.related_section_map, section_label
+            ).to_cfn(section_dict, pcluster_config))
+
         return cfn_params
 
     def validate(self, param_value, parent_section_dict, pcluster_dict, fail_on_error=True):
@@ -478,11 +494,14 @@ class SettingsParam(Param):
 
     def from_map(self):
         sections = []
-        label = self.related_section_map.get("label", "")
-        section_key, section_dict = self.related_section_type(self.related_section_map, label).from_map()
-        sections.append(section_dict)
+        param_value = self.param_map.get("default", None)
+        if param_value:
+            # use the label coming from the SettingsParam and not the one from the Section
+            label = self.related_section_map.get("label", param_value)
+            _, section_dict = self.related_section_type(self.related_section_map, label).from_map()
+            sections.append(section_dict)
 
-        return section_key, sections
+        return self.related_section_key, sections
 
 
 class EBSSettingsParam(SettingsParam):
@@ -551,21 +570,25 @@ class EBSSettingsParam(SettingsParam):
 
         max_number_of_ebs_volumes = 5
 
-        if sections:
-            number_of_ebs_volumes = len(sections)
-            for param_key, param_map in self.related_section_map.get("params").items():
-                param = param_map.get("type", Param)(param_key, param_map)
+        number_of_ebs_volumes = len(sections) if sections else 0
+        for param_key, param_map in self.related_section_map.get("params").items():
+            param = param_map.get("type", Param)(param_key, param_map)
 
-                cfn_value_list = [param.to_cfn_value(section_dict.get(param_key)) for section_dict in sections]
-                # add missing items until the max
-                cfn_value_list.extend([param.to_cfn_value(None)] * (max_number_of_ebs_volumes - number_of_ebs_volumes))
-                cfn_value = ",".join(cfn_value_list)
+            if number_of_ebs_volumes == 0 and param_key == "shared_dir":
+                # The same CFN parameter is used for both single and multiple EBS cases
+                # if there are no ebs volumes, let the SharedDirParam populate the "SharedDir" CFN parameter.
+                continue
 
-                cfn_converter = param_map.get("cfn", None)
-                if cfn_converter:
-                    cfn_params.update({cfn_converter: cfn_value})
+            cfn_value_list = [param.to_cfn_value(section_dict.get(param_key)) for section_dict in sections]
+            # add missing items until the max
+            cfn_value_list.extend([param.to_cfn_value(None)] * (max_number_of_ebs_volumes - number_of_ebs_volumes))
+            cfn_value = ",".join(cfn_value_list)
 
-            cfn_params.update({"NumberOfEBSVol": str(number_of_ebs_volumes)})
+            cfn_converter = param_map.get("cfn", None)
+            if cfn_converter:
+                cfn_params.update({cfn_converter: cfn_value})
+
+        cfn_params.update({"NumberOfEBSVol": str(number_of_ebs_volumes)})
 
         return cfn_params
 
@@ -707,18 +730,18 @@ class Section(object):
 
     def to_cfn(self, section_dict, pcluster_config):
         cfn_params = {}
-        #if section_dict:
         cfn_converter = self.section_map.get("cfn", None)
         if cfn_converter:
             # it is a section converted to a single CFN parameter
-            cfn_items = [
-                param_map.get("type", Param)(param_key, param_map).to_cfn_value(section_dict.get(param_key))
-                for param_key, param_map in self.section_map.get("params").items()
-            ]
+            if section_dict:
+                cfn_items = [
+                    param_map.get("type", Param)(param_key, param_map).to_cfn_value(section_dict.get(param_key))
+                    for param_key, param_map in self.section_map.get("params").items()
+                ]
 
-            if cfn_items[0] == "NONE":
-                # first item is NONE --> set all values to NONE
-                cfn_items = ["NONE"] * len(cfn_items)
+            if not section_dict or cfn_items[0] == "NONE":
+                # empty dict or first item is NONE --> set all values to NONE
+                cfn_items = ["NONE"] * len(self.section_map.get("params"))
 
             cfn_params.update({cfn_converter: ",".join(cfn_items)})
         else:
@@ -732,7 +755,6 @@ class Section(object):
 
         # TODO get the label if saved in cfn
         section_dict = {}
-        label_added = False
 
         cfn_converter = self.section_map.get("cfn", None)
         if cfn_converter:
@@ -750,12 +772,7 @@ class Section(object):
 
                 param_type = param_map.get("type", Param)
                 item_value = param_type(param_key, param_map).from_string(cfn_value)
-
-                #if not label_added and item_value != param_map.get("default", None):
-                    # add "label" to the section dict
-                    # only if at least one value is different from the default one
                 section_dict["label"] = self.section_label
-                label_added = True
 
                 section_dict[param_key] = item_value
                 cfn_param_index += 1
@@ -763,31 +780,18 @@ class Section(object):
             for param_key, param_map in self.section_map.get("params").items():
                 param_type = param_map.get("type", Param)
                 item_key, item_value = param_type(param_key, param_map).from_cfn(cfn_params)
-
-                #if not label_added and item_value != param_map.get("default", None):
-                    # add "label" to the section dict
-                    # only if at least one value is different from the default one
                 section_dict["label"] = self.section_label
-                label_added = True
-
                 section_dict[item_key] = item_value
 
         return self.section_key, section_dict
 
     def from_map(self):
         section_dict = {}
-        #label_added = False
 
         for param_key, param_map in self.section_map.get("params").items():
             param_type = param_map.get("type", Param)
             item_key, item_value = param_type(param_key, param_map).from_map()
-
-            #if not label_added and item_value != param_map.get("default", None):
-                # add "label" to the section dict
-                # only if at least one value is different from the default one
             section_dict["label"] = self.section_label
-            #label_added = True
-
             section_dict[item_key] = item_value
 
         return self.section_key, section_dict
@@ -800,19 +804,17 @@ class EFSSection(Section):
     def to_cfn(self, section_dict, pcluster_config):
 
         cfn_params = {}
-        #if section_dict:
-        # it is a section converted to a single CFN parameter
         cfn_converter = self.section_map.get("cfn", None)
-        cfn_items = [
-            param_map.get("type", Param)(param_key, param_map).to_cfn_value(section_dict.get(param_key))
-            for param_key, param_map in self.section_map.get("params").items()
-        ]
+        if section_dict:
+            cfn_items = [
+                param_map.get("type", Param)(param_key, param_map).to_cfn_value(section_dict.get(param_key))
+                for param_key, param_map in self.section_map.get("params").items()
+            ]
 
-        if cfn_items[0] == "NONE":
+        if not section_dict or cfn_items[0] == "NONE":
             efs_section_valid = False
-
-            # first item is NONE --> set all values to NONE
-            cfn_items = ["NONE"] * len(cfn_items)
+            # empty dict or first item is NONE --> set all values to NONE
+            cfn_items = ["NONE"] * len(self.section_map.get("params"))
         else:
             # latest CFN param will identify if create or no a Mount Target for the given EFS FS Id
             master_avail_zone = pcluster_config.get_master_avail_zone()
@@ -837,4 +839,10 @@ class ClusterSection(Section):
             section_dict[item_key] = item_value
 
         return self.section_key, section_dict
+
+    def to_cfn(self, section_dict, pcluster_config):
+        cfn_params = super().to_cfn(section_dict, pcluster_config)
+        cfn_params.update({"CLITemplate": self.section_label})
+        cfn_params.update({"AvailabilityZone": pcluster_config.get_master_avail_zone()})
+        return cfn_params
 

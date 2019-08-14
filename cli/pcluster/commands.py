@@ -78,20 +78,6 @@ def create(args):  # noqa: C901 FIXME!!!
     )
     region, cfn_template_url, cfn_params, cfn_tags = pcluster_config.to_cfn()
 
-    # Get the MasterSubnetId and use it to determine AvailabilityZone
-    if "MasterSubnetId" in cfn_params:
-        master_subnet_id = cfn_params["MasterSubnetId"]
-        try:
-            ec2 = boto3.client("ec2")
-            availability_zone = (
-                ec2.describe_subnets(SubnetIds=[master_subnet_id]).get("Subnets")[0].get("AvailabilityZone")
-            )
-        except ClientError as e:
-            LOGGER.critical(e.response.get("Error").get("Message"))
-            sys.stdout.flush()
-            sys.exit(1)
-        cfn_params["AvailabilityZone"] = availability_zone
-
     capabilities = ["CAPABILITY_IAM"]
     batch_temporary_bucket = None
     try:

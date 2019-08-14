@@ -385,7 +385,7 @@ CLUSTER = {
         },
         "spot_price": {
             "type": SpotPriceParam,
-            "default": 10,
+            "default": 10, # TODO verify
             "cfn": "SpotPrice",
         },
         "spot_bid_percentage": {

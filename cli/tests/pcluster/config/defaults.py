@@ -10,6 +10,7 @@
 # limitations under the License.
 
 from enum import Enum
+from tests.pcluster.config.utils import merge_dicts
 
 
 DEFAULT_SCALING_DICT = {
@@ -83,7 +84,7 @@ DEFAULT_CLUSTER_DICT = {
     "base_os": "alinux",
     "scheduler": "sge",
     "shared_dir": "/shared",
-    "placement_group": None,
+    "placement_group": "DYNAMIC",
     "placement": "compute",
     "master_instance_type": "t2.micro",
     "master_root_volume_size": 17,
@@ -159,14 +160,14 @@ DEFAULT_VPC_CFN_PARAMS = {
 }
 
 DEFAULT_EBS_CFN_PARAMS = {
-    "SharedDir": "NONE",
-    "EBSSnapshotId": "NONE",
-    "VolumeType": "gp2",
-    "VolumeSize": "20",
-    "VolumeIOPS": "100",
-    "EBSEncryption": "false", #should be NONE?
-    "EBSKMSKeyId": "NONE",
-    "EBSVolumeId": "NONE",
+    "SharedDir": "NONE,NONE,NONE,NONE,NONE",
+    "EBSSnapshotId": "NONE,NONE,NONE,NONE,NONE",
+    "VolumeType": "gp2,gp2,gp2,gp2,gp2",
+    "VolumeSize": "20,20,20,20,20",
+    "VolumeIOPS": "100,100,100,100,100",
+    "EBSEncryption": "false,false,false,false,false",
+    "EBSKMSKeyId": "NONE,NONE,NONE,NONE,NONE",
+    "EBSVolumeId": "NONE,NONE,NONE,NONE,NONE",
 }
 
 DEFAULT_EFS_CFN_PARAMS = {
@@ -181,6 +182,49 @@ DEFAULT_FSX_CFN_PARAMS = {
     "FSXOptions": "NONE,NONE,NONE,NONE,NONE,NONE,NONE,NONE"
 }
 
+DEFAULT_CLUSTER_CFN_PARAMS = {
+    "KeyName": "NONE",
+    "BaseOS": "alinux",
+    "AvailabilityZone": "mocked_avail_zone",
+    "CLITemplate": "default",
+    "Scheduler": "sge",
+    "SharedDir": "/shared",
+    "PlacementGroup": "DYNAMIC",
+    "Placement": "compute",
+    "MasterInstanceType": "t2.micro",
+    "MasterRootVolumeSize": "17",
+    "ComputeInstanceType": "t2.micro",
+    "ComputeRootVolumeSize": "17",
+    "DesiredSize": "0",
+    "MaxSize": "10",
+    "ClusterType": "ondemand",
+    "SpotPrice": "10",
+    "ProxyServer": "NONE",
+    "EC2IAMRoleName": "NONE",
+    "S3ReadResource": "NONE",
+    "S3ReadWriteResource": "NONE",
+    "EFA": "NONE",
+    "EphemeralDir": "/scratch",
+    "EncryptedEphemeral": "false",
+    "CustomAMI": "NONE",
+    "PreInstallScript": "NONE",
+    "PreInstallArgs": "NONE",
+    "PostInstallScript": "NONE",
+    "PostInstallArgs": "NONE",
+    "ExtraJson": "{}",
+    "AdditionalCfnTemplate": "NONE",
+    "CustomChefCookbook": "NONE",
+    "CustomAWSBatchTemplateURL": "NONE",
+    "NumberOfEBSVol": "0",
+    # "ResourcesS3Bucket": "NONE",  # parameter added by the CLI
+}
+
+DEFAULT_CLUSTER_BATCH_CFN_PARAMS = {
+    "DesiredSize": "2",
+    "MaxSize": "10",
+    "SpotPrice": "0.00",
+}
+
 
 class DefaultCfnParams(Enum):
     scaling = DEFAULT_SCALING_CFN_PARAMS
@@ -189,3 +233,6 @@ class DefaultCfnParams(Enum):
     efs = DEFAULT_EFS_CFN_PARAMS
     raid = DEFAULT_RAID_CFN_PARAMS
     fsx = DEFAULT_FSX_CFN_PARAMS
+    cluster = merge_dicts(scaling, vpc, efs, raid, fsx, ebs, DEFAULT_CLUSTER_CFN_PARAMS)
+    cluster_batch = merge_dicts(cluster, DEFAULT_CLUSTER_BATCH_CFN_PARAMS)  # overrides some cluster parameters
+
