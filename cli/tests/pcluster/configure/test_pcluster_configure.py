@@ -208,7 +208,7 @@ class MockHandler:
 
 
 def get_file_path(test_datadir):
-    config = test_datadir / "test"
+    config = test_datadir / "pcluster.config.ini"
     output = test_datadir / "output.txt"
     error = test_datadir / "error.txt"
     #  str for python 2.7 compatibility
