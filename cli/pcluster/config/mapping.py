@@ -97,28 +97,32 @@ VPC = {
     "params": {
         "vpc_id": {
             "cfn": "VPCId",
+            "allowed_values": r"^vpc-[0-9a-z]{8}$|^vpc-[0-9a-z]{17}$",
             "validator": ec2_vpc_id_validator,
         },
         "master_subnet_id": {
             "cfn": "MasterSubnetId",
+            "allowed_values": r"^subnet-[0-9a-z]{8}$|^subnet-[0-9a-z]{17}$",
             "validator": ec2_subnet_id_validator,
         },
         "ssh_from": {
             "default": "0.0.0.0/0",
+            "allowed_values": r"^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$",
             "cfn": "AccessFrom",
-            #TODO "validator": cidr_validator
         },
         "additional_sg": {
             "cfn": "AdditionalSG",
+            "allowed_values": r"^sg-[0-9a-z]{8}$|^sg-[0-9a-z]{17}$",
             "validator": ec2_security_group_validator
         },
         "compute_subnet_id": {
             "cfn": "ComputeSubnetId",
+            "allowed_values": r"^subnet-[0-9a-z]{8}$|^subnet-[0-9a-z]{17}$",
             "validator": ec2_subnet_id_validator,
         },
         "compute_subnet_cidr": {
             "cfn": "ComputeSubnetCidr",
-            # TODO "validator": cidr_validator,
+            "allowed_values": r"^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$",
         },
         "use_public_ips": {
             "type": BoolParam,
@@ -127,6 +131,7 @@ VPC = {
         },
         "vpc_security_group_id": {
             "cfn": "VPCSecurityGroupId",
+            "allowed_values": r"^sg-[0-9a-z]{8}$|^sg-[0-9a-z]{17}$",
             "validator": ec2_security_group_validator
         },
     }
@@ -141,6 +146,7 @@ EBS = {
             "cfn": "SharedDir",
         },
         "ebs_snapshot_id": {
+            "allowed_values": r"$snap-[0-9a-z]{8}|snap-[0-9a-z]{17}$",
             "cfn": "EBSSnapshotId",
             "validator": ec2_ebs_snapshot_validator,
         },
@@ -168,6 +174,7 @@ EBS = {
         },
         "ebs_volume_id": {
             "cfn": "EBSVolumeId",
+            "allowed_values": r"^vol-[0-9a-z]{8}|vol-[0-9a-z]{17}$",
             "validator": ec2_volume_validator,
         },
     }
@@ -222,6 +229,7 @@ RAID = {
         },
         "volume_type": {
             "default": "gp2",
+            "allowed_values": ["standard", "io1", "gp2", "st1", "sc1"],
             "cfn": "VolumeType",
         },
         "volume_size": {
@@ -306,6 +314,7 @@ CLUSTER = {
         },
         # Cluster configuration
         "placement_group": {
+            "default": "DYNAMIC",
             "cfn": "PlacementGroup",
             "validator": placement_group_validator,
         },
@@ -323,6 +332,7 @@ CLUSTER = {
         "master_root_volume_size": {
             "type": IntParam,
             "default": 17,
+            "allowed_values": r"^([0-9]+[0-9]{2}|[2-9][0-9]|1[7-9])$",  # >= 17
             "cfn": "MasterRootVolumeSize",
         },
         # Compute fleet
@@ -334,6 +344,7 @@ CLUSTER = {
         "compute_root_volume_size": {
             "type": IntParam,
             "default": 17,
+            "allowed_values": r"^([0-9]+[0-9]{2}|[2-9][0-9]|1[7-9])$",  # >= 17
             "cfn": "ComputeRootVolumeSize",
         },
         "initial_queue_size": {
@@ -350,6 +361,7 @@ CLUSTER = {
         "maintain_initial_size": {
             "type": MaintainInitialSizeParam,
             "default": False,
+            "cfn": "MinSize",
         },
         "min_vcpus": {
             "type": MinSizeParam,
@@ -412,6 +424,7 @@ CLUSTER = {
         },
         "custom_ami": {
             "cfn": "CustomAMI",
+            "allowed_values": r"^ami-[0-9a-z]{8}$|^ami-[0-9a-z]{17}$",
             "validator": ec2_ami_validator,
         },
         "pre_install": {

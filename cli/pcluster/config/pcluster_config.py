@@ -25,6 +25,7 @@ from pcluster.utils import fail
 
 LOGGER = logging.getLogger(__name__)
 
+
 class PclusterConfig(object):
     """Manage ParallelCluster Config."""
     def __init__(
@@ -110,13 +111,8 @@ class PclusterConfig(object):
             self.region = self.get_section("aws").get("aws_region_name")
 
     def __init_section_dict(self, config_parser, section_map, section_label=None, fail_on_absence=False):
-        #try:
         section_type = section_map.get("type", Section)
         section_key, section_value = section_type(section_map, section_label).from_file(config_parser, fail_on_absence)
-        #except NoSectionError as e:
-            #LOGGER.info(e)
-            #section_key, section_value = section_type(section_map, section_label).from_map()
-            #pass
         setattr(self, section_key, section_value)
 
     def to_file(self):
