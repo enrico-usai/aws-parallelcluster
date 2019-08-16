@@ -19,7 +19,7 @@ from botocore.exceptions import ClientError
 from pcluster.utils import get_efs_mount_target_id, get_instance_vcpus, get_supported_features
 
 
-def cluster_validator(section_name, section_dict, pcluster_dict):
+def cluster_validator(section_name, section_dict, pcluster_config):
     errors = []
     warnings = []
 
@@ -53,7 +53,7 @@ def cluster_validator(section_name, section_dict, pcluster_dict):
     return errors, warnings
 
 
-def not_empty_validator(param_key, param_value, pcluster_dict):
+def not_empty_validator(param_key, param_value, pcluster_config):
     errors = []
     warnings = []
 
@@ -62,7 +62,7 @@ def not_empty_validator(param_key, param_value, pcluster_dict):
     return errors, warnings
 
 
-def ec2_key_pair_validator(param_key, param_value, pcluster_dict):
+def ec2_key_pair_validator(param_key, param_value, pcluster_config):
     errors = []
     warnings = []
     try:
@@ -74,7 +74,7 @@ def ec2_key_pair_validator(param_key, param_value, pcluster_dict):
     return errors, warnings
 
 
-def iam_role_validator(param_key, param_value, pcluster_dict):
+def iam_role_validator(param_key, param_value, pcluster_config):
     errors = []
     warnings = []
     try:
@@ -101,7 +101,7 @@ def iam_role_validator(param_key, param_value, pcluster_dict):
     return errors, warnings
 
 
-def ec2_ami_validator(param_key, param_value, pcluster_dict):
+def ec2_ami_validator(param_key, param_value, pcluster_config):
     errors = []
     warnings = []
     try:
@@ -113,7 +113,7 @@ def ec2_ami_validator(param_key, param_value, pcluster_dict):
     return errors, warnings
 
 
-def ec2_ebs_snapshot_validator(param_key, param_value, pcluster_dict):
+def ec2_ebs_snapshot_validator(param_key, param_value, pcluster_config):
     errors = []
     warnings = []
     try:
@@ -127,7 +127,7 @@ def ec2_ebs_snapshot_validator(param_key, param_value, pcluster_dict):
     return errors, warnings
 
 
-def ec2_volume_validator(param_key, param_value, pcluster_dict):
+def ec2_volume_validator(param_key, param_value, pcluster_config):
     errors = []
     warnings = []
     try:
@@ -144,20 +144,21 @@ def ec2_volume_validator(param_key, param_value, pcluster_dict):
     return errors, warnings
 
 
-def compute_instance_type_validator(param_key, param_value, pcluster_dict):
+def compute_instance_type_validator(param_key, param_value, pcluster_config):
     errors = []
     warnings = []
 
-    if pcluster_dict.cluster.get("scheduler") == "awsbatch":  # FIXME there is cluster
+    cluster_config = pcluster_config.get_section("cluster")
+    if cluster_config.get("scheduler") == "awsbatch":
 
         try:
-            supported_instances = get_supported_features(pcluster_dict.region, "batch").get("instances")
+            supported_instances = get_supported_features(pcluster_config.region, "batch").get("instances")
             if supported_instances:
                 for instance in param_value.split(","):
                     if not instance.strip() in supported_instances:
                         errors.append(
                             "compute_instance_type '{0}' is not supported by awsbatch in region '{1}'".format(
-                                instance, pcluster_dict.region
+                                instance, pcluster_config.region
                             )
                         )
             else:
@@ -168,14 +169,14 @@ def compute_instance_type_validator(param_key, param_value, pcluster_dict):
             if "," not in param_value and "." in param_value:
                 # if the type is not a list, and contains dot (nor optimal, nor a family)
                 # validate instance type against max_vcpus limit
-                vcpus = get_instance_vcpus(pcluster_dict.region, param_value)
+                vcpus = get_instance_vcpus(pcluster_config.region, param_value)
                 if vcpus <= 0:
                     warnings.append(
                         "Unable to get the number of vcpus for the compute_instance_type '{0}'. "
                         "Skipping instance type against max_vcpus validation".format(param_value)
                     )
                 else:
-                    if pcluster_dict.cluster.get("max_queue_size") < vcpus:
+                    if cluster_config.get("max_queue_size") < vcpus:
                         errors.append(
                             "max_vcpus must be greater than or equal to {0}, that is the number of vcpus "
                             "available for the {1} that you selected as compute_instance_type".format(
@@ -188,12 +189,12 @@ def compute_instance_type_validator(param_key, param_value, pcluster_dict):
     return errors, warnings
 
 
-def scheduler_validator(param_key, param_value, pcluster_dict):
+def scheduler_validator(param_key, param_value, pcluster_config):
     errors = []
     warnings = []
 
     if param_value is "awsbatch":
-        if pcluster_dict.region in [
+        if pcluster_config.region in [
             "ap-northeast-3",
             "eu-north-1",
             "cn-north-1",
@@ -201,12 +202,12 @@ def scheduler_validator(param_key, param_value, pcluster_dict):
             "us-gov-east-1",
             "us-gov-west-1",
         ]:
-            errors.append("'awsbatch' scheduler is not supported in the '{0}' region".format(pcluster_dict.region))
+            errors.append("'awsbatch' scheduler is not supported in the '{0}' region".format(pcluster_config.region))
 
     return errors, warnings
 
 
-def placement_group_validator(param_key, param_value, pcluster_dict):
+def placement_group_validator(param_key, param_value, pcluster_config):
     errors = []
     warnings = []
 
@@ -222,7 +223,7 @@ def placement_group_validator(param_key, param_value, pcluster_dict):
     return errors, warnings
 
 
-def url_validator(param_key, param_value, pcluster_dict):
+def url_validator(param_key, param_value, pcluster_config):
     errors = []
     warnings = []
 
@@ -235,11 +236,15 @@ def url_validator(param_key, param_value, pcluster_dict):
             warnings.append("{0} {1} {2}".format(param_value, e.code, e.reason))
         except urllib.error.URLError as e:
             warnings.append("{0} {1}".format(param_value, e.reason))
+        except ValueError:
+            errors.append(
+                "The value '{0}' used for the parameter '{1}' is not a valid URL".format(param_value, param_key)
+            )
 
     return errors, warnings
 
 
-def ec2_vpc_id_validator(param_key, param_value, pcluster_dict):
+def ec2_vpc_id_validator(param_key, param_value, pcluster_config):
     errors = []
     warnings = []
     try:
@@ -266,7 +271,7 @@ def ec2_vpc_id_validator(param_key, param_value, pcluster_dict):
     return errors, warnings
 
 
-def ec2_subnet_id_validator(param_key, param_value, pcluster_dict):
+def ec2_subnet_id_validator(param_key, param_value, pcluster_config):
     errors = []
     warnings = []
     try:
@@ -277,7 +282,7 @@ def ec2_subnet_id_validator(param_key, param_value, pcluster_dict):
     return errors, warnings
 
 
-def ec2_security_group_validator(param_key, param_value, pcluster_dict):
+def ec2_security_group_validator(param_key, param_value, pcluster_config):
     errors = []
     warnings = []
     try:
@@ -288,12 +293,12 @@ def ec2_security_group_validator(param_key, param_value, pcluster_dict):
     return errors, warnings
 
 
-def efs_id_validator(param_key, param_value, pcluster_dict):
+def efs_id_validator(param_key, param_value, pcluster_config):
     errors = []
     warnings = []
     try:
         # Get master availability zone
-        master_avail_zone = pcluster_dict.get_master_avail_zone()
+        master_avail_zone = pcluster_config.get_master_avail_zone()
         mount_target_id = get_efs_mount_target_id(efs_fs_id=param_value, avail_zone=master_avail_zone)
         # If there is an existing mt in the az, need to check the inbound and outbound rules of the security groups
         if mount_target_id:
@@ -332,7 +337,7 @@ def efs_id_validator(param_key, param_value, pcluster_dict):
     return errors, warnings
 
 
-def efs_validator(section_name, section_dict, pcluster_dict):
+def efs_validator(section_name, section_dict, pcluster_config):
     errors = []
     warnings = []
 
@@ -350,36 +355,38 @@ def efs_validator(section_name, section_dict, pcluster_dict):
     return errors, warnings
 
 
-def raid_volume_iops_validator(param_key, param_value, pcluster_dict):
+def raid_volume_iops_validator(param_key, param_value, pcluster_config):
     errors = []
     warnings = []
 
-    raid_iops = float(param_value) # pcluster_dict.cluster.get("raid")[0].get("volume_iops")
-    raid_vol_size = float(pcluster_dict.cluster.get("raid")[0].get("volume_size"))
+    cluster_config = pcluster_config.get_section("cluster")
+    raid_iops = float(param_value) # cluster_config.get("raid")[0].get("volume_iops")
+    raid_vol_size = float(cluster_config.get("raid")[0].get("volume_size"))
     if raid_iops > raid_vol_size * 50:
         errors.append("IOPS to volume size ratio of %s is too high; maximum is 50." % (raid_iops / raid_vol_size))
 
     return errors, warnings
 
 
-def fsx_validator(section_name, section_dict, pcluster_dict):
+def fsx_validator(section_name, section_dict, pcluster_config):
     errors = []
     warnings = []
 
-    fsx_import_path = pcluster_dict.cluster.get("fsx")[0].get("import_path")
+    cluster_config = pcluster_config.get_section("cluster")
+    fsx_import_path = cluster_config.get("fsx")[0].get("import_path")
 
-    fsx_imported_file_chunk_size = pcluster_dict.cluster.get("fsx")[0].get("imported_file_chunk_size")
+    fsx_imported_file_chunk_size = cluster_config.get("fsx")[0].get("imported_file_chunk_size")
     if fsx_imported_file_chunk_size and not fsx_import_path:
         errors.append("When specifying 'imported_file_chunk_size', the 'import_path' option must be specified")
 
-    fsx_export_path = pcluster_dict.cluster.get("fsx")[0].get("export_path")
+    fsx_export_path = cluster_config.get("fsx")[0].get("export_path")
     if fsx_export_path and not fsx_import_path:
         errors.append("When specifying 'export_path', the 'import_path' option must be specified")
 
     return errors, warnings
 
 
-def fsx_id_validator(param_key, param_value, pcluster_dict):
+def fsx_id_validator(param_key, param_value, pcluster_config):
     errors = []
     warnings = []
 
@@ -390,7 +397,8 @@ def fsx_id_validator(param_key, param_value, pcluster_dict):
         fsx = boto3.client("fsx")
         fs = fsx.describe_file_systems(FileSystemIds=[param_value]).get("FileSystems")[0]
 
-        subnet_id = pcluster_dict.cluster.get("vpc")[0].get("master_subnet_id")
+        cluster_config = pcluster_config.get_section("cluster")
+        subnet_id = cluster_config.get("vpc")[0].get("master_subnet_id")
         vpc_id = ec2.describe_subnets(SubnetIds=[subnet_id]).get("Subnets")[0].get("VpcId")
 
         # Check to see if fs is in the same VPC as the stack
@@ -413,6 +421,8 @@ def fsx_id_validator(param_key, param_value, pcluster_dict):
             )
     except ClientError as e:
         errors.append(e.response.get("Error").get("Message"))
+
+    return errors, warnings
 
 
 def _check_nfs_access(self, ec2, network_interfaces):
@@ -444,7 +454,7 @@ def _check_nfs_access(self, ec2, network_interfaces):
     return nfs_access
 
 
-def fsx_storage_capacity_validator(param_key, param_value, pcluster_dict):
+def fsx_storage_capacity_validator(param_key, param_value, pcluster_config):
     errors = []
     warnings = []
 
@@ -454,7 +464,7 @@ def fsx_storage_capacity_validator(param_key, param_value, pcluster_dict):
     return errors, warnings
 
 
-def fsx_imported_file_chunk_size_validator(param_key, param_value, pcluster_dict):
+def fsx_imported_file_chunk_size_validator(param_key, param_value, pcluster_config):
     errors = []
     warnings = []
 
@@ -549,39 +559,41 @@ def _get_pcluster_user_policy(partition, region, account_id):
     ]
 
 
-def efa_validator(param_key, param_value, pcluster_dict):
+def efa_validator(param_key, param_value, pcluster_config):
     errors = []
     warnings = []
 
-    supported_features = get_supported_features(pcluster_dict.get("region"), "efa")
+    cluster_config = pcluster_config.get_section("cluster")
+    aws_config = pcluster_config.get_section("aws")
+    supported_features = get_supported_features(aws_config.get("region"), "efa")
     allowed_instances = supported_features.get("instances")
-    if pcluster_dict.cluster.get("compute_instance_type") not in allowed_instances:
+    if cluster_config.get("compute_instance_type") not in allowed_instances:
         errors.append(
             "When using 'enable_efa = {0}' it is required to set the 'compute_instance_type' parameter "
             "to one of the following values : {1}".format(param_value, allowed_instances)
         )
 
     allowed_oses = ["alinux", "centos7", "ubuntu1604"]
-    if pcluster_dict.cluster.get("os") not in allowed_oses:
+    if cluster_config.get("os") not in allowed_oses:
         errors.append(
             "When using 'enable_efa = {0}' it is required to set the 'base_os' parameter "
             "to one of the following values : {1}".format(param_value, allowed_oses)
         )
 
     allowed_schedulers = ["sge", "slurm", "torque"]
-    if pcluster_dict.cluster.get("os") not in allowed_schedulers:
+    if cluster_config.get("os") not in allowed_schedulers:
         errors.append(
             "When using 'enable_efa = {0}' it is required to set the 'scheduler' parameter "
             "to one of the following values : {1}".format(param_value, allowed_schedulers)
         )
 
-    if pcluster_dict.cluster.get("placement_group") is None:
+    if cluster_config.get("placement_group") is None:
         errors.append(
             "When using 'enable_efa = {0}' it is required to set the 'placement_group' parameter "
             "to DYNAMIC or to an existing EC2 cluster placement group name".format(param_value)
         )
 
-    vpc_security_group_id = pcluster_dict.cluster.get("vpc")[0].get("vpc_security_group_id")
+    vpc_security_group_id = cluster_config.get("vpc")[0].get("vpc_security_group_id")
     if vpc_security_group_id:
         try:
             ec2 = boto3.client("ec2")

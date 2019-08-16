@@ -17,6 +17,7 @@ from tests.pcluster.config.utils import merge_dicts
 
 from assertpy import assert_that
 
+CFN_PARAMS_NUMBER = 53
 
 @pytest.mark.parametrize(
     "efs_settings, expected_cfn_params",
@@ -58,22 +59,103 @@ def test_efs_params(mocker, pcluster_config_reader, test_datadir, efs_settings, 
 @pytest.mark.parametrize(
     "cluster_settings, expected_cfn_params, expected_message",
     [
-        #("wrong_label", None, "Section .* not found in the config file"),
+        #("wrong_label", None, "Section .* not found in the config file"), # TODO convert cluster_template in SettingsParam
         #("test1,test2", None, "It can only contains a single .* section label"),
-        #("default", DefaultCfnParams["cluster"].value, None),
+        ("default", DefaultCfnParams["cluster"].value, None),
         (
-                "efs",
+                "custom1",
                 merge_dicts(
                     DefaultCfnParams["cluster"].value,
-                    {"EFSOptions": "efs,NONE,generalPurpose,NONE,NONE,false,bursting,Valid"}
+                    {
+                        "VPCId": "vpc-12345678",
+                        "MasterSubnetId": "subnet-12345678",
+                        "CLITemplate": "custom1",
+                        "KeyName": "key",
+                        "BaseOS": "ubuntu1404",
+                        "Scheduler": "slurm",
+                        "SharedDir": "/test",
+                        "PlacementGroup": "NONE",
+                        "Placement": "cluster",
+                        "MasterInstanceType": "t2.large",
+                        "MasterRootVolumeSize": "30",
+                        "ComputeInstanceType": "t2.large",
+                        "ComputeRootVolumeSize": "30",
+                        "DesiredSize": "1",
+                        "MaxSize": "2",
+                        "ClusterType": "spot",
+                        "SpotPrice": "5",
+                        "ProxyServer": "proxy",
+                        "EC2IAMRoleName": "role",
+                        "S3ReadResource": "s3://url",
+                        "S3ReadWriteResource": "s3://url",
+                        "EFA": "compute",
+                        "EphemeralDir": "/test2",
+                        "EncryptedEphemeral": "true",
+                        "CustomAMI": "ami-12345678",
+                        "PreInstallScript": "preinstall",
+                        "PreInstallArgs": "\"one two\"",
+                        "PostInstallScript": "postinstall",
+                        "PostInstallArgs": "\"one two\"",
+                        "ExtraJson": "{'cluster': {'cfn_scheduler_slots': 'cores'}}",
+                        "AdditionalCfnTemplate": "https://test",
+                        "CustomChefCookbook": "https://test",
+                        "CustomAWSBatchTemplateURL": "https://test",
+                        #template_url = template
+                        #tags = {"test": "test"}
+                    }
                 ),
                 None,
         ),
         (
-                "ebs",
+                "efs",
                 merge_dicts(
                     DefaultCfnParams["cluster"].value,
-                    {"SharedDir": "NONE,NONE,NONE,NONE,NONE"}
+                    {
+                        "VPCId": "vpc-12345678",
+                        "MasterSubnetId": "subnet-12345678",
+                        "EFSOptions": "efs,NONE,generalPurpose,NONE,NONE,false,bursting,Valid",
+                        "CLITemplate": "efs",
+                    }
+                ),
+                None,
+        ),
+        (
+                "ebs1",
+                merge_dicts(
+                    DefaultCfnParams["cluster"].value,
+                    {
+                        "VPCId": "vpc-12345678",
+                        "MasterSubnetId": "subnet-12345678",
+                        "NumberOfEBSVol": "1",
+                        "SharedDir": "ebs1,NONE,NONE,NONE,NONE",
+                        "VolumeType": "io1,gp2,gp2,gp2,gp2",
+                        "VolumeSize": "40,20,20,20,20",
+                        "VolumeIOPS": "200,100,100,100,100",
+                        "EBSEncryption": "true,false,false,false,false",
+                        "EBSKMSKeyId": "kms_key,NONE,NONE,NONE,NONE",
+                        "EBSVolumeId": "vol-12345678,NONE,NONE,NONE,NONE",
+                        "CLITemplate": "ebs1",
+                    }
+                ),
+                None,
+        ),
+        (
+                "ebs2",
+                merge_dicts(
+                    DefaultCfnParams["cluster"].value,
+                    {
+                        "VPCId": "vpc-12345678",
+                        "MasterSubnetId": "subnet-12345678",
+                        "NumberOfEBSVol": "2",
+                        "SharedDir": "ebs1,ebs2,NONE,NONE,NONE",
+                        "VolumeType": "io1,standard,gp2,gp2,gp2",
+                        "VolumeSize": "40,30,20,20,20",
+                        "VolumeIOPS": "200,300,100,100,100",
+                        "EBSEncryption": "true,false,false,false,false",
+                        "EBSKMSKeyId": "kms_key,NONE,NONE,NONE,NONE",
+                        "EBSVolumeId": "vol-12345678,NONE,NONE,NONE,NONE",
+                        "CLITemplate": "ebs2",
+                    }
                 ),
                 None,
         ),
@@ -81,6 +163,12 @@ def test_efs_params(mocker, pcluster_config_reader, test_datadir, efs_settings, 
 )
 def test_cluster_params(mocker, pcluster_config_reader, test_datadir, cluster_settings, expected_cfn_params, expected_message):
     """Unit tests for parsing Cluster related options."""
+    mocker.patch("pcluster.config.params_types.get_efs_mount_target_id", return_value="mount_target_id")
+    mocker.patch("pcluster.config.validators.get_supported_features", return_value={
+        "instances": ["t2.large"],
+        "baseos": ["ubuntu1404"],
+        "schedulers": ["slurm"],
+    })
 
     if expected_message:
         with pytest.raises(SystemExit, match=expected_message):
@@ -99,9 +187,10 @@ def test_cluster_params(mocker, pcluster_config_reader, test_datadir, cluster_se
         pcluster_config.get_master_avail_zone = mocker.MagicMock(return_value="mocked_avail_zone")
         _, _, cfn_params, _ = pcluster_config.to_cfn()
 
-        assert_that(len(expected_cfn_params)).is_equal_to(52)
+        assert_that(len(expected_cfn_params)).is_equal_to(CFN_PARAMS_NUMBER)
 
         for param_key, param_value in expected_cfn_params.items():
+            print("Testing '{0}'".format(param_key))
             assert_that(cfn_params.get(param_key)).is_equal_to(expected_cfn_params.get(param_key))
 
 

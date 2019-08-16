@@ -152,6 +152,7 @@ EBS = {
         },
         "volume_type": {
             "default": "gp2",
+            "allowed_values": ["standard", "io1", "gp2", "st1", "sc1"],
             "cfn": "VolumeType",
         },
         "volume_size": {
@@ -385,7 +386,7 @@ CLUSTER = {
         },
         "spot_price": {
             "type": SpotPriceParam,
-            "default": 10, # TODO verify
+            "default": 10,  # TODO verify
             "cfn": "SpotPrice",
         },
         "spot_bid_percentage": {
@@ -446,14 +447,15 @@ CLUSTER = {
             "cfn": "ExtraJson",
         },
         "additional_cfn_template": {
-            "validator": url_validator,
             "cfn": "AdditionalCfnTemplate",
+            "validator": url_validator,
         },
         "tags": {
             "type": JsonParam,
         },
         "custom_chef_cookbook": {
             "cfn": "CustomChefCookbook",
+            "validator": url_validator,
         },
         "custom_awsbatch_template_url": {
             "cfn": "CustomAWSBatchTemplateURL",

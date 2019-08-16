@@ -197,6 +197,7 @@ DEFAULT_CLUSTER_CFN_PARAMS = {
     "ComputeRootVolumeSize": "17",
     "DesiredSize": "0",
     "MaxSize": "10",
+    "MinSize": "0",
     "ClusterType": "ondemand",
     "SpotPrice": "10",
     "ProxyServer": "NONE",
@@ -222,6 +223,7 @@ DEFAULT_CLUSTER_CFN_PARAMS = {
 DEFAULT_CLUSTER_BATCH_CFN_PARAMS = {
     "DesiredSize": "2",
     "MaxSize": "10",
+    "MinSize": "0",
     "SpotPrice": "0.00",
 }
 
