@@ -55,22 +55,35 @@ class PclusterConfig(object):
         Parse the config file and initialize config_file and config_parser attributes
         :param config_file: The config file to parse
         """
+        if config_file:
+            self.config_file = config_file
+            default_config = False
+        elif "AWS_PCLUSTER_CONFIG_FILE" in os.environ:
+            self.config_file = os.environ["AWS_PCLUSTER_CONFIG_FILE"]
+            default_config = False
+        else:
+            config_file = os.path.expanduser(os.path.join("~", ".parallelcluster", "config"))
+            default_config = True
+
         self.config_file = (
             config_file if config_file else os.path.expanduser(os.path.join("~", ".parallelcluster", "config"))
         )
+
         if not os.path.isfile(self.config_file):
             if fail_on_config_file_absence:
-                fail(
-                    "Config file {0} not found.\n"
-                    "You can copy a template from {1}{2}examples{2}config "
-                    "or execute the 'pcluster configure' command".format(
-                        self.config_file,
-                        os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe()))),
-                        os.path.sep,
+                error_message = "Configuration file {0} not found."
+                if default_config:
+                    error_message += (
+                        "\nYou can copy a template from {1}{2}examples{2}config "
+                        "or execute the 'pcluster configure' command".format(
+                            self.config_file,
+                            os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe()))),
+                            os.path.sep,
+                        )
                     )
-                )
+                fail(error_message)
             else:
-                LOGGER.debug("Configuration file doesn't exist. %s", self.config_file)
+                LOGGER.debug("Specified configuration file {0} doesn't exist.".format(self.config_file))
         else:
             LOGGER.debug("Parsing configuration file %s", self.config_file)
         self.config_parser = configparser.ConfigParser(inline_comment_prefixes=("#", ";"))

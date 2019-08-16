@@ -95,153 +95,7 @@ def test_param_from_cfn(section_map, param_key, cfn_params_dict, expected_value)
     assert_that(param_value).is_equal_to(expected_value)
 
 
-@pytest.mark.parametrize(
-    "section_map, cfn_params_dict, expected_section_dict",
-    [
-        # SCALING
-        (SCALING, DefaultCfnParams["scaling"].value, DefaultDict["scaling"].value),
-        (SCALING, {}, DefaultDict["scaling"].value),
-        (SCALING, {"ScaleDownIdleTime": "NONE"}, DefaultDict["scaling"].value),
-        (SCALING, {"ScaleDownIdleTime": "20"}, {"scaledown_idletime": 20}),
-        # VPC
-        (VPC, DefaultCfnParams["vpc"].value, DefaultDict["vpc"].value),
-        (VPC, {}, DefaultDict["vpc"].value),
-        (VPC,
-         {
-             "VPCId": "NONE",
-             "MasterSubnetId": "NONE",
-             "AccessFrom": "NONE",
-             "AdditionalSG": "NONE",
-             "ComputeSubnetId": "NONE",
-             "ComputeSubnetCidr": "NONE",
-             "UsePublicIps": "true",
-             "VPCSecurityGroupId": "NONE",
-         },
-         DefaultDict["vpc"].value),
-        # EBS
-        (EBS, DefaultCfnParams["ebs"].value, DefaultDict["ebs"].value),
-        (EBS, {}, DefaultDict["ebs"].value),
-        (EBS, {
-            "SharedDir": "NONE",
-            "EBSSnapshotId": "NONE",
-            "VolumeType": "NONE",
-            "VolumeSize": "NONE",
-            "VolumeIOPS": "NONE",
-            "EBSEncryption": "NONE",
-            "EBSKMSKeyId": "NONE",
-            "EBSVolumeId": "NONE",
-        }, DefaultDict["ebs"].value),
-        (EBS, {
-            "SharedDir": "test",
-            "EBSSnapshotId": "test1",
-            "VolumeType": "test2",
-            "VolumeSize": "30",
-            "VolumeIOPS": "200",
-            "EBSEncryption": "true",
-            "EBSKMSKeyId": "test3",
-            "EBSVolumeId": "test4",
-        }, {
-            "shared_dir": "test",
-            "ebs_snapshot_id": "test1",
-            "volume_type": "test2",
-            "volume_size": 30,
-            "volume_iops": 200,
-            "encrypted": True,
-            "ebs_kms_key_id": "test3",
-            "ebs_volume_id": "test4",
-        }),
-        # EFS
-        (EFS, {"EFSOptions": "NONE, NONE, NONE, NONE, NONE, NONE, NONE, NONE"}, DefaultDict["efs"].value),
-        (EFS, {"EFSOptions": "NONE,NONE,NONE,NONE,NONE,NONE,NONE,NONE"}, DefaultDict["efs"].value),
-        (EFS,
-         {"EFSOptions": "test,NONE,NONE,NONE,NONE,NONE,NONE,NONE"},
-         {
-             "label": "default",
-             "shared_dir": "test",
-             "efs_fs_id": None,
-             "performance_mode": "generalPurpose",
-             "efs_kms_key_id": None,
-             "provisioned_throughput": None,
-             "encrypted": False,
-             "throughput_mode": "bursting",
-         }),
-        (EFS,
-         {"EFSOptions": "test,test,maxIO,test,1024,true,provisioned"},
-         {
-             "label": "default",
-             "shared_dir": "test",
-             "efs_fs_id": "test",
-             "performance_mode": "maxIO",
-             "efs_kms_key_id": "test",
-             "provisioned_throughput": 1024,
-             "encrypted": True,
-             "throughput_mode": "provisioned",
-         }),
-        # RAID
-        (RAID, DefaultCfnParams["raid"].value, DefaultDict["raid"].value),
-        (RAID, {}, DefaultDict["raid"].value),
-        (RAID, {"RAIDOptions": "NONE, NONE, NONE, NONE, NONE, NONE, NONE, NONE"}, DefaultDict["raid"].value),
-        (RAID, {"RAIDOptions": "NONE,NONE,NONE,NONE,NONE,NONE,NONE,NONE"}, DefaultDict["raid"].value),
-        (RAID,
-         {"RAIDOptions": "test,NONE,NONE,NONE,NONE,NONE,NONE,NONE"},
-         {
-             "label": "default",
-             "shared_dir": "test",
-             "raid_type": None,
-             "num_of_raid_volumes": None,
-             "volume_type": "gp2",
-             "volume_size": 20,
-             "volume_iops": 100,
-             "encrypted": False,
-             "ebs_kms_key_id": None,
-         }),
-        (RAID,
-         {"RAIDOptions": "test,0,3,gp2,30,200,true,test"},
-         {
-             "label": "default",
-             "shared_dir": "test",
-             "raid_type": 0,
-             "num_of_raid_volumes": 3,
-             "volume_type": "gp2",
-             "volume_size": 30,
-             "volume_iops": 200,
-             "encrypted": True,
-             "ebs_kms_key_id": "test",
-         }),
-        # FSX
-        (FSX, DefaultCfnParams["fsx"].value, DefaultDict["fsx"].value),
-        (FSX, {}, DefaultDict["fsx"].value),
-        (FSX, {"FSXOptions": "NONE, NONE, NONE, NONE, NONE, NONE, NONE, NONE"}, DefaultDict["fsx"].value),
-        (FSX, {"FSXOptions": "NONE,NONE,NONE,NONE,NONE,NONE,NONE,NONE"}, DefaultDict["fsx"].value),
-        (FSX,
-         {"FSXOptions": "test,NONE,NONE,NONE,NONE,NONE,NONE,NONE"},
-         {
-             "label": "default",
-             "shared_dir": "test",
-             "fsx_fs_id": None,
-             "storage_capacity": None,
-             "fsx_kms_key_id": None,
-             "imported_file_chunk_size": None,
-             "export_path": None,
-             "import_path": None,
-             "weekly_maintenance_start_time": None
-         }),
-        (FSX,
-         {"FSXOptions": "test,test1,10,test2,20,test3,test4,test5"},
-         {
-             "label": "default",
-             "shared_dir": "test",
-             "fsx_fs_id": "test1",
-             "storage_capacity": 10,
-             "fsx_kms_key_id": "test2",
-             "imported_file_chunk_size": 20,
-             "export_path": "test3",
-             "import_path": "test4",
-             "weekly_maintenance_start_time": "test5"
-         }),
-    ]
-)
-def test_section_from_cfn(section_map, cfn_params_dict, expected_section_dict):
+def assert_section_from_cfn(section_map, cfn_params_dict, expected_section_dict):
 
     cfn_params = []
     for cfn_key, cfn_value in cfn_params_dict.items():
@@ -257,3 +111,184 @@ def test_section_from_cfn(section_map, cfn_params_dict, expected_section_dict):
         expected_dict.update(expected_section_dict)
 
     assert_that(section_dict).is_equal_to(expected_dict)
+
+
+@pytest.mark.parametrize(
+    "cfn_params_dict, expected_section_dict",
+    [
+        (DefaultCfnParams["scaling"].value, DefaultDict["scaling"].value),
+        ({}, DefaultDict["scaling"].value),
+        ({"ScaleDownIdleTime": "NONE"}, DefaultDict["scaling"].value),
+        ({"ScaleDownIdleTime": "20"}, {"scaledown_idletime": 20}),
+    ]
+)
+def test_scaling_section_from_cfn(cfn_params_dict, expected_section_dict):
+    assert_section_from_cfn(SCALING, cfn_params_dict, expected_section_dict)
+
+
+@pytest.mark.parametrize(
+    "cfn_params_dict, expected_section_dict",
+    [
+        (DefaultCfnParams["vpc"].value, DefaultDict["vpc"].value),
+        ({}, DefaultDict["vpc"].value),
+        ({
+             "VPCId": "NONE",
+             "MasterSubnetId": "NONE",
+             "AccessFrom": "NONE",
+             "AdditionalSG": "NONE",
+             "ComputeSubnetId": "NONE",
+             "ComputeSubnetCidr": "NONE",
+             "UsePublicIps": "true",
+             "VPCSecurityGroupId": "NONE",
+         },
+         DefaultDict["vpc"].value),
+    ]
+)
+def test_vpc_section_from_cfn(cfn_params_dict, expected_section_dict):
+    assert_section_from_cfn(VPC, cfn_params_dict, expected_section_dict)
+
+
+@pytest.mark.parametrize(
+    "cfn_params_dict, expected_section_dict",
+    [
+        ({}, DefaultDict["ebs"].value),
+        ({
+            "SharedDir": "NONE",
+            "EBSSnapshotId": "NONE",
+            "VolumeType": "NONE",
+            "VolumeSize": "NONE",
+            "VolumeIOPS": "NONE",
+            "EBSEncryption": "NONE",
+            "EBSKMSKeyId": "NONE",
+            "EBSVolumeId": "NONE",
+        }, DefaultDict["ebs"].value),
+        ({
+            "SharedDir": "/shareddir",
+            "EBSSnapshotId": "snap-id",
+            "VolumeType": "io1",
+            "VolumeSize": "30",
+            "VolumeIOPS": "200",
+            "EBSEncryption": "true",
+            "EBSKMSKeyId": "kms-key",
+            "EBSVolumeId": "ebs-id",
+        }, {
+             "shared_dir": "/shareddir",
+             "ebs_snapshot_id": "snap-id",
+             "volume_type": "io1",
+             "volume_size": 30,
+             "volume_iops": 200,
+             "encrypted": True,
+             "ebs_kms_key_id": "kms-key",
+             "ebs_volume_id": "ebs-id",
+         }),
+    ]
+)
+def test_ebs_section_from_cfn(cfn_params_dict, expected_section_dict):
+    assert_section_from_cfn(EBS, cfn_params_dict, expected_section_dict)
+
+
+@pytest.mark.parametrize(
+    "cfn_params_dict, expected_section_dict",
+    [
+        ({"EFSOptions": "NONE, NONE, NONE, NONE, NONE, NONE, NONE, NONE"}, DefaultDict["efs"].value),
+        ({"EFSOptions": "NONE,NONE,NONE,NONE,NONE,NONE,NONE,NONE"}, DefaultDict["efs"].value),
+        ({"EFSOptions": "test,NONE,NONE,NONE,NONE,NONE,NONE,NONE"},
+         {
+             "label": "default",
+             "shared_dir": "test",
+             "efs_fs_id": None,
+             "performance_mode": "generalPurpose",
+             "efs_kms_key_id": None,
+             "provisioned_throughput": None,
+             "encrypted": False,
+             "throughput_mode": "bursting",
+         }),
+        ({"EFSOptions": "test,test,maxIO,test,1024,true,provisioned"},
+         {
+             "label": "default",
+             "shared_dir": "test",
+             "efs_fs_id": "test",
+             "performance_mode": "maxIO",
+             "efs_kms_key_id": "test",
+             "provisioned_throughput": 1024,
+             "encrypted": True,
+             "throughput_mode": "provisioned",
+         }),
+    ]
+)
+def test_efs_section_from_cfn(cfn_params_dict, expected_section_dict):
+    assert_section_from_cfn(EFS, cfn_params_dict, expected_section_dict)
+
+
+@pytest.mark.parametrize(
+    "cfn_params_dict, expected_section_dict",
+    [
+        (DefaultCfnParams["raid"].value, DefaultDict["raid"].value),
+        ({}, DefaultDict["raid"].value),
+        ({"RAIDOptions": "NONE, NONE, NONE, NONE, NONE, NONE, NONE, NONE"}, DefaultDict["raid"].value),
+        ({"RAIDOptions": "NONE,NONE,NONE,NONE,NONE,NONE,NONE,NONE"}, DefaultDict["raid"].value),
+        ({"RAIDOptions": "test,NONE,NONE,NONE,NONE,NONE,NONE,NONE"},
+         {
+             "label": "default",
+             "shared_dir": "test",
+             "raid_type": None,
+             "num_of_raid_volumes": None,
+             "volume_type": "gp2",
+             "volume_size": 20,
+             "volume_iops": 100,
+             "encrypted": False,
+             "ebs_kms_key_id": None,
+         }),
+        ({"RAIDOptions": "test,0,3,gp2,30,200,true,test"},
+         {
+             "label": "default",
+             "shared_dir": "test",
+             "raid_type": 0,
+             "num_of_raid_volumes": 3,
+             "volume_type": "gp2",
+             "volume_size": 30,
+             "volume_iops": 200,
+             "encrypted": True,
+             "ebs_kms_key_id": "test",
+         }),
+    ]
+)
+def test_raid_section_from_cfn(cfn_params_dict, expected_section_dict):
+    assert_section_from_cfn(RAID, cfn_params_dict, expected_section_dict)
+
+
+@pytest.mark.parametrize(
+    "cfn_params_dict, expected_section_dict",
+    [
+        (DefaultCfnParams["fsx"].value, DefaultDict["fsx"].value),
+        ({}, DefaultDict["fsx"].value),
+        ({"FSXOptions": "NONE, NONE, NONE, NONE, NONE, NONE, NONE, NONE"}, DefaultDict["fsx"].value),
+        ({"FSXOptions": "NONE,NONE,NONE,NONE,NONE,NONE,NONE,NONE"}, DefaultDict["fsx"].value),
+        ({"FSXOptions": "test,NONE,NONE,NONE,NONE,NONE,NONE,NONE"},
+         {
+             "label": "default",
+             "shared_dir": "test",
+             "fsx_fs_id": None,
+             "storage_capacity": None,
+             "fsx_kms_key_id": None,
+             "imported_file_chunk_size": None,
+             "export_path": None,
+             "import_path": None,
+             "weekly_maintenance_start_time": None
+         }),
+        ({"FSXOptions": "test,test1,10,test2,20,test3,test4,test5"},
+         {
+             "label": "default",
+             "shared_dir": "test",
+             "fsx_fs_id": "test1",
+             "storage_capacity": 10,
+             "fsx_kms_key_id": "test2",
+             "imported_file_chunk_size": 20,
+             "export_path": "test3",
+             "import_path": "test4",
+             "weekly_maintenance_start_time": "test5"
+         }),
+    ]
+)
+def test_fsx_section_from_cfn(cfn_params_dict, expected_section_dict):
+    assert_section_from_cfn(FSX, cfn_params_dict, expected_section_dict)

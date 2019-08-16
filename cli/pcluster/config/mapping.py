@@ -496,7 +496,7 @@ GLOBAL = {
     "key": "global",
     "params": {
         "cluster_template": {
-            "type": SettingsParam,
+            #"type": SettingsParam,
             "default": "default",
             "referred_section": CLUSTER,
         },

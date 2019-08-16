@@ -67,9 +67,9 @@ def test_efs_params(mocker, pcluster_config_reader, test_datadir, efs_settings, 
                 merge_dicts(
                     DefaultCfnParams["cluster"].value,
                     {
+                        "CLITemplate": "custom1",
                         "VPCId": "vpc-12345678",
                         "MasterSubnetId": "subnet-12345678",
-                        "CLITemplate": "custom1",
                         "KeyName": "key",
                         "BaseOS": "ubuntu1404",
                         "Scheduler": "slurm",
@@ -82,6 +82,7 @@ def test_efs_params(mocker, pcluster_config_reader, test_datadir, efs_settings, 
                         "ComputeRootVolumeSize": "30",
                         "DesiredSize": "1",
                         "MaxSize": "2",
+                        "MinSize": "1",
                         "ClusterType": "spot",
                         "SpotPrice": "5",
                         "ProxyServer": "proxy",
@@ -107,14 +108,62 @@ def test_efs_params(mocker, pcluster_config_reader, test_datadir, efs_settings, 
                 None,
         ),
         (
+                "batch",
+                merge_dicts(
+                    DefaultCfnParams["cluster"].value,
+                    {
+                        "CLITemplate": "batch",
+                        "Scheduler": "awsbatch",
+                        "DesiredSize": "3",
+                        "MaxSize": "4",
+                        "MinSize": "2",
+                        "ClusterType": "spot",
+                        "SpotPrice": "0.25",
+                    }
+                ),
+                None,
+        ),
+        (
+                "wrong_mix_traditional",
+                merge_dicts(
+                    DefaultCfnParams["cluster"].value,
+                    {
+                        "CLITemplate": "wrong_mix_traditional",
+                        "Scheduler": "slurm",
+                        "DesiredSize": "1",
+                        "MaxSize": "2",
+                        "MinSize": "1",
+                        "ClusterType": "spot",
+                        "SpotPrice": "5",
+                    }
+                ),
+                None,
+        ),
+        (
+                "wrong_mix_batch",
+                merge_dicts(
+                    DefaultCfnParams["cluster"].value,
+                    {
+                        "CLITemplate": "wrong_mix_batch",
+                        "Scheduler": "awsbatch",
+                        "DesiredSize": "3",
+                        "MaxSize": "4",
+                        "MinSize": "2",
+                        "ClusterType": "spot",
+                        "SpotPrice": "0.25",
+                    }
+                ),
+                None,
+        ),
+        (
                 "efs",
                 merge_dicts(
                     DefaultCfnParams["cluster"].value,
                     {
+                        "CLITemplate": "efs",
                         "VPCId": "vpc-12345678",
                         "MasterSubnetId": "subnet-12345678",
                         "EFSOptions": "efs,NONE,generalPurpose,NONE,NONE,false,bursting,Valid",
-                        "CLITemplate": "efs",
                     }
                 ),
                 None,
@@ -124,6 +173,7 @@ def test_efs_params(mocker, pcluster_config_reader, test_datadir, efs_settings, 
                 merge_dicts(
                     DefaultCfnParams["cluster"].value,
                     {
+                        "CLITemplate": "ebs1",
                         "VPCId": "vpc-12345678",
                         "MasterSubnetId": "subnet-12345678",
                         "NumberOfEBSVol": "1",
@@ -134,7 +184,6 @@ def test_efs_params(mocker, pcluster_config_reader, test_datadir, efs_settings, 
                         "EBSEncryption": "true,false,false,false,false",
                         "EBSKMSKeyId": "kms_key,NONE,NONE,NONE,NONE",
                         "EBSVolumeId": "vol-12345678,NONE,NONE,NONE,NONE",
-                        "CLITemplate": "ebs1",
                     }
                 ),
                 None,
@@ -144,6 +193,7 @@ def test_efs_params(mocker, pcluster_config_reader, test_datadir, efs_settings, 
                 merge_dicts(
                     DefaultCfnParams["cluster"].value,
                     {
+                        "CLITemplate": "ebs2",
                         "VPCId": "vpc-12345678",
                         "MasterSubnetId": "subnet-12345678",
                         "NumberOfEBSVol": "2",
@@ -154,7 +204,6 @@ def test_efs_params(mocker, pcluster_config_reader, test_datadir, efs_settings, 
                         "EBSEncryption": "true,false,false,false,false",
                         "EBSKMSKeyId": "kms_key,NONE,NONE,NONE,NONE",
                         "EBSVolumeId": "vol-12345678,NONE,NONE,NONE,NONE",
-                        "CLITemplate": "ebs2",
                     }
                 ),
                 None,

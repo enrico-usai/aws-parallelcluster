@@ -14,7 +14,7 @@ from assertpy import assert_that
 
 from pcluster.config.mapping import CLUSTER, SCALING, VPC, RAID, EBS, EFS, FSX
 from pcluster.config.pcluster_config import PclusterConfig
-from tests.pcluster.config.utils import get_param_map
+from tests.pcluster.config.utils import get_param_map, merge_dicts
 from tests.pcluster.config.defaults import DefaultDict, DefaultCfnParams
 
 
@@ -78,37 +78,126 @@ def test_param_to_cfn(section_map, param_key, section_dict, expected_cfn_params)
     assert_that(cfn_params).is_equal_to(expected_cfn_params)
 
 
+def assert_section_to_cfn(section_map, section_dict, expected_cfn_params):
+    section_type = section_map.get("type")
+    cfn_params = section_type(section_map).to_cfn(section_dict, PclusterConfig())
+    assert_that(cfn_params).is_equal_to(expected_cfn_params)
+
+
 @pytest.mark.parametrize(
-    "section_map, section_dict, expected_cfn_params",
+    "section_dict, expected_cfn_params",
     [
-        # Section
-        (SCALING, DefaultDict["scaling"].value, DefaultCfnParams["scaling"].value),
-        (SCALING, {"scaledown_idletime": 20}, {"ScaleDownIdleTime": "20"}),
-        (VPC, DefaultDict["vpc"].value, DefaultCfnParams["vpc"].value),
-        (VPC, {"vpc_id": "test"}, {"VPCId": "test"}),
-        (VPC, {"master_subnet_id": "test"}, {"MasterSubnetId": "test"}),
-        (VPC, {"ssh_from": "test"}, {"AccessFrom": "test"}),
-        (VPC, {"additional_sg": "test"}, {"AdditionalSG": "test"}),
-        (VPC, {"compute_subnet_id": "test"}, {"ComputeSubnetId": "test"}),
-        (VPC, {"compute_subnet_cidr": "test"}, {"ComputeSubnetCidr": "test"}),
-        (VPC, {"use_public_ips": False}, {"UsePublicIps": "false"}),
-        (VPC, {"vpc_security_group_id": "test"}, {"VPCSecurityGroupId": "test"}),
-        (EBS, DefaultDict["ebs"].value, DefaultCfnParams["ebs"].value),
-        (EBS, {"shared_dir": "test"}, {"SharedDir": "test"}),
-        (EBS, {"ebs_snapshot_id": "test"}, {"EBSSnapshotId": "test"}),
-        (EBS, {"volume_type": "test"}, {"VolumeType": "test"}),
-        (EBS, {"volume_size": 30}, {"VolumeSize": "30"}),
-        (EBS, {"volume_iops": 200}, {"VolumeIOPS": "200"}),
-        (EBS, {"encrypted": True}, {"EBSEncryption": "true"}),
-        (EBS, {"ebs_kms_key_id": "test"}, {"EBSKMSKeyId": "test"}),
-        (EBS, {"ebs_volume_id": "test"}, {"EBSVolumeId": "test"}),
-        (RAID, DefaultDict["raid"].value, DefaultCfnParams["raid"].value),
-        (FSX, DefaultDict["fsx"].value, DefaultCfnParams["fsx"].value),
-        # EFSSection
-        (EFS, DefaultDict["efs"].value, DefaultCfnParams["efs"].value),
-        (EFS, {"shared_dir": "NONE"}, DefaultCfnParams["efs"].value),
-        (EFS, {"shared_dir": "test"}, {"EFSOptions": "test,NONE,generalPurpose,NONE,NONE,false,bursting,Valid"}),
-        (EFS, {
+        (DefaultDict["scaling"].value, DefaultCfnParams["scaling"].value),
+        ({"scaledown_idletime": 20}, merge_dicts(DefaultCfnParams["scaling"].value, {"ScaleDownIdleTime": "20"})),
+    ]
+)
+def test_scaling_section_to_cfn(section_dict, expected_cfn_params):
+    assert_section_to_cfn(SCALING, section_dict, expected_cfn_params)
+
+
+@pytest.mark.parametrize(
+    "section_dict, expected_cfn_params",
+    [
+        (DefaultDict["vpc"].value, DefaultCfnParams["vpc"].value),
+        (
+                {
+                    "vpc_id": "test",
+                    "master_subnet_id": "test",
+                    "ssh_from": "test",
+                    "additional_sg": "test",
+                    "compute_subnet_id": "test",
+                    "compute_subnet_cidr": "test",
+                    "use_public_ips": False,
+                    "vpc_security_group_id": "test",
+                },
+                {
+                    "VPCId": "test",
+                    "MasterSubnetId": "test",
+                    "AccessFrom": "test",
+                    "AdditionalSG": "test",
+                    "ComputeSubnetId": "test",
+                    "ComputeSubnetCidr": "test",
+                    "UsePublicIps": "false",
+                    "VPCSecurityGroupId": "test"
+                },
+        )
+    ]
+)
+def test_vpc_section_to_cfn(section_dict, expected_cfn_params):
+    assert_section_to_cfn(VPC, section_dict, expected_cfn_params)
+
+
+@pytest.mark.parametrize(
+    "section_dict, expected_cfn_params",
+    [
+        (
+                DefaultDict["ebs"].value,
+                {
+                    "SharedDir": "NONE",
+                    "EBSSnapshotId": "NONE",
+                    "VolumeType": "gp2",
+                    "VolumeSize": "20",
+                    "VolumeIOPS": "100",
+                    "EBSEncryption": "false",
+                    "EBSKMSKeyId": "NONE",
+                    "EBSVolumeId": "NONE",
+                }
+        ),
+        (
+                {
+                    "shared_dir": "test",
+                    "ebs_snapshot_id": "test",
+                    "volume_type": "test",
+                    "volume_size": 30,
+                    "volume_iops": 200,
+                    "encrypted": True,
+                    "ebs_kms_key_id": "test",
+                    "ebs_volume_id": "test",
+                },
+                {
+                    "SharedDir": "test",
+                    "EBSSnapshotId": "test",
+                    "VolumeType": "test",
+                    "VolumeSize": "30",
+                    "VolumeIOPS": "200",
+                    "EBSEncryption": "true",
+                    "EBSKMSKeyId": "test",
+                    "EBSVolumeId": "test",
+                }
+        ),
+    ]
+)
+def test_ebs_section_to_cfn(section_dict, expected_cfn_params):
+    assert_section_to_cfn(EBS, section_dict, expected_cfn_params)
+
+
+@pytest.mark.parametrize(
+    "section_dict, expected_cfn_params",
+    [
+        (DefaultDict["raid"].value, DefaultCfnParams["raid"].value),
+    ]
+)
+def test_raid_section_to_cfn(section_dict, expected_cfn_params):
+    assert_section_to_cfn(RAID, section_dict, expected_cfn_params)
+
+
+@pytest.mark.parametrize(
+    "section_dict, expected_cfn_params",
+    [
+        (DefaultDict["fsx"].value, DefaultCfnParams["fsx"].value),
+    ]
+)
+def test_fsx_section_to_cfn(section_dict, expected_cfn_params):
+    assert_section_to_cfn(FSX, section_dict, expected_cfn_params)
+
+
+@pytest.mark.parametrize(
+    "section_dict, expected_cfn_params",
+    [
+        (DefaultDict["efs"].value, DefaultCfnParams["efs"].value),
+        ({"shared_dir": "NONE"}, DefaultCfnParams["efs"].value),
+        ({"shared_dir": "test"}, {"EFSOptions": "test,NONE,generalPurpose,NONE,NONE,false,bursting,Valid"}),
+        ({
             "shared_dir": "test",
             "efs_fs_id": "test2",
             "performance_mode": "test3",
@@ -117,7 +206,7 @@ def test_param_to_cfn(section_map, param_key, section_dict, expected_cfn_params)
             "encrypted": True,
             "throughput_mode": "test5",
         }, {"EFSOptions": "test,test2,test3,test4,10,true,test5,Valid"}),
-        (EFS, {
+        ({
             "shared_dir": "test",
             "efs_fs_id": None,
             "performance_mode": "test1",
@@ -128,18 +217,25 @@ def test_param_to_cfn(section_map, param_key, section_dict, expected_cfn_params)
         }, {"EFSOptions": "test,NONE,test1,test2,1024,false,test3,Valid"}),
     ]
 )
-def test_section_to_cfn(mocker, section_map, section_dict, expected_cfn_params):
-    # update expected dictionary
-    default_params = DefaultCfnParams[section_map.get("key")].value
-    expected_params = default_params.copy()
-    if isinstance(expected_cfn_params, dict):
-        expected_params.update(expected_cfn_params)
+def test_efs_section_to_cfn(mocker, section_dict, expected_cfn_params):
+    mocker.patch("pcluster.config.params_types.get_efs_mount_target_id", return_value="valid_mount_target_id")
+    mocker.patch(
+        "pcluster.config.pcluster_config.PclusterConfig.get_master_avail_zone", return_value="mocked_avail_zone"
+    )
+    assert_section_to_cfn(EFS, section_dict, expected_cfn_params)
 
-    section_type = section_map.get("type")
-    if section_map == EFS:
-        mocker.patch("pcluster.config.params_types.get_efs_mount_target_id", return_value="valid_mount_target_id")
-        mocker.patch("pcluster.config.pcluster_config.PclusterConfig.get_master_avail_zone")
 
-    cfn_params = section_type(section_map).to_cfn(section_dict, PclusterConfig())
-    assert_that(cfn_params).is_equal_to(expected_params)
+@pytest.mark.parametrize(
+    "section_dict, expected_cfn_params",
+    [
+        (DefaultDict["cluster"].value, DefaultCfnParams["cluster"].value),
+    ]
+)
+def test_cluster_section_to_cfn(mocker, section_dict, expected_cfn_params):
+    mocker.patch("pcluster.config.params_types.get_efs_mount_target_id", return_value="valid_mount_target_id")
+    mocker.patch(
+        "pcluster.config.pcluster_config.PclusterConfig.get_master_avail_zone", return_value="mocked_avail_zone"
+    )
+    assert_section_to_cfn(CLUSTER, section_dict, expected_cfn_params)
+
 

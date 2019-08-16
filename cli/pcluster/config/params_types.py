@@ -358,7 +358,7 @@ class MaintainInitialSizeParam(BoolParam):
         cfn_params = {}
 
         if parent_section_dict.get("scheduler") != "awsbatch":
-            cfn_value = parent_section_dict.get("mantain_initial_size")
+            cfn_value = parent_section_dict.get("maintain_initial_size")
             min_size_value = parent_section_dict.get("initial_queue_size", "0") if cfn_value else "0"
             cfn_params.update({self.param_map.get("cfn"): str(min_size_value)})
 
