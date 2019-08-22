@@ -15,7 +15,6 @@ import pytest
 from assertpy import assert_that
 
 from pcluster.config.mapping import CLUSTER, EBS, EFS, FSX, SCALING, RAID, VPC
-from tests.pcluster.config.defaults import DefaultDict
 from tests.pcluster.config.utils import get_param_map
 from pcluster.config.pcluster_config import PclusterConfig
 
@@ -57,48 +56,3 @@ def test_param_to_file(section_map, param_key, param_value, expected_value):
         assert_that(config_parser.has_option(section_name, param_key)).is_false()
 
 
-@pytest.mark.parametrize(
-    "section_map, section_dict, expected_config_parser_dict, expected_message",
-    [
-        # default
-        (CLUSTER, {}, {"cluster default": {}}, None),
-        (SCALING, {}, {"scaling default": {}}, None),
-        (VPC, {}, {"vpc default": {}}, None),
-        (EBS, {}, {"ebs default": {}}, None),
-        (EFS, {}, {"efs default": {}}, None),
-        (RAID, {}, {"raid default": {}}, None),
-        (FSX, {}, {"fsx default": {}}, None),
-        # default values
-        (CLUSTER, {"base_os": "alinux"}, {"cluster default": {"base_os": "alinux"}}, "No option .* in section: .*"),
-        # other values
-        (CLUSTER, {"key_name": "test"}, {"cluster default": {"key_name": "test"}}, None),
-        (CLUSTER, {"base_os": "centos7"}, {"cluster default": {"base_os": "centos7"}}, None),
-    ]
-)
-def test_section_to_file(section_map, section_dict, expected_config_parser_dict, expected_message):
-    expected_config_parser = configparser.ConfigParser()
-    expected_config_parser.read_dict(expected_config_parser_dict)
-
-    pcluster_config = PclusterConfig(config_file="wrong-file")
-
-    output_config_parser = configparser.ConfigParser()
-    section_type = section_map.get("type")
-    section = section_type(section_map, pcluster_config, section_label="default")
-
-    for param_key, param_value in section_dict.items():
-        param_map, param_type = get_param_map(section.map, param_key)
-        param = param_type(section_map.get("key"), "default", param_key, param_map, pcluster_config)
-        param.value = param_value
-        section.add_param(param)
-
-    section.to_file(output_config_parser)
-
-    for section_key, section_params in expected_config_parser_dict.items():
-        for param_key, param_value in section_params.items():
-
-            assert_that(output_config_parser.has_option(section_key, param_key))
-            if expected_message is not None:
-                with pytest.raises(NoOptionError, match=expected_message):
-                    assert_that(output_config_parser.get(section_key, param_key)).is_equal_to(param_value)
-            else:
-                assert_that(output_config_parser.get(section_key, param_key)).is_equal_to(param_value)

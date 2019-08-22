@@ -105,7 +105,7 @@ VPC = {
         },
         "ssh_from": {
             "default": "0.0.0.0/0",
-            "allowed_values": r"^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$",
+            "allowed_values": r"^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}/(1[6-9]|2[0-9]|3[0-2])$",
             "cfn": "AccessFrom",
         },
         "additional_sg": {
@@ -120,7 +120,7 @@ VPC = {
         },
         "compute_subnet_cidr": {
             "cfn": "ComputeSubnetCidr",
-            "allowed_values": r"^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$",
+            "allowed_values": r"^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}/(1[6-9]|2[0-9]|3[0-2])$",
         },
         "use_public_ips": {
             "type": BoolParam,
@@ -144,7 +144,7 @@ EBS = {
             "cfn": "SharedDir",
         },
         "ebs_snapshot_id": {
-            "allowed_values": r"$snap-[0-9a-z]{8}|snap-[0-9a-z]{17}$",
+            "allowed_values": r"^snap-[0-9a-z]{8}$|^snap-[0-9a-z]{17}$",
             "cfn": "EBSSnapshotId",
             "validator": ec2_ebs_snapshot_validator,
         },
@@ -173,7 +173,7 @@ EBS = {
         },
         "ebs_volume_id": {
             "cfn": "EBSVolumeId",
-            "allowed_values": r"^vol-[0-9a-z]{8}|vol-[0-9a-z]{17}$",
+            "allowed_values": r"^vol-[0-9a-z]{8}$|^vol-[0-9a-z]{17}$",
             "validator": ec2_volume_validator,
         },
     }
@@ -508,6 +508,9 @@ GLOBAL = {
         },
     }
 }
+
+
+SECTIONS = [AWS, ALIASES, SCALING, VPC, EBS, EFS, RAID, FSX, CLUSTER, GLOBAL]
 
 
 def get_section_type(section_map):

@@ -10,7 +10,6 @@
 # limitations under the License.
 
 from enum import Enum
-from tests.pcluster.config.utils import merge_dicts
 
 
 DEFAULT_SCALING_DICT = {
@@ -207,15 +206,33 @@ DEFAULT_CLUSTER_CFN_PARAMS = {
     "CustomAWSBatchTemplateURL": "NONE",
     "NumberOfEBSVol": "0",
     # "ResourcesS3Bucket": "NONE",  # parameter added by the CLI
+    # scaling
+    "ScaleDownIdleTime": "10",
+    # vpc
+    "VPCId": "NONE",
+    "MasterSubnetId": "NONE",
+    "AccessFrom": "0.0.0.0/0",
+    "AdditionalSG": "NONE",
+    "ComputeSubnetId": "NONE",
+    "ComputeSubnetCidr": "NONE",
+    "UsePublicIps": "true",
+    "VPCSecurityGroupId": "NONE",
+    # ebs
+    # "SharedDir": "NONE,NONE,NONE,NONE,NONE",  # not existing with single ebs volume
+    "EBSSnapshotId": "NONE,NONE,NONE,NONE,NONE",
+    "VolumeType": "gp2,gp2,gp2,gp2,gp2",
+    "VolumeSize": "20,20,20,20,20",
+    "VolumeIOPS": "100,100,100,100,100",
+    "EBSEncryption": "false,false,false,false,false",
+    "EBSKMSKeyId": "NONE,NONE,NONE,NONE,NONE",
+    "EBSVolumeId": "NONE,NONE,NONE,NONE,NONE",
+    # efs
+    "EFSOptions": "NONE,NONE,NONE,NONE,NONE,NONE,NONE,NONE",
+    # raid
+    "RAIDOptions": "NONE,NONE,NONE,NONE,NONE,NONE,NONE,NONE",
+    # fsx
+    "FSXOptions": "NONE,NONE,NONE,NONE,NONE,NONE,NONE,NONE",
 }
-
-DEFAULT_CLUSTER_BATCH_CFN_PARAMS = {
-    "DesiredSize": "2",
-    "MaxSize": "10",
-    "MinSize": "0",
-    "SpotPrice": "0.00",
-}
-
 
 class DefaultCfnParams(Enum):
     scaling = DEFAULT_SCALING_CFN_PARAMS
@@ -224,6 +241,5 @@ class DefaultCfnParams(Enum):
     efs = DEFAULT_EFS_CFN_PARAMS
     raid = DEFAULT_RAID_CFN_PARAMS
     fsx = DEFAULT_FSX_CFN_PARAMS
-    cluster = merge_dicts(scaling, vpc, efs, raid, fsx, ebs, DEFAULT_CLUSTER_CFN_PARAMS)
-    cluster_batch = merge_dicts(cluster, DEFAULT_CLUSTER_BATCH_CFN_PARAMS)  # overrides some cluster parameters
+    cluster = DEFAULT_CLUSTER_CFN_PARAMS
 

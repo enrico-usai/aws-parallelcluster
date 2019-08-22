@@ -54,7 +54,7 @@ class Param(object):
         if isinstance(string_value, str):
             string_value = string_value.strip()
 
-        if string_value is not None and string_value != "NONE":
+        if string_value and string_value != "NONE":
             param_value = string_value
 
         return param_value
@@ -271,7 +271,7 @@ class JsonParam(Param):
     def from_string(self, string_value):
         param_value = self.get_default_value()
         try:
-            if string_value is not None:
+            if string_value:
                 if isinstance(string_value, str):
                     string_value = string_value.strip()
 
@@ -319,7 +319,6 @@ class SpotPriceParam(IntParam):
     def _from_cfn(self, cfn_params, cfn_value=None):
         cfn_converter = self.map.get("cfn", None)
         # We have both spot_price and spot_bid_percentage in the same param
-        # TODO remove in the final version
         self.value = int(float(get_cfn_param(cfn_params, cfn_converter)))
 
     def to_cfn(self):
@@ -550,7 +549,7 @@ class EBSSettingsParam(SettingsParam):
 
             if configured_params:
                 self.pcluster_config.add_section(related_section)
-        self.value = ",".join(labels)
+        self.value = ",".join(labels) if labels else None
 
     def to_file(self, config_parser):
 

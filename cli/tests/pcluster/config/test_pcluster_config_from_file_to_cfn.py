@@ -9,15 +9,16 @@
 # OR CONDITIONS OF ANY KIND, express or implied. See the License for the specific language governing permissions and
 # limitations under the License.
 import pytest
+from assertpy import assert_that
 
 from pcluster.config.mapping import AWS, GLOBAL, CLUSTER
 from pcluster.config.pcluster_config import PclusterConfig
 from tests.pcluster.config.defaults import DefaultCfnParams
 from tests.pcluster.config.utils import merge_dicts
 
-from assertpy import assert_that
 
 CFN_PARAMS_NUMBER = 53
+
 
 @pytest.mark.parametrize(
     "efs_settings, expected_cfn_params",
@@ -113,6 +114,21 @@ def test_efs_params(mocker, pcluster_config_reader, test_datadir, efs_settings, 
                     DefaultCfnParams["cluster"].value,
                     {
                         "CLITemplate": "batch",
+                        "Scheduler": "awsbatch",
+                        "DesiredSize": "2",
+                        "MaxSize": "10",
+                        "MinSize": "0",
+                        "SpotPrice": "0.00",
+                    }
+                ),
+                None,
+        ),
+        (
+                "batch-custom1",
+                merge_dicts(
+                    DefaultCfnParams["cluster"].value,
+                    {
+                        "CLITemplate": "batch-custom1",
                         "Scheduler": "awsbatch",
                         "DesiredSize": "3",
                         "MaxSize": "4",
