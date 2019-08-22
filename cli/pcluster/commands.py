@@ -100,17 +100,7 @@ def create(args):  # noqa: C901 FIXME!!!
         if args.template_url:
             template_url = args.template_url
         else:
-            if cfn_template_url:
-                template_url = cfn_template_url
-            else:
-                template_url = (
-                    "https://s3.{REGION}.amazonaws.com{SUFFIX}/{REGION}-aws-parallelcluster/templates/"
-                    "aws-parallelcluster-{VERSION}.cfn.json".format(
-                        REGION=region,
-                        SUFFIX=".cn" if region.startswith("cn") else "",
-                        VERSION=pcluster_version
-                    )
-                )
+            template_url = cfn_template_url if cfn_template_url else _get_default_template_url(region)
 
         # prepare tags by adding the pcluster version and merging tags defined in command-line and configuration file
         tags = []
@@ -292,27 +282,24 @@ def start(args):
     # Set resource limits on compute fleet or awsbatch CE to min/max/desired = 0/max/0
     stack_name = "parallelcluster-" + args.cluster_name
     pcluster_config = PclusterConfig(
-        region=args.region,
-        config_file=args.config_file,
-        file_sections=[AWS],
-        cluster_name=args.cluster_name,
+        region=args.region, config_file=args.config_file, cluster_name=args.cluster_name,
     )
-    cluster_config = pcluster_config.get_section("cluster")
+    cluster_section = pcluster_config.get_section("cluster")
 
-    if cluster_config.get("scheduler") == "awsbatch":
+    if cluster_section.get_param_value("scheduler") == "awsbatch":
         LOGGER.info("Enabling AWS Batch compute environment : %s", args.cluster_name)
-        max_vcpus = cluster_config.get("max_vcpus")
-        desired_vcpus = cluster_config.get("desired_vcpus")
-        min_vcpus = cluster_config.get("min_vcpus")
+        max_vcpus = cluster_section.get_param_value("max_vcpus")
+        desired_vcpus = cluster_section.get_param_value("desired_vcpus")
+        min_vcpus = cluster_section.get_param_value("min_vcpus")
         ce_name = get_batch_ce(stack_name)
         start_batch_ce(ce_name=ce_name, min_vcpus=min_vcpus, desired_vcpus=desired_vcpus, max_vcpus=max_vcpus)
     else:
         LOGGER.info("Starting compute fleet : %s", args.cluster_name)
 
         # Set asg limits
-        max_queue_size = cluster_config.get("max_queue_size")
+        max_queue_size = cluster_section.get_param_value("max_queue_size")
         min_desired_size = (
-            cluster_config.get("initial_queue_size", 0) if cluster_config.get("mantain_initial_size") else 0
+            cluster_section.get_param_value("initial_queue_size") if cluster_section.get_param_value("maintain_initial_size") else 0
         )
         desired_queue_size = min_desired_size
         min_queue_size = min_desired_size
@@ -325,14 +312,11 @@ def stop(args):
     # Set resource limits on compute fleet or awsbatch ce to min/max/desired = 0/0/0
     stack_name = "parallelcluster-" + args.cluster_name
     pcluster_config = PclusterConfig(
-        region=args.region,
-        config_file=args.config_file,
-        file_sections=[AWS, CLUSTER],
-        cluster_name=args.cluster_name,
+        region=args.region, config_file=args.config_file, cluster_name=args.cluster_name,
     )
-    cluster_config = pcluster_config.get_section("cluster")
+    cluster_section = pcluster_config.get_section("cluster")
 
-    if cluster_config.get("scheduler") == "awsbatch":
+    if cluster_section.get_param_value("scheduler") == "awsbatch":
         LOGGER.info("Disabling AWS Batch compute environment : %s", args.cluster_name)
         ce_name = get_batch_ce(stack_name)
         stop_batch_ce(ce_name=ce_name)
@@ -388,11 +372,9 @@ def colorize(stack_status, args):
 
 
 def list_stacks(args):
-    pcluster_config = PclusterConfig(
-        region=args.region,
-        config_file=args.config_file,
-        file_sections=[AWS],
-    )
+    # Parse configuration file to read the AWS section
+    _ = PclusterConfig(region=args.region, config_file=args.config_file)
+
     cfn = boto3.client("cloudformation")
     try:
         stacks = cfn.describe_stacks().get("Stacks")
@@ -543,23 +525,20 @@ def stop_batch_ce(ce_name):
 def instances(args):
     stack_name = "parallelcluster-" + args.cluster_name
     pcluster_config = PclusterConfig(
-        region=args.region,
-        config_file=args.config_file,
-        file_sections=[AWS, CLUSTER],
-        cluster_name=args.cluster_name,
+        region=args.region, config_file=args.config_file, cluster_name=args.cluster_name,
     )
-    cluster_config = pcluster_config.get_section("cluster")
+    cluster_section = pcluster_config.get_section("cluster")
 
     instances = []
     instances.extend(get_ec2_instances(stack_name))
 
-    if cluster_config.get("scheduler") != "awsbatch":
+    if cluster_section.get_param_value("scheduler") != "awsbatch":
         instances.extend(get_asg_instances(stack_name))
 
     for instance in instances:
         LOGGER.info("%s         %s" % (instance[0], instance[1]))
 
-    if cluster_config.get("scheduler") == "awsbatch":
+    if cluster_section.get_param_value("scheduler") == "awsbatch":
         LOGGER.info("Run 'awsbhosts --cluster %s' to list the compute instances", args.cluster_name)
 
 
@@ -604,7 +583,7 @@ def command(args, extra_args):  # noqa: C901 FIXME!!!
     pcluster_config = PclusterConfig(config_file=args.config_file, file_sections=[AWS, GLOBAL, ALIASES])
 
     if args.command in pcluster_config.get_section("aliases"):
-        config_command = pcluster_config.get_section("aliases").get(args.command)
+        config_command = pcluster_config.get_section("aliases").get_param_value(args.command)
     else:
         config_command = "ssh {CFN_USER}@{MASTER_IP} {ARGS}"
 
@@ -664,11 +643,9 @@ def command(args, extra_args):  # noqa: C901 FIXME!!!
 
 def status(args):  # noqa: C901 FIXME!!!
     stack_name = "parallelcluster-" + args.cluster_name
-    pcluster_config = PclusterConfig(
-        region=args.region,
-        config_file=args.config_file,
-        file_sections=[AWS],
-    )
+
+    # Parse configuration file to read the AWS section
+    _ = PclusterConfig(region=args.region, config_file=args.config_file)
 
     cfn = boto3.client("cloudformation")
     try:
@@ -728,12 +705,9 @@ def delete(args):
     LOGGER.info("Deleting: %s", args.cluster_name)
     stack = "parallelcluster-" + args.cluster_name
 
-    # FIXME we are only initializing the AWS section
-    pcluster_config = PclusterConfig(
-        region=args.region,
-        config_file=args.config_file,
-        file_sections=[AWS],
-    )
+    # Parse configuration file to read the AWS section
+    _ = PclusterConfig(region=args.region, config_file=args.config_file)
+
     cfn = boto3.client("cloudformation")
     try:
         # delete_stack does not raise an exception if stack does not exist
@@ -935,9 +909,9 @@ def create_ami(args):
             fail_on_config_file_absence=True,
         )
 
-        vpc_config = pcluster_config.get_section("cluster").get("vpc")[0]
-        vpc_id = args.vpc_id if args.vpc_id else vpc_config.get("vpc_id")
-        subnet_id =  args.subnet_id if args.subnet_id else vpc_config.get("master_subnet_id")
+        vpc_section = pcluster_config.get_section("vpc")
+        vpc_id = args.vpc_id if args.vpc_id else vpc_section.get_param_value("vpc_id")
+        subnet_id = args.subnet_id if args.subnet_id else vpc_section.get_param_value("master_subnet_id")
 
         packer_env = {
             "CUSTOM_AMI_ID": args.base_ami_id,
@@ -947,12 +921,12 @@ def create_ami(args):
             "AWS_SUBNET_ID": subnet_id,
         }
 
-        aws_config = pcluster_config.get_section("aws")
-        aws_region = aws_config.get("region")
-        if aws_config and aws_config.get("aws_access_key_id"):
-            packer_env["AWS_ACCESS_KEY_ID"] = aws_config.get("aws_access_key_id")
-        if aws_config and aws_config.get("aws_secret_access_key"):
-            packer_env["AWS_SECRET_ACCESS_KEY"] = aws_config.get("aws_secret_access_key")
+        aws_section = pcluster_config.get_section("aws")
+        aws_region = aws_section.get_param_value("aws_region_name")
+        if aws_section and aws_section.get_param_value("aws_access_key_id"):
+            packer_env["AWS_ACCESS_KEY_ID"] = aws_section.get_param_value("aws_access_key_id")
+        if aws_section and aws_section.get_param_value("aws_secret_access_key"):
+            packer_env["AWS_SECRET_ACCESS_KEY"] = aws_section.get_param_value("aws_secret_access_key")
 
         LOGGER.info("Base AMI ID: %s", args.base_ami_id)
         LOGGER.info("Base AMI OS: %s", args.base_ami_os)
@@ -961,8 +935,12 @@ def create_ami(args):
         LOGGER.info("VPC ID: %s", vpc_id)
         LOGGER.info("Subnet ID: %s", subnet_id)
 
+        template_url = pcluster_config.get_section("cluster").get_param_value("template_url")
+        if not template_url:
+            template_url = _get_default_template_url(aws_region)
+
         tmp_dir = mkdtemp()
-        cookbook_dir = _get_cookbook_dir(aws_region, pcluster_config.get_section("cluster").get("template_url"), args, tmp_dir)
+        cookbook_dir = _get_cookbook_dir(aws_region, template_url , args, tmp_dir)
 
         packer_command = (
             cookbook_dir
@@ -982,3 +960,14 @@ def create_ami(args):
         print_create_ami_results(results)
         if "tmp_dir" in locals() and tmp_dir:
             rmtree(tmp_dir)
+
+
+def _get_default_template_url(region):
+    return (
+        "https://s3.{REGION}.amazonaws.com{SUFFIX}/{REGION}-aws-parallelcluster/templates/"
+        "aws-parallelcluster-{VERSION}.cfn.json".format(
+            REGION=region,
+            SUFFIX=".cn" if region.startswith("cn") else "",
+            VERSION=get_installed_version()
+        )
+    )

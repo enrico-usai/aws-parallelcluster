@@ -16,12 +16,16 @@ from assertpy import assert_that
 from pcluster.config.mapping import CLUSTER, EBS, EFS, FSX, SCALING, RAID, VPC
 from tests.pcluster.config.utils import get_param_map
 from tests.pcluster.config.defaults import DefaultDict
+from pcluster.config.pcluster_config import PclusterConfig
 
 
 def _assert_param_from_file(section_map, param_key, param_value, expected_value, expected_message):
-    section_name = section_map.get("key")
+    section_label = section_map.get("label")
+    section_name = "{0} {1}".format(section_map.get("key"), section_label)
     config_parser = configparser.ConfigParser()
     config_parser.add_section(section_name)
+
+    pcluster_config = PclusterConfig(config_file="wrong-file")
 
     if param_value:
         config_parser.set(section_name, param_key, param_value)
@@ -30,10 +34,10 @@ def _assert_param_from_file(section_map, param_key, param_value, expected_value,
 
     if expected_message:
         with pytest.raises(SystemExit, match=expected_message):
-            _, param_value = param_type(param_key, param_map).from_file(config_parser, section_name)
+            param_type(section_map.get("key"), section_label, param_key, param_map, pcluster_config, config_parser=config_parser)
     else:
-        _, param_value = param_type(param_key, param_map).from_file(config_parser, section_name)
-        assert_that(param_value).is_equal_to(expected_value)
+        param = param_type(section_map.get("key"), section_label, param_key, param_map, pcluster_config, config_parser=config_parser)
+        assert_that(param.value).is_equal_to(expected_value)
 
 
 @pytest.mark.parametrize(
@@ -196,10 +200,16 @@ def test_section_from_file(section_map, config_parser_dict, expected_dict_params
     if isinstance(expected_dict_params, dict):
         expected_dict.update(expected_dict_params)
 
+    pcluster_config = PclusterConfig(config_file="wrong-file")
+
     section_type = section_map.get("type")
     if expected_message:
         with pytest.raises(SystemExit, match=expected_message):
-            _, section_dict = section_type(section_map).from_file(config_parser)
+            _ = section_type(section_map, pcluster_config, config_parser=config_parser)
     else:
-        _, section_dict = section_type(section_map).from_file(config_parser)
+        section = section_type(section_map, pcluster_config, config_parser=config_parser)
+        section_dict = {}
+        for param_key, param in section.params.items():
+            section_dict.update({param_key: param.value})
+
         assert_that(section_dict).is_equal_to(expected_dict)

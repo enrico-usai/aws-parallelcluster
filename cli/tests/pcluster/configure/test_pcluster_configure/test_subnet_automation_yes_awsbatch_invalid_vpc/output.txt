@@ -28,7 +28,7 @@ Allowed values for EC2 Key Pair Name:
 5. key5
 6. key6
 Allowed values for VPC ID:
-1. vpc-1 | ParallelClusterVPC-20190625135738 | 2 subnets inside
-2. vpc-2 | ParallelClusterVPC-20190624105051 | 0 subnets inside
-3. vpc-3 | default | 3 subnets inside
-4. vpc-4 | ParallelClusterVPC-20190626095403 | 1 subnets inside
+1. vpc-12345678 | ParallelClusterVPC-20190625135738 | 2 subnets inside
+2. vpc-23456789 | ParallelClusterVPC-20190624105051 | 0 subnets inside
+3. vpc-34567891 | default | 3 subnets inside
+4. vpc-45678912 | ParallelClusterVPC-20190626095403 | 1 subnets inside

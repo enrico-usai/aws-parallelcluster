@@ -57,23 +57,23 @@ def _mock_list_vpcs_and_subnets(mocker, empty_region=False):
     else:
         mocked_response = {
             "vpc_list": [
-                ("vpc-1", "ParallelClusterVPC-20190625135738", "2 subnets inside"),
-                ("vpc-2", "ParallelClusterVPC-20190624105051", "0 subnets inside"),
-                ("vpc-3", "default", "3 subnets inside"),
-                ("vpc-4", "ParallelClusterVPC-20190626095403", "1 subnets inside"),
+                ("vpc-12345678", "ParallelClusterVPC-20190625135738", "2 subnets inside"),
+                ("vpc-23456789", "ParallelClusterVPC-20190624105051", "0 subnets inside"),
+                ("vpc-34567891", "default", "3 subnets inside"),
+                ("vpc-45678912", "ParallelClusterVPC-20190626095403", "1 subnets inside"),
             ],
             "vpc_subnets": {
-                "vpc-1": [
-                    ("subnet-11", "ParallelClusterPublicSubnet", "Subnet size: 256"),
-                    ("subnet-12", "ParallelClusterPrivateSubnet", "Subnet size: 4096"),
+                "vpc-12345678": [
+                    ("subnet-12345678", "ParallelClusterPublicSubnet", "Subnet size: 256"),
+                    ("subnet-23456789", "ParallelClusterPrivateSubnet", "Subnet size: 4096"),
                 ],
-                "vpc-2": [],
-                "vpc-3": [
-                    ("subnet-31", "Subnet size: 4096"),
-                    ("subnet-32", "Subnet size: 4096"),
-                    ("subnet-33", "Subnet size: 4096"),
+                "vpc-23456789": [],
+                "vpc-34567891": [
+                    ("subnet-34567891", "Subnet size: 4096"),
+                    ("subnet-45678912", "Subnet size: 4096"),
+                    ("subnet-56789123", "Subnet size: 4096"),
                 ],
-                "vpc-4": [("subnet-41", "ParallelClusterPublicSubnet", "Subnet size: 4096")],
+                "vpc-45678912": [("subnet-45678912", "ParallelClusterPublicSubnet", "Subnet size: 4096")],
             },
         }
     mocker.patch(EASYCONFIG + "_get_vpcs_and_subnets", return_value=mocked_response)
@@ -235,7 +235,7 @@ def test_no_automation_no_awsbatch_no_errors(mocker, capsys, test_datadir):
         compute_instance="t2.micro",
         key="key1",
     )
-    input_composer.add_no_automation_no_empty_vpc(vpc_id="vpc-1", master_id="subnet-11", compute_id="subnet-12")
+    input_composer.add_no_automation_no_empty_vpc(vpc_id="vpc-12345678", master_id="subnet-12345678", compute_id="subnet-23456789")
     input_composer.finalize_config(mocker)
 
     _verify_test(mocker, capsys, output, error, config, TEMP_PATH_FOR_CONFIG)
@@ -249,7 +249,7 @@ def test_no_automation_yes_awsbatch_no_errors(mocker, capsys, test_datadir):
     input_composer.add_first_flow(
         op_sys=None, min_size="13", max_size="14", master_instance="t2.nano", compute_instance=None, key="key1"
     )
-    input_composer.add_no_automation_no_empty_vpc(vpc_id="vpc-1", master_id="subnet-11", compute_id="subnet-12")
+    input_composer.add_no_automation_no_empty_vpc(vpc_id="vpc-12345678", master_id="subnet-12345678", compute_id="subnet-23456789")
     input_composer.finalize_config(mocker)
 
     _verify_test(mocker, capsys, output, error, config, TEMP_PATH_FOR_CONFIG)
@@ -270,7 +270,7 @@ def test_subnet_automation_no_awsbatch_no_errors_empty_vpc(mocker, capsys, test_
         key="key1",
     )
     input_composer.add_sub_automation(
-        vpc_id="vpc-2", network_configuration=PUBLIC_PRIVATE_CONFIGURATION, vpc_has_subnets=False
+        vpc_id="vpc-23456789", network_configuration=PUBLIC_PRIVATE_CONFIGURATION, vpc_has_subnets=False
     )
     input_composer.finalize_config(mocker)
 
@@ -292,7 +292,7 @@ def test_subnet_automation_no_awsbatch_no_errors(mocker, capsys, test_datadir):
         key="key1",
     )
     input_composer.add_sub_automation(
-        vpc_id="vpc-1", network_configuration=PUBLIC_PRIVATE_CONFIGURATION, vpc_has_subnets=True
+        vpc_id="vpc-12345678", network_configuration=PUBLIC_PRIVATE_CONFIGURATION, vpc_has_subnets=True
     )
     input_composer.finalize_config(mocker)
 
@@ -315,7 +315,7 @@ def test_subnet_automation_no_awsbatch_no_errors_with_config_file(mocker, capsys
         key="key1",
     )
     input_composer.add_sub_automation(
-        vpc_id="vpc-1", network_configuration=PUBLIC_PRIVATE_CONFIGURATION, vpc_has_subnets=True
+        vpc_id="vpc-12345678", network_configuration=PUBLIC_PRIVATE_CONFIGURATION, vpc_has_subnets=True
     )
     input_composer.finalize_config(mocker)
 
@@ -388,7 +388,7 @@ def test_subnet_automation_yes_awsbatch_invalid_vpc(mocker, capsys, test_datadir
     input_composer.add_first_flow(
         op_sys=None, min_size="13", max_size="14", master_instance="t2.nano", compute_instance=None, key="key1"
     )
-    input_composer.add_sub_automation(vpc_id="vpc-1", network_configuration=PUBLIC_PRIVATE_CONFIGURATION)
+    input_composer.add_sub_automation(vpc_id="vpc-12345678", network_configuration=PUBLIC_PRIVATE_CONFIGURATION)
     input_composer.finalize_config(mocker)
     _verify_test(mocker, capsys, output, error, config, TEMP_PATH_FOR_CONFIG)
     assert_that("WARNING: The VPC does not have the correct parameters set." in caplog.text).is_true()
@@ -444,9 +444,9 @@ def general_wrapper_for_prompt_testing(
     master_instance="t2.nano",
     compute_instance="t2.micro",
     key="key1",
-    vpc_id="vpc-1",
-    master_id="subnet-11",
-    compute_id="subnet-12",
+    vpc_id="vpc-12345678",
+    master_id="subnet-12345678",
+    compute_id="subnet-23456789",
 ):
     path = os.path.join(tempfile.gettempdir(), "test_pcluster_configure")
     MockHandler(mocker)
@@ -528,34 +528,36 @@ def test_prompt_a_list_of_tuple(mocker):
     with pytest.raises(StopIteration):
         general_wrapper_for_prompt_testing(mocker, vpc_id="sopralapancalacapracampa")
 
-    for i in range(1, 5):
-        i_s = str(i)
-        if i == 2:
-            with pytest.raises(StopIteration):
-                assert_that(
-                    general_wrapper_for_prompt_testing(
-                        mocker,
-                        vpc_id="vpc-" + i_s,
-                        master_id="subnet-{0}1".format(i_s),
-                        compute_id="subnet-{0}1".format(i_s),
-                    )
-                ).is_true()
-                assert_that(
-                    general_wrapper_for_prompt_testing(
-                        mocker, vpc_id=i_s, master_id="subnet-{0}1".format(i_s), compute_id="subnet-{0}1".format(i_s)
-                    )
-                ).is_true()
-        else:
-            assert_that(
-                general_wrapper_for_prompt_testing(
-                    mocker,
-                    vpc_id="vpc-" + i_s,
-                    master_id="subnet-{0}1".format(i_s),
-                    compute_id="subnet-{0}1".format(i_s),
-                )
-            ).is_true()
-            assert_that(
-                general_wrapper_for_prompt_testing(
-                    mocker, vpc_id=i_s, master_id="subnet-{0}1".format(i_s), compute_id="subnet-{0}1".format(i_s)
-                )
-            ).is_true()
+    # TODO use parametrize
+    # invalid subnets
+    with pytest.raises(StopIteration):
+        assert_that(
+            general_wrapper_for_prompt_testing(
+                mocker, vpc_id="vpc-12345678", master_id="subnet-34567891", compute_id="subnet-45678912"
+            )
+        ).is_true()
+    with pytest.raises(StopIteration):
+        assert_that(
+            general_wrapper_for_prompt_testing(
+                mocker, vpc_id="vpc-23456789", master_id="subnet-34567891", compute_id="subnet-45678912"
+            )
+        ).is_true()
+    with pytest.raises(StopIteration):
+        assert_that(
+            general_wrapper_for_prompt_testing(
+                mocker, vpc_id="vpc-34567891", master_id="subnet-12345678", compute_id="subnet-23456789"
+            )
+        ).is_true()
+
+    # valid subnets
+    assert_that(
+        general_wrapper_for_prompt_testing(
+            mocker, vpc_id="vpc-12345678", master_id="subnet-12345678", compute_id="subnet-23456789"
+        )
+    ).is_true()
+    assert_that(
+        general_wrapper_for_prompt_testing(
+            mocker, vpc_id="vpc-34567891", master_id="subnet-45678912", compute_id="subnet-45678912"
+        )
+    ).is_true()
+

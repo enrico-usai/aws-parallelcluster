@@ -29,7 +29,6 @@ from pcluster.config.params_types import (
     SpotBidPercentageParam,
     SpotPriceParam,
 )
-
 from pcluster.config.validators import (
     cluster_validator,
     compute_instance_type_validator,
@@ -53,7 +52,6 @@ from pcluster.config.validators import (
     raid_volume_iops_validator,
     url_validator,
 )
-
 
 AWS = {
     "type": Section,
@@ -511,4 +509,6 @@ GLOBAL = {
     }
 }
 
-MAIN_SECTIONS = [AWS, GLOBAL, CLUSTER, ALIASES]
+
+def get_section_type(section_map):
+    return section_map.get("type")

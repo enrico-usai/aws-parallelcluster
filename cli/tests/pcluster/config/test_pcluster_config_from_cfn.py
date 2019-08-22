@@ -15,6 +15,7 @@ from assertpy import assert_that
 from pcluster.config.mapping import CLUSTER, SCALING, RAID, EFS, VPC, EBS, FSX
 from tests.pcluster.config.utils import get_param_map
 from tests.pcluster.config.defaults import DefaultDict, DefaultCfnParams
+from pcluster.config.pcluster_config import PclusterConfig
 
 
 @pytest.mark.parametrize(
@@ -50,7 +51,9 @@ from tests.pcluster.config.defaults import DefaultDict, DefaultCfnParams
 def test_param_from_cfn_value(section_map, param_key, cfn_value, expected_value):
     param_map, param_type = get_param_map(section_map, param_key)
 
-    param_value = param_type(param_key, param_map).from_string(cfn_value)
+    pcluster_config = PclusterConfig(config_file="wrong-file")
+
+    param_value = param_type(section_map.get("key"), "default", param_key, param_map, pcluster_config)._from_string(cfn_value)
     assert_that(param_value).is_equal_to(expected_value)
 
 
@@ -90,9 +93,11 @@ def test_param_from_cfn(section_map, param_key, cfn_params_dict, expected_value)
     for cfn_key, cfn_value in cfn_params_dict.items():
         cfn_params.append({"ParameterKey": cfn_key, "ParameterValue": cfn_value})
 
-    _, param_value = param_type(param_key, param_map).from_cfn(cfn_params)
+    pcluster_config = PclusterConfig(config_file="wrong-file")
 
-    assert_that(param_value).is_equal_to(expected_value)
+    param = param_type(section_map.get("key"), "default", param_key, param_map, pcluster_config, cfn_params=cfn_params)
+
+    assert_that(param.value).is_equal_to(expected_value)
 
 
 def assert_section_from_cfn(section_map, cfn_params_dict, expected_section_dict):
@@ -101,14 +106,23 @@ def assert_section_from_cfn(section_map, cfn_params_dict, expected_section_dict)
     for cfn_key, cfn_value in cfn_params_dict.items():
         cfn_params.append({"ParameterKey": cfn_key, "ParameterValue": cfn_value})
 
+    pcluster_config = PclusterConfig(config_file="wrong-file")
+
     section_type = section_map.get("type")
-    _, section_dict = section_type(section_map).from_cfn(cfn_params)
+    section = section_type(section_map, pcluster_config, cfn_params=cfn_params)
+
+    if section.label:
+        assert_that(section.label).is_equal_to("default")
 
     # update expected dictionary
     default_dict = DefaultDict[section_map.get("key")].value
     expected_dict = default_dict.copy()
     if isinstance(expected_section_dict, dict):
         expected_dict.update(expected_section_dict)
+
+    section_dict = {}
+    for param_key, param in section.params.items():
+        section_dict.update({param_key: param.value})
 
     assert_that(section_dict).is_equal_to(expected_dict)
 
@@ -194,7 +208,6 @@ def test_ebs_section_from_cfn(cfn_params_dict, expected_section_dict):
         ({"EFSOptions": "NONE,NONE,NONE,NONE,NONE,NONE,NONE,NONE"}, DefaultDict["efs"].value),
         ({"EFSOptions": "test,NONE,NONE,NONE,NONE,NONE,NONE,NONE"},
          {
-             "label": "default",
              "shared_dir": "test",
              "efs_fs_id": None,
              "performance_mode": "generalPurpose",
@@ -205,7 +218,6 @@ def test_ebs_section_from_cfn(cfn_params_dict, expected_section_dict):
          }),
         ({"EFSOptions": "test,test,maxIO,test,1024,true,provisioned"},
          {
-             "label": "default",
              "shared_dir": "test",
              "efs_fs_id": "test",
              "performance_mode": "maxIO",
@@ -229,7 +241,6 @@ def test_efs_section_from_cfn(cfn_params_dict, expected_section_dict):
         ({"RAIDOptions": "NONE,NONE,NONE,NONE,NONE,NONE,NONE,NONE"}, DefaultDict["raid"].value),
         ({"RAIDOptions": "test,NONE,NONE,NONE,NONE,NONE,NONE,NONE"},
          {
-             "label": "default",
              "shared_dir": "test",
              "raid_type": None,
              "num_of_raid_volumes": None,
@@ -241,7 +252,6 @@ def test_efs_section_from_cfn(cfn_params_dict, expected_section_dict):
          }),
         ({"RAIDOptions": "test,0,3,gp2,30,200,true,test"},
          {
-             "label": "default",
              "shared_dir": "test",
              "raid_type": 0,
              "num_of_raid_volumes": 3,
@@ -266,7 +276,6 @@ def test_raid_section_from_cfn(cfn_params_dict, expected_section_dict):
         ({"FSXOptions": "NONE,NONE,NONE,NONE,NONE,NONE,NONE,NONE"}, DefaultDict["fsx"].value),
         ({"FSXOptions": "test,NONE,NONE,NONE,NONE,NONE,NONE,NONE"},
          {
-             "label": "default",
              "shared_dir": "test",
              "fsx_fs_id": None,
              "storage_capacity": None,
@@ -278,7 +287,6 @@ def test_raid_section_from_cfn(cfn_params_dict, expected_section_dict):
          }),
         ({"FSXOptions": "test,test1,10,test2,20,test3,test4,test5"},
          {
-             "label": "default",
              "shared_dir": "test",
              "fsx_fs_id": "test1",
              "storage_capacity": 10,

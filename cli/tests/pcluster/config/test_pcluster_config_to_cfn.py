@@ -8,14 +8,15 @@
 # or in the "LICENSE.txt" file accompanying this file. This file is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES
 # OR CONDITIONS OF ANY KIND, express or implied. See the License for the specific language governing permissions and
 # limitations under the License.
-import pytest
+import configparser
 
+import pytest
 from assertpy import assert_that
 
 from pcluster.config.mapping import CLUSTER, SCALING, VPC, RAID, EBS, EFS, FSX
 from pcluster.config.pcluster_config import PclusterConfig
-from tests.pcluster.config.utils import get_param_map, merge_dicts
 from tests.pcluster.config.defaults import DefaultDict, DefaultCfnParams
+from tests.pcluster.config.utils import get_param_map, merge_dicts
 
 
 @pytest.mark.parametrize(
@@ -45,42 +46,60 @@ from tests.pcluster.config.defaults import DefaultDict, DefaultCfnParams
     ]
 )
 def test_param_to_cfn_value(section_map, param_key, param_value, expected_value):
+    pcluster_config = PclusterConfig(config_file="wrong-file")
+
     param_map, param_type = get_param_map(section_map, param_key)
-    param_value = param_type(param_key, param_map).to_cfn_value(param_value)
-    assert_that(param_value).is_equal_to(expected_value)
+    param = param_type(section_map.get("key"), "default", param_key, param_map, pcluster_config)
+    param.value = param_value
+    cfn_value = param.to_cfn_value()
+    assert_that(cfn_value).is_equal_to(expected_value)
 
 
 @pytest.mark.parametrize(
-    "section_map, param_key, section_dict, expected_cfn_params",
+    "section_map, param_key, param_value, expected_cfn_params",
     [
         # Param
-        (CLUSTER, "key_name", {"key_name": None}, {"KeyName": "NONE"}),
-        (CLUSTER, "key_name", {"key_name": "NONE"}, {"KeyName": "NONE"}),
-        (CLUSTER, "key_name", {"key_name": "test"}, {"KeyName": "test"}),
+        (CLUSTER, "key_name", None, {"KeyName": "NONE"}),
+        (CLUSTER, "key_name", "NONE", {"KeyName": "NONE"}),
+        (CLUSTER, "key_name", "test", {"KeyName": "test"}),
         # BoolParam
-        (CLUSTER, "encrypted_ephemeral", {"encrypted_ephemeral": None}, {"EncryptedEphemeral": "false"}),
-        (CLUSTER, "encrypted_ephemeral", {"encrypted_ephemeral": True}, {"EncryptedEphemeral": "true"}),
-        (CLUSTER, "encrypted_ephemeral", {"encrypted_ephemeral": False}, {"EncryptedEphemeral": "false"}),
+        (CLUSTER, "encrypted_ephemeral", None, {"EncryptedEphemeral": "false"}),
+        (CLUSTER, "encrypted_ephemeral", True, {"EncryptedEphemeral": "true"}),
+        (CLUSTER, "encrypted_ephemeral", False, {"EncryptedEphemeral": "false"}),
         # IntParam
-        (SCALING, "scaledown_idletime", {"scaledown_idletime": None}, {"ScaleDownIdleTime": "10"}),
-        (SCALING, "scaledown_idletime", {"scaledown_idletime": 10}, {"ScaleDownIdleTime": "10"}),
-        (SCALING, "scaledown_idletime", {"scaledown_idletime": 3}, {"ScaleDownIdleTime": "3"}),
+        (SCALING, "scaledown_idletime", None, {"ScaleDownIdleTime": "10"}),
+        (SCALING, "scaledown_idletime", 10, {"ScaleDownIdleTime": "10"}),
+        (SCALING, "scaledown_idletime", 3, {"ScaleDownIdleTime": "3"}),
         # SharedDirParam
-        (CLUSTER, "shared_dir", {"shared_dir": "test"}, {"SharedDir": "test"}),
-        (CLUSTER, "shared_dir", {"ebs": [], "shared_dir": "test"}, {"SharedDir": "test"}),
-        (CLUSTER, "shared_dir", {"ebs": [{"label": "fake_ebs"}], "shared_dir": "unused_value"}, {}),
+        (CLUSTER, "shared_dir", "test", {"SharedDir": "test"}),
+        #(CLUSTER, "shared_dir", {"ebs": [], "shared_dir": "test"}, {"SharedDir": "test"}),
+        #(CLUSTER, "shared_dir", {"ebs": [{"label": "fake_ebs"}], "shared_dir": "unused_value"}, {}),
     ]
 )
-def test_param_to_cfn(section_map, param_key, section_dict, expected_cfn_params):
-    param_map, param_type = get_param_map(section_map, param_key)
+def test_param_to_cfn(section_map, param_key, param_value, expected_cfn_params):
+    pcluster_config = PclusterConfig(config_file="wrong-file")
 
-    cfn_params = param_type(param_key, param_map).to_cfn(section_dict, PclusterConfig())
+    param_map, param_type = get_param_map(section_map, param_key)
+    param = param_type(section_map.get("key"), "default", param_key, param_map, pcluster_config)
+    param.value = param_value
+    cfn_params = param.to_cfn()
     assert_that(cfn_params).is_equal_to(expected_cfn_params)
 
 
 def assert_section_to_cfn(section_map, section_dict, expected_cfn_params):
+
+    pcluster_config = PclusterConfig(config_file="wrong-file")
+
     section_type = section_map.get("type")
-    cfn_params = section_type(section_map).to_cfn(section_dict, PclusterConfig())
+    section = section_type(section_map, pcluster_config)
+    for param_key, param_value in section_dict.items():
+        param_map, param_type = get_param_map(section_map, param_key)
+        param = param_type(section_map.get("key"), "default", param_key, param_map, pcluster_config)
+        param.value = param_value
+        section.add_param(param)
+    pcluster_config.add_section(section)
+
+    cfn_params = section.to_cfn()
     assert_that(cfn_params).is_equal_to(expected_cfn_params)
 
 

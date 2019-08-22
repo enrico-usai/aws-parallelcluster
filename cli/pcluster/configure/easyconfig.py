@@ -14,7 +14,7 @@ import logging
 
 from future import standard_library
 
-from pcluster.config.mapping import MAIN_SECTIONS, CLUSTER, VPC
+from pcluster.config.mapping import AWS, GLOBAL, CLUSTER, ALIASES
 from pcluster.config.params_types import Section
 from pcluster.config.pcluster_config import PclusterConfig
 from pcluster.configure.networking import (
@@ -107,28 +107,28 @@ def _list_instances():  # Specifying the region does not make any difference
 
 
 def configure(args):
-    pcluster_config = PclusterConfig(config_file=args.config_file, file_sections=MAIN_SECTIONS)
-    cluster_config = pcluster_config.get_section("cluster")
+    pcluster_config = PclusterConfig(config_file=args.config_file, file_sections=[AWS, GLOBAL, CLUSTER, ALIASES])
+    cluster_section = pcluster_config.get_section("cluster")
 
     global_config = pcluster_config.get_section("global")
-    cluster_label = global_config.get("cluster_template", "default") if global_config else "default"
+    cluster_label = global_config.get_param_value("cluster_template")
 
-    vpc_config = cluster_config.get("vpc")[0] if cluster_config.get("vpc") else {}
-    vpc_label = vpc_config.get("label", cluster_label)
+    vpc_section = pcluster_config.get_section("vpc")
+    vpc_label = vpc_section.label
 
     # Use built in boto regions as an available option
     aws_region_name = prompt_iterable(
         "AWS Region ID",
         get_regions(),
-        default_value=pcluster_config.get_section("aws").get("region"),
+        default_value=pcluster_config.get_section("aws").get_param_value("aws_region_name"),
     )
 
     scheduler = prompt_iterable(
         "Scheduler",
         get_supported_schedulers(),
-        default_value=cluster_config.get("scheduler", Section(CLUSTER).get_param_default_value("scheduler")),
+        default_value=cluster_section.get_param_value("scheduler"),
     )
-    scheduler_handler = SchedulerHandler(cluster_config, scheduler)
+    scheduler_handler = SchedulerHandler(cluster_section, scheduler)
 
     scheduler_handler.prompt_os()
     scheduler_handler.prompt_cluster_size()
@@ -136,7 +136,7 @@ def configure(args):
     master_instance_type = prompt(
         "Master instance type",
         lambda x: x in _list_instances(),
-        default_value=cluster_config.get("master_instance_type", Section(CLUSTER).get_param_default_value("master_instance_type")),
+        default_value=cluster_section.get_param_value("master_instance_type"),
     )
 
     scheduler_handler.prompt_compute_instance_type()
@@ -145,7 +145,7 @@ def configure(args):
     automate_vpc = prompt("Automate VPC creation? (y/n)", lambda x: x == "y" or x == "n", default_value="n") == "y"
 
     vpc_parameters = _create_vpc_parameters(
-        vpc_config, aws_region_name, scheduler, scheduler_handler.max_cluster_size, automate_vpc_creation=automate_vpc
+        vpc_section, aws_region_name, scheduler, scheduler_handler.max_cluster_size, automate_vpc_creation=automate_vpc
     )
     cluster_parameters = {
         "key_name": key_name,
@@ -155,32 +155,34 @@ def configure(args):
     cluster_parameters.update(scheduler_handler.get_scheduler_parameters())
 
     # We remove parameters that may still be present from the past configuration but can conflict with the current.
-    _reset_config_params(CLUSTER, cluster_config, scheduler_handler.get_parameters_to_reset())
-    _reset_config_params(VPC, vpc_config, ("compute_subnet_id", "use_public_ips", "compute_subnet_cidr"))
+    _reset_config_params(cluster_section, scheduler_handler.get_parameters_to_reset())
+    _reset_config_params(vpc_section, ("compute_subnet_id", "use_public_ips", "compute_subnet_cidr"))
 
     # Update configuration values according to user's choices
     pcluster_config.region = aws_region_name
     #cluster_items = CLUSTER.get("params")
-    cluster_config["label"] = cluster_label
+    cluster_section.label = cluster_label
     for param_key, param_value in cluster_parameters.items():
         #param_map = cluster_items.get(param_key)
-        cluster_config[param_key] = Section(CLUSTER).get_param_from_string(param_key, param_value)
+        param = cluster_section.get_param(param_key)
+        param.value = param._from_string(param_value)
 
-    vpc_config["label"] = vpc_label
+    vpc_section.label = vpc_label
     for param_key, param_value in vpc_parameters.items():
-        vpc_config[param_key] = Section(VPC).get_param_from_string(param_key, param_value)
-    cluster_config["vpc"][0] = vpc_config
+        param = vpc_section.get_param(param_key)
+        param.value = param._from_string(param_value)
 
     # Update config file by overriding changed settings
     pcluster_config.to_file()
 
 
-def _reset_config_params(section_map, config, parameters_to_remove):
+def _reset_config_params(section, parameters_to_remove):
     for param_key in parameters_to_remove:
-        config[param_key] = Section(section_map).get_param_default_value(param_key)
+        param = section.get_param(param_key)
+        param.value = param.get_default_value()
 
 
-def _create_vpc_parameters(vpc_config, aws_region_name, scheduler, min_subnet_size, automate_vpc_creation=True):
+def _create_vpc_parameters(vpc_section, aws_region_name, scheduler, min_subnet_size, automate_vpc_creation=True):
     vpc_parameters = {}
     min_subnet_size = int(min_subnet_size)
     if automate_vpc_creation:
@@ -200,7 +202,7 @@ def _create_vpc_parameters(vpc_config, aws_region_name, scheduler, min_subnet_si
                 )
             )
         else:
-            vpc_id = prompt_iterable("VPC ID", vpc_list, vpc_config.get("vpc_id"))
+            vpc_id = prompt_iterable("VPC ID", vpc_list, vpc_section.get_param_value("vpc_id"))
             vpc_parameters["vpc_id"] = vpc_id
             subnet_list = vpc_and_subnets["vpc_subnets"][vpc_id]
             if not subnet_list or (
@@ -244,9 +246,9 @@ def _choose_network_configuration(scheduler):
 class SchedulerHandler:
     """Handle question scheduler related."""
 
-    def __init__(self, cluster_config, scheduler):
+    def __init__(self, cluster_section, scheduler):
         self.scheduler = scheduler
-        self.cluster_config = cluster_config
+        self.cluster_section = cluster_section
 
         self.is_aws_batch = self.scheduler == "awsbatch"
 
@@ -260,11 +262,11 @@ class SchedulerHandler:
             self.instance_size_name = "instances"
             self.max_size_name = "max_queue_size"
             self.min_size_name = "initial_queue_size"
-            self.base_os = Section(CLUSTER).get_param_default_value("base_os")
-            self.compute_instance_type = Section(CLUSTER).get_param_default_value("compute_instance_type")
+            self.base_os = cluster_section.get_param("base_os").get_default_value()
+            self.compute_instance_type = cluster_section.get_param("compute_instance_type").get_default_value()
 
-        self.max_cluster_size = Section(CLUSTER).get_param_default_value(self.max_size_name)
-        self.min_cluster_size = Section(CLUSTER).get_param_default_value(self.min_size_name)
+        self.max_cluster_size = cluster_section.get_param(self.max_size_name).get_default_value()
+        self.min_cluster_size = cluster_section.get_param(self.min_size_name).get_default_value()
 
     def prompt_os(self):
         """Ask for os, if necessary."""
@@ -272,7 +274,7 @@ class SchedulerHandler:
             self.base_os = prompt_iterable(
                 "Operating System",
                 get_supported_os(self.scheduler),
-                default_value=self.cluster_config.get("base_os", self.base_os),
+                default_value=self.cluster_section.get_param_value("base_os"),
             )
 
     def prompt_compute_instance_type(self):
@@ -289,13 +291,13 @@ class SchedulerHandler:
         self.min_cluster_size = prompt(
             "Minimum cluster size ({0})".format(self.instance_size_name),
             validator=lambda x: str(x).isdigit(),
-            default_value=self.cluster_config.get(self.min_size_name, self.min_cluster_size),
+            default_value=self.cluster_section.get_param_value(self.min_size_name),
         )
 
         self.max_cluster_size = prompt(
             "Maximum cluster size ({0})".format(self.instance_size_name),
             validator=lambda x: str(x).isdigit() and int(x) >= int(self.min_cluster_size),
-            default_value=self.cluster_config.get(self.max_size_name, self.max_cluster_size),
+            default_value=self.cluster_section.get_param_value(self.max_size_name),
         )
 
     def get_scheduler_parameters(self):

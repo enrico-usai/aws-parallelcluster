@@ -17,6 +17,7 @@ from assertpy import assert_that
 from pcluster.config.mapping import CLUSTER, EBS, EFS, FSX, SCALING, RAID, VPC
 from tests.pcluster.config.defaults import DefaultDict
 from tests.pcluster.config.utils import get_param_map
+from pcluster.config.pcluster_config import PclusterConfig
 
 
 @pytest.mark.parametrize(
@@ -37,14 +38,17 @@ from tests.pcluster.config.utils import get_param_map
     ]
 )
 def test_param_to_file(section_map, param_key, param_value, expected_value):
-    section_name = section_map.get("key")
+    section_label = "default"
+    section_name = section_map.get("key") + " " + section_label
     config_parser = configparser.ConfigParser()
     config_parser.add_section(section_name)
 
+    pcluster_config = PclusterConfig(config_file="wrong-file")
+
     param_map, param_type = get_param_map(section_map, param_key)
-    param_value = param_value or param_map.get("default")
-    section_dict = {section_name: {param_key: param_value}}
-    param_type(param_key, param_map).to_file(config_parser, section_dict, section_name, param_value)
+    param = param_type(section_map.get("key"), section_label, param_key, param_map, pcluster_config)
+    param.value = param_value or param_map.get("default")
+    param.to_file(config_parser)
 
     if expected_value:
         assert_that(config_parser.has_option(section_name, param_key))
@@ -72,18 +76,22 @@ def test_param_to_file(section_map, param_key, param_value, expected_value):
     ]
 )
 def test_section_to_file(section_map, section_dict, expected_config_parser_dict, expected_message):
-    # update expected dictionary
-    default_dict = DefaultDict[section_map.get("key")].value
-    input_section_dict = default_dict.copy()
-    if isinstance(section_dict, dict):
-        input_section_dict.update(section_dict)
-
     expected_config_parser = configparser.ConfigParser()
     expected_config_parser.read_dict(expected_config_parser_dict)
 
+    pcluster_config = PclusterConfig(config_file="wrong-file")
+
     output_config_parser = configparser.ConfigParser()
     section_type = section_map.get("type")
-    section_type(section_map).to_file(input_section_dict, output_config_parser)
+    section = section_type(section_map, pcluster_config, section_label="default")
+
+    for param_key, param_value in section_dict.items():
+        param_map, param_type = get_param_map(section.map, param_key)
+        param = param_type(section_map.get("key"), "default", param_key, param_map, pcluster_config)
+        param.value = param_value
+        section.add_param(param)
+
+    section.to_file(output_config_parser)
 
     for section_key, section_params in expected_config_parser_dict.items():
         for param_key, param_value in section_params.items():

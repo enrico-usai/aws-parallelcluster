@@ -21,14 +21,28 @@ LOGGER = logging.getLogger(__name__)
 
 class Param(object):
 
-    def __init__(self, param_key, param_map):
-        self.param_key = param_key
-        self.param_map = param_map
+    def __init__(self, section_key, section_label, param_key, param_map, pcluster_config, cfn_value=None, config_parser=None, cfn_params=None):
+        self.section_key = section_key
+        self.section_label = section_label
+        self.key = param_key
+        self.map = param_map
+        self.pcluster_config = pcluster_config
 
-    def to_cfn_value(self, param_value):
-        return str(param_value if param_value is not None else self.param_map.get("default", "NONE"))
+        # initialize param value
+        if cfn_params or cfn_value:
+            self._from_cfn(cfn_params=cfn_params, cfn_value=cfn_value)
+        elif config_parser:
+            try:
+                self._from_file(config_parser)
+            except NoOptionError:
+                self._from_map()
+            except NoSectionError:
+                section_name = _get_file_section_name(self.section_key, self.section_label)
+                error("Section '[{0}]' not found in the config file.".format(section_name))
+        else:
+            self._from_map()
 
-    def from_string(self, string_value):
+    def _from_string(self, string_value):
         param_value = self.get_default_value()
 
         if isinstance(string_value, str):
@@ -39,114 +53,120 @@ class Param(object):
 
         return param_value
 
-    def from_file(self, config_parser, parent_section_name):
-        try:
-            param_value = config_parser.get(parent_section_name, self.param_key)
-            self._check_allowed_values(param_value)
+    def _from_file(self, config_parser):
+        """
+        Initialize param_value from config_parser.
 
-        except NoOptionError:
-            param_value = self.get_default_value()
-            if param_value:
-                LOGGER.debug("Setting default value '{0}' for key '{1}'".format(param_value, self.param_key))
-        except NoSectionError:
-            error("Section '[{0}]' not found in the config file.".format(parent_section_name))
+        :param config_parser: the configparser object from which get the parameter
+        :raise NoOptionError, NoSectionError if unable to get the param from config_parser
+        """
+        section_name = _get_file_section_name(self.section_key, self.section_label)
+        self.value = config_parser.get(section_name, self.key)
+        self._check_allowed_values()
 
-        return self.param_key, param_value
-
-    def from_map(self):
-        return self.param_key, self.get_default_value()
-
-    def to_file(self, config_parser, parent_section_dict, parent_section_name, param_value):
-        if param_value is not None and param_value != self.get_default_value():
-            config_parser.set(parent_section_name, self.param_key, str(param_value))
+    def _from_cfn(self, cfn_params=None, cfn_value=None):
+        cfn_converter = self.map.get("cfn", None)
+        if cfn_converter and cfn_params:
+            cfn_value = get_cfn_param(cfn_params, cfn_converter) if cfn_converter else "NONE"
+            self.value = self._from_string(cfn_value)
+        elif cfn_value:
+            self.value = self._from_string(cfn_value)
         else:
-            # remove parameter from config_parser if there
-            try:
-                config_parser.remove_option(parent_section_name, self.param_key)
-            except NoSectionError:
-                pass
+            self._from_map()
 
-    def _check_allowed_values(self, param_value):
+    def _from_map(self):
+        self.value = self.get_default_value()
+        if self.value:
+            LOGGER.debug("Setting default value '{0}' for key '{1}'".format(self.value, self.key))
+
+    def _check_allowed_values(self):
         # verify if value is one of the allowed values
-        allowed_values = self.param_map.get("allowed_values", None)
+        allowed_values = self.map.get("allowed_values", None)
         if allowed_values:
             if isinstance(allowed_values, list):
-                if param_value not in allowed_values:
+                if self.value not in allowed_values:
                     error(
                         "The configuration parameter '{0}' has an invalid value '{1}'\n"
-                        "Allowed values are: {2}".format(self.param_key, param_value, allowed_values),
+                        "Allowed values are: {2}".format(self.key, self.value, allowed_values),
                     )
             else:
                 # convert to regex
-                if not re.compile(allowed_values).match(str(param_value)):
+                if not re.compile(allowed_values).match(str(self.value)):
                     error(
                         "The configuration parameter '{0}' has an invalid value '{1}'\n"
-                        "Allowed values are: {2}".format(self.param_key, param_value, allowed_values),
+                        "Allowed values are: {2}".format(self.key, self.value, allowed_values),
                     )
 
-    def validate(self, param_value, section_dict, pcluster_dict, fail_on_error=True):
-        validation_func = self.param_map.get("validator", None)
+    def validate(self, fail_on_error=True):
+        validation_func = self.map.get("validator", None)
 
         if not validation_func:
-            LOGGER.debug("Configuration parameter '{0}' has no validator".format(self.param_key))  # TODO remove
-        elif not param_value:
-            LOGGER.debug("Configuration parameter '{0}' has not a value".format(self.param_key))  # TODO remove
+            LOGGER.debug("Configuration parameter '{0}' has no validator".format(self.key))  # TODO remove
+        elif not self.value:
+            LOGGER.debug("Configuration parameter '{0}' has not a value".format(self.key))  # TODO remove
         else:
-            errors, warnings = validation_func(self.param_key, param_value, pcluster_dict)
+            errors, warnings = validation_func(self.key, self.value, self.pcluster_config)
             if errors:
                 error(
                     "The configuration parameter '{0}' has an invalid value '{1}'\n"
-                    "{2}".format(self.param_key, param_value, "\n".join(errors)),
+                    "{2}".format(self.key, self.value, "\n".join(errors)),
                     fail_on_error,
                 )
             elif warnings:
                 warn(
                     "The configuration parameter '{0}' has a wrong value '{1}'\n{2}".format(
-                        self.param_key, param_value, "\n".join(warnings)
+                        self.key, self.value, "\n".join(warnings)
                     )
                 )
             else:
-                LOGGER.debug("Configuration parameter '{0}' is valid".format(self.param_key))
+                LOGGER.debug("Configuration parameter '{0}' is valid".format(self.key))
 
-    def to_cfn(self, parent_section_dict, pcluster_config):
+    def to_file(self, config_parser):
+        section_name = _get_file_section_name(self.section_key, self.section_label)
+        if self.value is not None and self.value != self.get_default_value():
+            config_parser.set(section_name, self.key, str(self.value))
+        else:
+            # remove parameter from config_parser if there
+            try:
+                config_parser.remove_option(section_name, self.key)
+            except NoSectionError:
+                pass
+
+    def to_cfn(self):
         cfn_params = {}
-        cfn_converter = self.param_map.get("cfn", None)
+        cfn_converter = self.map.get("cfn", None)
 
         if cfn_converter:
-            cfn_value = self.to_cfn_value(parent_section_dict.get(self.param_key))
+            #section_dict = self.pcluster_config.get_section_config(self.section_key)
+            cfn_value = self.to_cfn_value()
             cfn_params.update({cfn_converter: str(cfn_value)})
 
         return cfn_params
 
-    def from_cfn(self, cfn_params):
-        cfn_converter = self.param_map.get("cfn", None)
-        cfn_value = get_cfn_param(cfn_params, cfn_converter) if cfn_converter else "NONE"
-
-        return self.param_key, self.from_string(cfn_value)
-
     def get_default_value(self):
-        return self.param_map.get("default", None)
+        return self.map.get("default", None)
+
+    def to_cfn_value(self):
+        return str(self.value if self.value is not None else self.map.get("default", "NONE"))
+
 
 
 class FloatParam(Param):
-    def from_file(self, config_parser, parent_section_name):
+    def _from_file(self, config_parser):
+        """
+        Initialize param_value from config_parser.
 
+        :param config_parser: the configparser object from which get the parameter
+        :raise NoOptionError, NoSectionError if unable to get the param from config_parser
+        """
+        section_name = _get_file_section_name(self.section_key, self.section_label)
         try:
-            param_value = config_parser.getfloat(parent_section_name, self.param_key)
-            self._check_allowed_values(param_value)
-
-        except NoOptionError:
-            param_value = self.get_default_value()
-            if param_value:
-                LOGGER.debug("Setting default value '{0}' for key '{1}'".format(param_value, self.param_key))
-        except NoSectionError:
-            error("Section '[{0}]' not found in the config file.".format(parent_section_name))
+            self.value = config_parser.getfloat(section_name, self.key)
+            self._check_allowed_values()
         except ValueError:
-            error("Configuration parameter '{0}' must be a Float".format(self.param_key))
+            error("Configuration parameter '{0}' must be a Float".format(self.key))
 
-        return self.param_key, param_value
-
-    def from_string(self, string_value):
+    def _from_string(self, string_value):
         param_value = self.get_default_value()
 
         try:
@@ -161,39 +181,21 @@ class FloatParam(Param):
 
 
 class BoolParam(Param):
-    def from_file(self, config_parser, parent_section_name):
+    def _from_file(self, config_parser):
+        """
+        Initialize param_value from config_parser.
 
+        :param config_parser: the configparser object from which get the parameter
+        :raise NoOptionError, NoSectionError if unable to get the param from config_parser
+        """
+        section_name = _get_file_section_name(self.section_key, self.section_label)
         try:
-            param_value = config_parser.getboolean(parent_section_name, self.param_key)
-            self._check_allowed_values(param_value)
-        except NoOptionError:
-            param_value = self.get_default_value()
-            if param_value:
-                LOGGER.debug("Setting default value '{0}' for key '{1}'".format(param_value, self.param_key))
-        except NoSectionError as e:
-            error("Section '[{0}]' not found in the config file.".format(parent_section_name))
+            self.value = config_parser.getboolean(section_name, self.key)
+            self._check_allowed_values()
         except ValueError:
-            error("Configuration parameter '{0}' must be a Boolean".format(self.param_key))
+            error("Configuration parameter '{0}' must be a Boolean".format(self.key))
 
-        return self.param_key, param_value
-
-    def to_file(self, config_parser, parent_section_dict, parent_section_name, param_value):
-        if param_value != self.get_default_value():
-            config_parser.set(parent_section_name, self.param_key, self.to_cfn_value(param_value))
-        else:
-            # remove parameter from config_parser if there
-            try:
-                config_parser.remove_option(parent_section_name, self.param_key)
-            except NoSectionError:
-                pass
-
-    def to_cfn_value(self, param_value):
-        if param_value is None:
-            param_value = self.get_default_value()
-
-        return "true" if param_value else "false"
-
-    def from_string(self, string_value):
+    def _from_string(self, string_value):
         param_value = self.get_default_value()
 
         if string_value is not None:
@@ -205,27 +207,38 @@ class BoolParam(Param):
 
         return param_value
 
+    def to_file(self, config_parser):
+        section_name = _get_file_section_name(self.section_key, self.section_label)
+        if self.value != self.get_default_value():
+            config_parser.set(section_name, self.key, self.to_cfn_value())
+        else:
+            # remove parameter from config_parser if there
+            try:
+                config_parser.remove_option(section_name, self.key)
+            except NoSectionError:
+                pass
+
+    def to_cfn_value(self):
+        param_value = self.get_default_value() if self.value is None else self.value
+        return "true" if param_value else "false"
+
 
 class IntParam(Param):
-    def from_file(self, config_parser, parent_section_name):
+    def _from_file(self, config_parser):
+        """
+        Initialize param_value from config_parser.
 
+        :param config_parser: the configparser object from which get the parameter
+        :raise NoOptionError, NoSectionError if unable to get the param from config_parser
+        """
+        section_name = _get_file_section_name(self.section_key, self.section_label)
         try:
-            param_value = config_parser.getint(parent_section_name, self.param_key)
-            self._check_allowed_values(param_value)
-        except NoOptionError:
-            param_value = self.get_default_value()
-            if param_value:
-                LOGGER.debug("Setting default value '{0}' for key '{1}'".format(param_value, self.param_key))
-                return self.param_key, param_value
-            pass
-        except NoSectionError as e:
-            error("Section '[{0}]' not found in the config file.".format(parent_section_name))
+            self.value = config_parser.getint(section_name, self.key)
+            self._check_allowed_values()
         except ValueError:
-            error("Configuration parameter '{0}' must be an Integer".format(self.param_key))
+            error("Configuration parameter '{0}' must be an Integer".format(self.key))
 
-        return self.param_key, param_value
-
-    def from_string(self, string_value):
+    def _from_string(self, string_value):
         param_value = self.get_default_value()
         try:
             if string_value is not None:
@@ -239,23 +252,19 @@ class IntParam(Param):
 
 
 class JsonParam(Param):
+    def _from_file(self, config_parser):
+        """
+        Initialize param_value from config_parser.
 
-    def from_file(self, config_parser, parent_section_name):
-        try:
-            item_value = config_parser.get(parent_section_name, self.param_key)
-            param_value = self.from_string(item_value)
-            self._check_allowed_values(param_value)
+        :param config_parser: the configparser object from which get the parameter
+        :raise NoOptionError, NoSectionError if unable to get the param from config_parser
+        """
+        section_name = _get_file_section_name(self.section_key, self.section_label)
+        item_value = config_parser.get(section_name, self.key)
+        self.value = self._from_string(item_value)
+        self._check_allowed_values()
 
-        except NoOptionError:
-            param_value = self.get_default_value()
-            if param_value:
-                LOGGER.debug("Setting default value '{0}' for key '{1}'".format(param_value, self.param_key))
-        except NoSectionError as e:
-            error("Section '[{0}]' not found in the config file.".format(parent_section_name))
-
-        return self.param_key, param_value
-
-    def from_string(self, string_value):
+    def _from_string(self, string_value):
         param_value = self.get_default_value()
         try:
             if string_value is not None:
@@ -265,12 +274,12 @@ class JsonParam(Param):
                 if string_value != "NONE":
                     param_value = json.loads(string_value)
         except (TypeError, JSONDecodeError) as e:
-            error("Error parsing JSON parameter '{0}'. {1}".format(self.param_key), e)
+            error("Error parsing JSON parameter '{0}'. {1}".format(self.key), e)
 
         return param_value
 
     def get_default_value(self):
-        return self.param_map.get("default", {})
+        return self.map.get("default", {})
 
 
 class SharedDirParam(Param):
@@ -281,326 +290,239 @@ class SharedDirParam(Param):
     from the "shared" parameter of the cluster section (e.g. SharedDir = /shared)
     and the "shared" parameter of the ebs sections (e.g. SharedDir = /shared1,/shared2,NONE,NONE,NONE).
     """
-    def to_cfn(self, parent_section_dict, pcluster_config):
+    def to_cfn(self):
         cfn_params = {}
         # if contains ebs_settings --> single SharedDir
-        if not parent_section_dict.get("ebs"):
-            cfn_value = parent_section_dict.get("shared_dir")
-            cfn_params.update({self.param_map.get("cfn"): str(cfn_value)})
+        if not self.pcluster_config.get_section("ebs"):
+            cfn_params.update({self.map.get("cfn"): self.to_cfn_value()})
         # else: there are ebs volumes, let the EBSSettings populate the SharedDir CFN parameter.
         return cfn_params
 
-    def to_file(self, config_parser, parent_section_dict, parent_section_name, param_value):
+    def to_file(self, config_parser):
         # if contains ebs_settings --> single SharedDir
-        if not parent_section_dict.get("ebs") and param_value != self.get_default_value():
-            config_parser.set(parent_section_name, self.param_key, parent_section_dict.get("shared_dir"))
+        section_name = _get_file_section_name(self.section_key, self.section_label)
+        if not self.pcluster_config.get_section("ebs") and self.value != self.get_default_value():
+            config_parser.set(section_name, self.key, self.value)
         # else: there are ebs volumes, let the EBSSettings parse the SharedDir CFN parameter.
 
 
 class SpotPriceParam(IntParam):
-    def to_cfn(self, parent_section_dict, pcluster_config):
+    def _from_cfn(self, cfn_params, cfn_value=None):
+        cfn_converter = self.map.get("cfn", None)
+        # We have both spot_price and spot_bid_percentage in the same param
+        # TODO remove in the final version
+        self.value = int(float(get_cfn_param(cfn_params, cfn_converter)))
+
+    def to_cfn(self):
         cfn_params = {}
 
-        if parent_section_dict.get("scheduler") != "awsbatch":
-            cfn_value = parent_section_dict.get("spot_price")
-            cfn_params.update({self.param_map.get("cfn"): str(cfn_value)})
+        cluster_config = self.pcluster_config.get_section(self.section_key)
+        if cluster_config.get_param_value("scheduler") != "awsbatch":
+            cfn_value = cluster_config.get_param_value("spot_price")
+            cfn_params.update({self.map.get("cfn"): str(cfn_value)})
 
         return cfn_params
 
-    def from_cfn(self, cfn_params):
-        cfn_converter = self.param_map.get("cfn", None)
-        # We have both spot_price and spot_bid_percentage in the same param
-        # TODO remove in the final version
-        return self.param_key, int(float(get_cfn_param(cfn_params, cfn_converter)))
-
 
 class SpotBidPercentageParam(FloatParam):
-    def to_cfn(self, parent_section_dict, pcluster_config):
+    def to_cfn(self):
         cfn_params = {}
 
-        if parent_section_dict.get("scheduler") == "awsbatch":
-            cfn_value = parent_section_dict.get("spot_bid_percentage")
-            cfn_params.update({self.param_map.get("cfn"): str(cfn_value)})
+        cluster_config = self.pcluster_config.get_section(self.section_key)
+        if cluster_config.get_param_value("scheduler") == "awsbatch":
+            cfn_value = cluster_config.get_param_value("spot_bid_percentage")
+            cfn_params.update({self.map.get("cfn"): str(cfn_value)})
 
         return cfn_params
 
 
 class DesiredSizeParam(IntParam):
-    def to_cfn(self, parent_section_dict, pcluster_config):
+    def to_cfn(self):
         cfn_params = {}
 
-        if parent_section_dict.get("scheduler") == "awsbatch":
-            cfn_value = parent_section_dict.get("desired_vcpus")
-            cfn_params.update({self.param_map.get("cfn"): str(cfn_value)})
+        cluster_config = self.pcluster_config.get_section(self.section_key)
+        if cluster_config.get_param_value("scheduler") == "awsbatch":
+            cfn_value = cluster_config.get_param_value("desired_vcpus")
+            cfn_params.update({self.map.get("cfn"): str(cfn_value)})
         else:
-            cfn_value = parent_section_dict.get("initial_queue_size")
-            cfn_params.update({self.param_map.get("cfn"): str(cfn_value)})
+            cfn_value = cluster_config.get_param_value("initial_queue_size")
+            cfn_params.update({self.map.get("cfn"): str(cfn_value)})
 
         return cfn_params
 
 
 class MaxSizeParam(IntParam):
-    def to_cfn(self, parent_section_dict, pcluster_config):
+    def to_cfn(self):
         cfn_params = {}
 
-        if parent_section_dict.get("scheduler") == "awsbatch":
-            cfn_value = parent_section_dict.get("max_vcpus")
-            cfn_params.update({self.param_map.get("cfn"): str(cfn_value)})
+        cluster_config = self.pcluster_config.get_section(self.section_key)
+        if cluster_config.get_param_value("scheduler") == "awsbatch":
+            cfn_value = cluster_config.get_param_value("max_vcpus")
+            cfn_params.update({self.map.get("cfn"): str(cfn_value)})
         else:
-            cfn_value = parent_section_dict.get("max_queue_size")
-            cfn_params.update({self.param_map.get("cfn"): str(cfn_value)})
+            cfn_value = cluster_config.get_param_value("max_queue_size")
+            cfn_params.update({self.map.get("cfn"): str(cfn_value)})
 
         return cfn_params
 
 
 class MaintainInitialSizeParam(BoolParam):
-    def to_cfn(self, parent_section_dict, pcluster_config):
+    def to_cfn(self):
         cfn_params = {}
 
-        if parent_section_dict.get("scheduler") != "awsbatch":
-            cfn_value = parent_section_dict.get("maintain_initial_size")
-            min_size_value = parent_section_dict.get("initial_queue_size", "0") if cfn_value else "0"
-            cfn_params.update({self.param_map.get("cfn"): str(min_size_value)})
+        cluster_config = self.pcluster_config.get_section(self.section_key)
+        if cluster_config.get_param_value("scheduler") != "awsbatch":
+            cfn_value = cluster_config.get_param_value("maintain_initial_size")
+            min_size_value = cluster_config.get_param_value("initial_queue_size") if cfn_value else "0"
+            cfn_params.update({self.map.get("cfn"): str(min_size_value)})
 
         return cfn_params
 
 
 class MinSizeParam(IntParam):
-    def to_cfn(self, parent_section_dict, pcluster_config):
+    def to_cfn(self):
         cfn_params = {}
 
-        if parent_section_dict.get("scheduler") == "awsbatch":
-            cfn_value = parent_section_dict.get("min_vcpus")
-            cfn_params.update({self.param_map.get("cfn"): str(cfn_value)})
+        cluster_config = self.pcluster_config.get_section(self.section_key)
+        if cluster_config.get_param_value("scheduler") == "awsbatch":
+            cfn_value = cluster_config.get_param_value("min_vcpus")
+            cfn_params.update({self.map.get("cfn"): str(cfn_value)})
 
         return cfn_params
 
 
 class SettingsParam(Param):
-
-    def __init__(self, param_key, param_map):
-        super().__init__(param_key, param_map)
+    def __init__(self, section_key, section_label, param_key, param_map, pcluster_config, cfn_value=None, config_parser=None, cfn_params=None):
         self.related_section_map = param_map.get("referred_section")
         self.related_section_key = self.related_section_map.get("key")
         self.related_section_type = self.related_section_map.get("type")
+        super().__init__(section_key, section_label, param_key, param_map, pcluster_config, cfn_value, config_parser, cfn_params)
 
-    def from_file(self, config_parser, parent_section_name):
+    def _from_file(self, config_parser):
         """
-        From vpc_settings = a to vpc: [{label: a, ....}]
-        :param config_parser:
-        :param parent_section_name:
-        :return:
-        """
-        section_key = self.related_section_key
-        section_type = self.related_section_type
-        settings_dict = []
+        Initialize param_value from config_parser.
 
+        :param config_parser: the configparser object from which get the parameter
+        :raise NoSectionError if unable to get the section from config_parser
+        """
+        section_name = _get_file_section_name(self.section_key, self.section_label)
         try:
-            param_value = config_parser.get(parent_section_name, self.param_key)
-            if param_value:
-                if "," in param_value:
+            self.value = config_parser.get(section_name, self.key)
+            if self.value:
+                if "," in self.value:
                     error(
                         "The value of '{0}' parameter is invalid. "
                         "It can only contains a single {1} section label.".format(
-                            self.param_key, section_key
+                            self.key, self.related_section_key
                         )
                     )
                 else:
-                    _, section_dict = section_type(
-                        self.related_section_map, param_value.strip()
-                    ).from_file(config_parser, fail_on_absence=True)
-                    settings_dict.append(section_dict)
+                    # Calls the "from_file" of the Section
+                    section = self.related_section_type(
+                        self.related_section_map, self.pcluster_config, section_label=self.value, config_parser=config_parser, fail_on_absence=True
+                    )
+                    self.pcluster_config.add_section(section)
         except NoOptionError:
-            param_value = self.get_default_value()
-            if param_value:
-                LOGGER.debug("Setting default value '{0}' for key '{1}'".format(param_value, self.param_key))
-                _, section_dict = section_type(self.related_section_map, param_value.strip()).from_map()
-                settings_dict.append(section_dict)
-            pass
-        except NoSectionError:
-            error("Section '[{0}]' not found in the config file.".format(self.related_section_key))
+            self._from_map()
 
-        return section_key, settings_dict
+    def _from_cfn(self, cfn_params, cfn_value=None):
+        # TODO Use the label if available
+        self.value = self.map.get("default", None)
+        section = self.related_section_type(self.related_section_map, self.pcluster_config, section_label=self.value, cfn_params=cfn_params)
+        self.pcluster_config.add_section(section)
 
-    def to_file(self, config_parser, parent_section_dict, parent_section_name, param_value):
-        sections = parent_section_dict.get(self.related_section_key, [])
+    def _from_map(self):
+        self.value = self.map.get("default", None)
+        if self.value:
+            # the SettingsParam has a default label, it means that it is required to initialize the
+            # the related section with default values.
+            LOGGER.debug("Initializing default Section '{0}' for key '{1}'".format(self.value, self.key))
+            # Use the label defined in the SettingsParam map
+            if "," in self.value:
+                error(
+                    "The default value of '{0}' parameter is invalid. "
+                    "It can only contains a single {1} section label.".format(
+                        self.key, self.related_section_key
+                    )
+                )
+            else:
+                section = self.related_section_type(self.related_section_map, self.pcluster_config, section_label=self.value)
+                self.pcluster_config.add_section(section)
+
+    def validate(self, fail_on_error=True):
+        # validate related sections
+        if self.value:
+             for section_label in self.value.split(","):
+                  section = self.pcluster_config.get_section(self.related_section_key, section_label)
+                  section.validate(fail_on_error)
+        return
+
+    def to_file(self, config_parser):
+        section = self.pcluster_config.get_section(self.related_section_key, self.value)
 
         settings_param_created = False
-        # The join should be useless form
-        if len(sections) > 1:
-            error(
-                "Unable to convert multiple dictionaries to a single settings parameter."
-                "'{0}' parameter can only contain a single '{1}' setting label".format(
-                    self.param_key, self.related_section_key
-                )
-            )
-        else:
-            section_dict = sections[0] if sections else None
-            if section_dict:
-                settings_param_value = section_dict.get("label") if section_dict else None
+        if section:
+            settings_param_value = section.label if section.label else None
 
-                # create sections
-                for param_key, param_map in self.related_section_map.get("params").items():
-                    param_value = section_dict.get(param_key, None)
-
-                    if not settings_param_created and param_value != param_map.get("default", None):
-                        # add "*_settings = *" to the parent section
-                        # only if at least one value is different from the default one
-                        config_parser.set(parent_section_name, self.param_key, settings_param_value)
-                        settings_param_created = True
-
-                self.related_section_type(
-                    self.related_section_map, section_dict.get("label")
-                ).to_file(section_dict, config_parser)
-
-    def to_cfn(self, parent_section_dict, pcluster_config):
-        cfn_params = {}
-        sections = parent_section_dict.get(self.related_section_key, [])
-
-        if len(sections) > 1:
-            error(
-                "Unable to convert multiple dictionaries to a single settings parameter."
-                "'{0}' parameter can only contain a single '{1}' setting label".format(
-                    self.param_key, self.related_section_key
-                )
-            )
-        else:
-            section_dict = sections[0] if sections else None
-            section_label = section_dict.get("label") if section_dict else None
-            # Call to_cfn also if section_dict is None, to populate with default values (e.g. NONE)
-            cfn_params.update(self.related_section_type(
-                self.related_section_map, section_label
-            ).to_cfn(section_dict, pcluster_config))
-
-        return cfn_params
-
-    def validate(self, param_value, parent_section_dict, pcluster_dict, fail_on_error=True):
-        # do not validate parameter but validate related sections
-        sections = parent_section_dict.get(self.related_section_key, [])
-        for section_dict in sections:
-            self.related_section_type(
-                self.related_section_map, section_dict.get("label")
-            ).validate(section_dict, pcluster_dict, fail_on_error)
-
-    def from_cfn(self, cfn_params):
-        sections = []
-
-        # TODO fixme the label if available
-        label = self.related_section_map.get("label", "")
-        section_key, section_dict = self.related_section_type(self.related_section_map, label).from_cfn(cfn_params)
-        sections.append(section_dict)
-
-        return section_key, sections
-
-    def from_map(self):
-        sections = []
-        param_value = self.param_map.get("default", None)
-        if param_value:
-            # use the label coming from the SettingsParam and not the one from the Section
-            label = self.related_section_map.get("label", param_value)
-            _, section_dict = self.related_section_type(self.related_section_map, label).from_map()
-            sections.append(section_dict)
-
-        return self.related_section_key, sections
-
-
-class EBSSettingsParam(SettingsParam):
-
-    def from_file(self, config_parser, parent_section_name):
-        """
-        From ebs_settings = a,b to ebs: [{label: a, ....}, {label: b, ....}]
-        :param config_parser:
-        :param parent_section_name:
-        :return:
-        """
-        section_key = self.related_section_key
-        section_type = self.related_section_type
-        settings_dict = []
-
-        try:
-            param_value = config_parser.get(parent_section_name, self.param_key)
-            if param_value:
-                for section_label in param_value.split(','):
-                    _, section_dict = section_type(
-                        self.related_section_map, section_label.strip()
-                    ).from_file(config_parser, fail_on_absence=True)
-                    settings_dict.append(section_dict)
-        except NoOptionError:
-            param_value = self.get_default_value()
-            if param_value:
-                LOGGER.debug("Setting default value '{0}' for key '{1}'".format(param_value, self.param_key))
-                return self.param_key, param_value
-            pass
-        except NoSectionError:
-            error("Section '[{0}]' not found in the config file.".format(self.related_section_key))
-
-        return section_key, settings_dict
-
-    def to_file(self, config_parser, parent_section_dict, parent_section_name, param_value):
-        sections = parent_section_dict.get(self.related_section_key, [])
-
-        settings_param_created = False
-        settings_param_value = ",".join(section_dict.get("label") for section_dict in sections)
-
-        # create sections
-        for section_dict in sections:
-
+            # create sections
             for param_key, param_map in self.related_section_map.get("params").items():
-                param_value = section_dict.get(param_key, None)
+                param_value = section.get_param_value(param_key)
 
                 if not settings_param_created and param_value != param_map.get("default", None):
                     # add "*_settings = *" to the parent section
                     # only if at least one value is different from the default one
-                    config_parser.set(parent_section_name, self.param_key, settings_param_value)
+                    section_name = _get_file_section_name(self.section_key, self.section_label)
+                    config_parser.set(section_name, self.key, settings_param_value)
                     settings_param_created = True
 
-            self.related_section_type(
-                self.related_section_map, section_dict.get("label")
-            ).to_file(section_dict, config_parser)
+            section.to_file(config_parser)
 
-    def to_cfn(self, parent_section_dict, pcluster_config):
-        """
-        Convert a list of sections to multiple cfn params.
-
-        :param parent_section_dict:
-        :return:
-        """
+    def to_cfn(self):
         cfn_params = {}
-        sections = parent_section_dict.get(self.related_section_key, [])
+        section = self.pcluster_config.get_section(self.related_section_key, self.value)
+        if not section:
+            # Crate a default section and convert it to cfn, to populate with default values (e.g. NONE)
+            section = self.related_section_type(self.related_section_map, self.pcluster_config)
 
-        max_number_of_ebs_volumes = 5
-
-        number_of_ebs_volumes = len(sections) if sections else 0
-        for param_key, param_map in self.related_section_map.get("params").items():
-            param = param_map.get("type", Param)(param_key, param_map)
-
-            if number_of_ebs_volumes == 0 and param_key == "shared_dir":
-                # The same CFN parameter is used for both single and multiple EBS cases
-                # if there are no ebs volumes, let the SharedDirParam populate the "SharedDir" CFN parameter.
-                continue
-
-            cfn_value_list = [param.to_cfn_value(section_dict.get(param_key)) for section_dict in sections]
-            # add missing items until the max
-            cfn_value_list.extend([param.to_cfn_value(None)] * (max_number_of_ebs_volumes - number_of_ebs_volumes))
-            cfn_value = ",".join(cfn_value_list)
-
-            cfn_converter = param_map.get("cfn", None)
-            if cfn_converter:
-                cfn_params.update({cfn_converter: cfn_value})
-
-        cfn_params.update({"NumberOfEBSVol": str(number_of_ebs_volumes)})
+        cfn_params.update(section.to_cfn())
 
         return cfn_params
 
-    def from_cfn(self, cfn_params):
-        sections = []
+
+class EBSSettingsParam(SettingsParam):
+
+    def _from_file(self, config_parser):
+        """
+        Initialize param_value from config_parser.
+
+        :param config_parser: the configparser object from which get the parameter
+        :raise NoSectionError if unable to get the section from config_parser
+        """
+        section_name = _get_file_section_name(self.section_key, self.section_label)
+        try:
+            self.value = config_parser.get(section_name, self.key)
+            if self.value:
+                for section_label in self.value.split(","):
+                    section = self.related_section_type(
+                        self.related_section_map, self.pcluster_config, section_label=section_label.strip(), config_parser=config_parser, fail_on_absence=True
+                    )
+                    self.pcluster_config.add_section(section)
+        except NoOptionError:
+            self._from_map()
+
+    def _from_cfn(self, cfn_params, cfn_value=None):
 
         num_of_ebs = int(get_cfn_param(cfn_params, "NumberOfEBSVol"))
+        labels = []
         for index in range(num_of_ebs):
             configured_params = False
-            label = "{0}{1}".format(self.related_section_key, str(index + 1))
-            section_dict = {"label": label}
             # TODO fixme the label if available
+            label = "{0}{1}".format(self.related_section_key, str(index + 1))
+            labels.append(label)
+
+            # create empty section
+            related_section_type = self.related_section_map.get("type", Section)
+            related_section = related_section_type(self.related_section_map, label)
 
             for param_key, param_map in self.related_section_map.get("params").items():
                 cfn_converter = param_map.get("cfn", None)
@@ -608,64 +530,138 @@ class EBSSettingsParam(SettingsParam):
 
                     param_type = param_map.get("type", Param)
                     cfn_value = get_cfn_param(cfn_params, cfn_converter).split(",")[index]
-                    item_value = param_type(param_key, param_map).from_string(cfn_value)
-                    section_dict[param_key] = item_value
+                    param = param_type(self.section_key, self.section_label, param_key, param_map, self.pcluster_config, cfn_value=cfn_value)
+                    related_section.add_param(param)
 
-                    if item_value != param_map.get("default", None):
+                    if param.value != param_map.get("default", None):
                         configured_params = True
 
             if configured_params:
-                sections.append(section_dict)
+                self.pcluster_config.add_section(related_section)
+        self.value = ",".join(labels)
 
-        return self.related_section_key, sections
+    def to_file(self, config_parser):
+
+        sections = {}
+        if self.value:
+            for section_label in self.value.split(","):
+                sections.update(self.pcluster_config.get_section(self.related_section_key, section_label.strip()))
+
+        settings_param_created = False
+        # create sections
+        for section_label, section in sections:
+            for param_key, param_map in self.related_section_map.get("params").items():
+                param_value = section.get_param_value(param_key)
+
+                if not settings_param_created and param_value != param_map.get("default", None):
+                    # add "*_settings = *" to the parent section
+                    # only if at least one value is different from the default one
+                    section_name = _get_file_section_name(self.section_key, self.section_label)
+                    config_parser.set(section_name, self.key, self.value)
+                    settings_param_created = True
+
+            section.to_file(config_parser)
+
+    def to_cfn(self):
+        """
+        Convert a list of sections to multiple cfn params.
+        """
+        sections = {}
+        if self.value:
+            for section_label in self.value.split(","):
+                section = self.pcluster_config.get_section(self.related_section_key, section_label.strip())
+                sections.update({section_label: section})
+
+        max_number_of_ebs_volumes = 5
+
+        cfn_params = {}
+        number_of_ebs_volumes = len(sections)
+        for param_key, param_map in self.related_section_map.get("params").items():
+            if number_of_ebs_volumes == 0 and param_key == "shared_dir":
+                # The same CFN parameter is used for both single and multiple EBS cases
+                # if there are no ebs volumes, let the SharedDirParam populate the "SharedDir" CFN parameter.
+                continue
+
+            cfn_converter = param_map.get("cfn", None)
+            if cfn_converter:
+
+                cfn_value_list = []
+                for section_label, section in sections.items():
+                    param = section.get_param(param_key)
+                    if param:
+                        cfn_value_list.append(param.to_cfn().get(cfn_converter))
+                    else:
+                        # define a "default" param and convert it to cfn
+                        param_type = param_map.get("type", Param)
+                        param = param_type(section.key, section_label, param_key, param_map, self.pcluster_config)
+                        cfn_value_list.append(param.to_cfn().get(cfn_converter))
+
+                # add missing items until the max, with a default param
+                param_type = param_map.get("type", Param)
+                param = param_type(self.related_section_key, "default", param_key, param_map, self.pcluster_config)
+                cfn_value_list.extend([param.to_cfn().get(cfn_converter)] * (max_number_of_ebs_volumes - number_of_ebs_volumes))
+
+                cfn_value = ",".join(cfn_value_list)
+                cfn_params.update({cfn_converter: cfn_value})
+
+        cfn_params.update({"NumberOfEBSVol": str(number_of_ebs_volumes)})
+
+        return cfn_params
+
+
+class SectionNotFoundError(Exception):
+    pass
+
+
+def _get_file_section_name(section_key, section_label=None):
+    return section_key + (" {0}".format(section_label) if section_label else "")
 
 
 class Section(object):
 
-    def __init__(self, section_map, section_label=None):
-        self.section_map = section_map
-        self.section_key = section_map.get("key")
-        self.section_label = section_label or self.section_map.get("label", "")
+    def __init__(
+            self, section_map, pcluster_config, section_label=None, cfn_params=None, config_parser=None, fail_on_absence=False
+    ):
+        self.map = section_map
+        self.key = section_map.get("key")
+        self.label = section_label or self.map.get("label", "")
+        self.pcluster_config = pcluster_config
 
-    def __get_section_name(self):
-        return self.section_key + (" {0}".format(self.section_label) if self.section_label else "")
+        # initialize section_dict
+        self.params = {}
+        if cfn_params:
+            self._from_cfn(cfn_params)
+        elif config_parser:
+            try:
+                self._from_file(config_parser)
+            except SectionNotFoundError:
+                if fail_on_absence:
+                    error("Section '[{0}]' not found in the config file.")
+                else:
+                    LOGGER.info(
+                        "Section '[{0}]' not found in the config file. Using defaults.".format(
+                            _get_file_section_name(self.key, self.label)
+                        )
+                    )
+                    self._from_map()
+        else:
+            self._from_map()
 
-    def get_param_default_value(self, param_key):
-        param_map = self.section_map.get("params").get(param_key, None)
-        param_type = param_map.get("type", Param)
-        return param_type(param_key, param_map).get_default_value()
-
-    def get_param_from_string(self, param_key, param_value):
-        param_map = self.section_map.get("params").get(param_key)
-        param_type = param_map.get("type", Param)
-        return param_type(param_key, param_map).from_string(param_value)
-        # TODO fix
-
-    def from_file(self, config_parser, fail_on_absence=False):
+    def _from_file(self, config_parser):
         """
-        Convert a section from the config_parser to the internal representation (dictionary).
-
-        Example: [vpc test] --> vpc: { "label": "test", "vpc_id": ... }
-
         :param config_parser: ConfigParser object
-        :return: the generated dictionary
         """
-        section_dict = {}
-        if self.section_label:
-            section_dict["label"] = self.section_label
-
-        section_map_items = self.section_map.get("params")
-        section_name = self.__get_section_name()
+        section_map_items = self.map.get("params")
+        section_name = _get_file_section_name(self.key, self.label)
 
         if config_parser.has_section(section_name):
             for param_key, param_map in section_map_items.items():
                 param_type = param_map.get("type", Param)
 
-                item_key, item_value = param_type(param_key, param_map).from_file(config_parser, section_name)
-                section_dict[item_key] = item_value
+                param = param_type(self.key, self.label, param_key, param_map, pcluster_config=self.pcluster_config, config_parser=config_parser)
+                self.add_param(param)
 
                 not_valid_keys = [key for key, value in config_parser.items(section_name) if key not in section_map_items]
-
                 if not_valid_keys:
                     error(
                         "The configuration parameters '{0}' are not allowed in the [{1}] section".format(
@@ -673,22 +669,49 @@ class Section(object):
                         )
                     )
         else:
-            if fail_on_absence:
-                error("Section '[{0}]' not found in the config file.")
-            else:
-                LOGGER.info("Section '[{0}]' not found in the config file. Using defaults.".format(section_name))
-                _, section_dict = self.from_map()
+            raise SectionNotFoundError
 
-        return self.section_key, section_dict
+    def _from_cfn(self, cfn_params):
+        # TODO get the label if saved in cfn
+        cfn_converter = self.map.get("cfn", None)
+        if cfn_converter:
+            # It is a section converted to a single CFN parameter
+            cfn_values = get_cfn_param(cfn_params, cfn_converter).split(",")
 
-    def validate(self, section_dict, pcluster_dict, fail_on_error=True):
-        if section_dict:
-            section_name = self.__get_section_name()
+            cfn_param_index = 0
+            for param_key, param_map in self.map.get("params").items():
+                try:
+                    cfn_value = cfn_values[cfn_param_index]
+                except IndexError:
+                    # This happen if the expected comma separated CFN param doesn't exist in the Stack,
+                    # so it is set to a single NONE value
+                    cfn_value = "NONE"
+
+                param_type = param_map.get("type", Param)
+                param = param_type(self.key, self.label, param_key, param_map, self.pcluster_config, cfn_value=cfn_value)
+
+                self.add_param(param)
+                cfn_param_index += 1
+        else:
+            for param_key, param_map in self.map.get("params").items():
+                param_type = param_map.get("type", Param)
+                param = param_type(self.key, self.label, param_key, param_map, self.pcluster_config, cfn_params=cfn_params)
+                self.add_param(param)
+
+    def _from_map(self):
+        for param_key, param_map in self.map.get("params").items():
+            param_type = param_map.get("type", Param)
+            param = param_type(self.key, self.label, param_key, param_map, self.pcluster_config)
+            self.add_param(param)
+
+    def validate(self, fail_on_error=True):
+        if self.params:
+            section_name = _get_file_section_name(self.key, self.label)
 
             # validate section
-            validation_func = self.section_map.get("validator", None)
+            validation_func = self.map.get("validator", None)
             if validation_func:
-                errors, warnings = validation_func(section_name, section_dict, pcluster_dict)
+                errors, warnings = validation_func(self.key, self.label, self.pcluster_config)
                 if errors:
                     error(
                         "The section [{0}] is wrongly configured\n"
@@ -702,21 +725,30 @@ class Section(object):
                 LOGGER.debug("Configuration section '[{0}]' has not validators".format(section_name))  # TODO remove
 
             # validate items
-            for param_key, param_map in self.section_map.get("params").items():
-                param_value = section_dict.get(param_key, None)
-
+            for param_key, param_map in self.map.get("params").items():
                 param_type = param_map.get("type", Param)
-                param_type(param_key, param_map).validate(param_value, section_dict, pcluster_dict, fail_on_error)
 
-    def to_file(self, section_dict, config_parser):
+                ## FIXME we are re-initializing vpc
+                param = self.get_param(param_key)
+                if param:
+                    param.validate(fail_on_error)
+                else:
+                    # define a default param and validate it
+                    param_type(self.key, self.label, param_key, param_map, self.pcluster_config).validate(fail_on_error)
 
-        config_section_name = self.__get_section_name()
+    def to_file(self, config_parser):
+
+        config_section_name = _get_file_section_name(self.key, self.label)
         config_section_created = False
 
-        for param_key, param_map in self.section_map.get("params").items():
-            param_value = section_dict.get(param_key, None)
+        for param_key, param_map in self.map.get("params").items():
+            param = self.get_param(param_key)
+            if not param:
+                # generate a default param
+                param_type = param_map.get("type", Param)
+                param = param_type(self.key, self.label, param_key, param_map, self.pcluster_config)
 
-            if not config_section_created and param_value != param_map.get("default", None):
+            if not config_section_created and param.value != param_map.get("default", None):
                 # write section in the config file only if at least one parameter value is different by the default
                 try:
                     config_parser.add_section(config_section_name)
@@ -725,101 +757,78 @@ class Section(object):
                     pass
                 config_section_created = True
 
-            param_type = param_map.get("type", Param)
-            param_type(param_key, param_map).to_file(config_parser, section_dict, config_section_name, param_value)
+            param.to_file(config_parser)
 
-    def to_cfn(self, section_dict, pcluster_config):
+    def to_cfn(self):
         cfn_params = {}
-        cfn_converter = self.section_map.get("cfn", None)
+        cfn_converter = self.map.get("cfn", None)
         if cfn_converter:
             # it is a section converted to a single CFN parameter
-            if section_dict:
-                cfn_items = [
-                    param_map.get("type", Param)(param_key, param_map).to_cfn_value(section_dict.get(param_key))
-                    for param_key, param_map in self.section_map.get("params").items()
-                ]
+            cfn_items = []
+            for param_key, param_map in self.map.get("params").items():
+                param = self.get_param(param_key)
+                if param:
+                    cfn_items.append(param.to_cfn_value())
+                else:
+                    param_type = param_map.get("type", Param)
+                    param = param_type(self.key, self.label, param_key, param_map, self.pcluster_config)
+                    cfn_items.append(param.to_cfn_value())
 
-            if not section_dict or cfn_items[0] == "NONE":
+            if cfn_items[0] == "NONE":
                 # empty dict or first item is NONE --> set all values to NONE
-                cfn_items = ["NONE"] * len(self.section_map.get("params"))
+                cfn_items = ["NONE"] * len(self.map.get("params"))
 
             cfn_params.update({cfn_converter: ",".join(cfn_items)})
         else:
             # get value from config object
-            for param_key, param_map in self.section_map.get("params").items():
-                param_type = param_map.get("type", Param)
-                cfn_params.update(param_type(param_key, param_map).to_cfn(section_dict, pcluster_config))
+            for param_key, param_map in self.map.get("params").items():
+                param = self.get_param(param_key)
+                if param:
+                    cfn_params.update(param.to_cfn())
+                else:
+                    # set CFN value from a default param
+                    param_type = param_map.get("type", Param)
+                    param = param_type(self.key, self.label, param_key, param_map, self.pcluster_config)
+                    cfn_params.update(param.to_cfn())
+
         return cfn_params
 
-    def from_cfn(self, cfn_params):
+    def add_param(self, param):
+        self.params[param.key] = param
 
-        # TODO get the label if saved in cfn
-        section_dict = {}
+    def get_param(self, param_key):
+        return self.params[param_key]
 
-        cfn_converter = self.section_map.get("cfn", None)
-        if cfn_converter:
-            # It is a section converted to a single CFN parameter
-            cfn_values = get_cfn_param(cfn_params, cfn_converter).split(",")
-
-            cfn_param_index = 0
-            for param_key, param_map in self.section_map.get("params").items():
-                try:
-                    cfn_value = cfn_values[cfn_param_index]
-                except IndexError:
-                    # This happen if the expected comma separated CFN param doesn't exist in the Stack,
-                    # so it is set to a single NONE value
-                    cfn_value = "NONE"
-
-                param_type = param_map.get("type", Param)
-                item_value = param_type(param_key, param_map).from_string(cfn_value)
-                section_dict["label"] = self.section_label
-
-                section_dict[param_key] = item_value
-                cfn_param_index += 1
-        else:
-            for param_key, param_map in self.section_map.get("params").items():
-                param_type = param_map.get("type", Param)
-                item_key, item_value = param_type(param_key, param_map).from_cfn(cfn_params)
-                section_dict["label"] = self.section_label
-                section_dict[item_key] = item_value
-
-        return self.section_key, section_dict
-
-    def from_map(self):
-        section_dict = {}
-
-        for param_key, param_map in self.section_map.get("params").items():
-            param_type = param_map.get("type", Param)
-            item_key, item_value = param_type(param_key, param_map).from_map()
-            section_dict["label"] = self.section_label
-            section_dict[item_key] = item_value
-
-        return self.section_key, section_dict
-
-    # TODO def set_param(self, param_key, param_value):
+    def get_param_value(self, param_key):
+        return self.get_param(param_key).value if self.get_param(param_key) else None
 
 
 class EFSSection(Section):
 
-    def to_cfn(self, section_dict, pcluster_config):
+    def to_cfn(self):
 
         cfn_params = {}
-        cfn_converter = self.section_map.get("cfn", None)
-        if section_dict:
-            cfn_items = [
-                param_map.get("type", Param)(param_key, param_map).to_cfn_value(section_dict.get(param_key))
-                for param_key, param_map in self.section_map.get("params").items()
-            ]
+        cfn_converter = self.map.get("cfn", None)
 
-        if not section_dict or cfn_items[0] == "NONE":
+        cfn_items = []
+        for param_key, param_map in self.map.get("params").items():
+            param = self.get_param(param_key)
+            if param:
+                cfn_items.append(param.to_cfn_value())
+            else:
+                param_type = param_map.get("type", Param)
+                param = param_type(self.key, self.label, param_key, param_map, self.pcluster_config)
+                cfn_items.append(param.to_cfn_value())
+
+        if cfn_items[0] == "NONE":
             efs_section_valid = False
             # empty dict or first item is NONE --> set all values to NONE
-            cfn_items = ["NONE"] * len(self.section_map.get("params"))
+            cfn_items = ["NONE"] * len(self.map.get("params"))
         else:
-            # latest CFN param will identify if create or no a Mount Target for the given EFS FS Id
-            master_avail_zone = pcluster_config.get_master_avail_zone()
+            # add another CFN param that will identify if create or no a Mount Target for the given EFS FS Id
+            master_avail_zone = self.pcluster_config.get_master_avail_zone()
             mount_target_id = get_efs_mount_target_id(
-                efs_fs_id=section_dict.get("efs_fs_id"), avail_zone=master_avail_zone
+                efs_fs_id=self.get_param_value("efs_fs_id"), avail_zone=master_avail_zone
             )
             efs_section_valid = True if mount_target_id else False
 
@@ -830,19 +839,13 @@ class EFSSection(Section):
 
 class ClusterSection(Section):
 
-    def from_cfn(self, cfn_params):
-        section_dict = {"label": get_cfn_param(cfn_params, "CLITemplate")}
+    def _from_cfn(self, cfn_params):
+        self.label = get_cfn_param(cfn_params, "CLITemplate")
+        super()._from_cfn(cfn_params)
 
-        for param_key, param_map in self.section_map.get("params").items():
-            param_type = param_map.get("type", Param)
-            item_key, item_value = param_type(param_key, param_map).from_cfn(cfn_params)
-            section_dict[item_key] = item_value
-
-        return self.section_key, section_dict
-
-    def to_cfn(self, section_dict, pcluster_config):
-        cfn_params = super().to_cfn(section_dict, pcluster_config)
-        cfn_params.update({"CLITemplate": self.section_label})
-        cfn_params.update({"AvailabilityZone": pcluster_config.get_master_avail_zone()})
+    def to_cfn(self):
+        cfn_params = super().to_cfn()
+        cfn_params.update({"CLITemplate": self.label})
+        cfn_params.update({"AvailabilityZone": self.pcluster_config.get_master_avail_zone()})
         return cfn_params
 
