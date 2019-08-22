@@ -12,7 +12,7 @@ import pytest
 
 from pcluster.config.mapping import CLUSTER
 import tests.pcluster.config.utils as utils
-from tests.pcluster.config.defaults import DefaultDict, DefaultCfnParams
+from tests.pcluster.config.defaults import DefaultDict, DefaultCfnParams, CFN_PARAMS_NUMBER
 
 
 @pytest.mark.parametrize(
@@ -131,3 +131,177 @@ def test_cluster_section_to_cfn(mocker, section_dict, expected_cfn_params):
         "pcluster.config.pcluster_config.PclusterConfig.get_master_avail_zone", return_value="mocked_avail_zone"
     )
     utils.assert_section_to_cfn(CLUSTER, section_dict, expected_cfn_params)
+
+
+@pytest.mark.parametrize(
+    "settings_label, expected_cfn_params",
+    [
+        #("wrong_label", None, "Section .* not found in the config file"), # TODO convert cluster_template in SettingsParam
+        #("test1,test2", None, "It can only contains a single .* section label"),
+        ("default", DefaultCfnParams["cluster"].value),
+        (
+                "custom1",
+                utils.merge_dicts(
+                    DefaultCfnParams["cluster"].value,
+                    {
+                        "CLITemplate": "custom1",
+                        "VPCId": "vpc-12345678",
+                        "MasterSubnetId": "subnet-12345678",
+                        "KeyName": "key",
+                        "BaseOS": "ubuntu1404",
+                        "Scheduler": "slurm",
+                        "SharedDir": "/test",
+                        "PlacementGroup": "NONE",
+                        "Placement": "cluster",
+                        "MasterInstanceType": "t2.large",
+                        "MasterRootVolumeSize": "30",
+                        "ComputeInstanceType": "t2.large",
+                        "ComputeRootVolumeSize": "30",
+                        "DesiredSize": "1",
+                        "MaxSize": "2",
+                        "MinSize": "1",
+                        "ClusterType": "spot",
+                        "SpotPrice": "5",
+                        "ProxyServer": "proxy",
+                        "EC2IAMRoleName": "role",
+                        "S3ReadResource": "s3://url",
+                        "S3ReadWriteResource": "s3://url",
+                        "EFA": "compute",
+                        "EphemeralDir": "/test2",
+                        "EncryptedEphemeral": "true",
+                        "CustomAMI": "ami-12345678",
+                        "PreInstallScript": "preinstall",
+                        "PreInstallArgs": "\"one two\"",
+                        "PostInstallScript": "postinstall",
+                        "PostInstallArgs": "\"one two\"",
+                        "ExtraJson": "{'cluster': {'cfn_scheduler_slots': 'cores'}}",
+                        "AdditionalCfnTemplate": "https://test",
+                        "CustomChefCookbook": "https://test",
+                        "CustomAWSBatchTemplateURL": "https://test",
+                        #template_url = template
+                        #tags = {"test": "test"}
+                    }
+                ),
+        ),
+        (
+                "batch",
+                utils.merge_dicts(
+                    DefaultCfnParams["cluster"].value,
+                    {
+                        "CLITemplate": "batch",
+                        "Scheduler": "awsbatch",
+                        "DesiredSize": "2",
+                        "MaxSize": "10",
+                        "MinSize": "0",
+                        "SpotPrice": "0.0",
+                    }
+                ),
+        ),
+        (
+                "batch-custom1",
+                utils.merge_dicts(
+                    DefaultCfnParams["cluster"].value,
+                    {
+                        "CLITemplate": "batch-custom1",
+                        "Scheduler": "awsbatch",
+                        "DesiredSize": "3",
+                        "MaxSize": "4",
+                        "MinSize": "2",
+                        "ClusterType": "spot",
+                        "SpotPrice": "0.25",
+                    }
+                ),
+        ),
+        (
+                "wrong_mix_traditional",
+                utils.merge_dicts(
+                    DefaultCfnParams["cluster"].value,
+                    {
+                        "CLITemplate": "wrong_mix_traditional",
+                        "Scheduler": "slurm",
+                        "DesiredSize": "1",
+                        "MaxSize": "2",
+                        "MinSize": "1",
+                        "ClusterType": "spot",
+                        "SpotPrice": "5",
+                    }
+                ),
+        ),
+        (
+                "wrong_mix_batch",
+                utils.merge_dicts(
+                    DefaultCfnParams["cluster"].value,
+                    {
+                        "CLITemplate": "wrong_mix_batch",
+                        "Scheduler": "awsbatch",
+                        "DesiredSize": "3",
+                        "MaxSize": "4",
+                        "MinSize": "2",
+                        "ClusterType": "spot",
+                        "SpotPrice": "0.25",
+                    }
+                ),
+        ),
+        (
+                "efs",
+                utils.merge_dicts(
+                    DefaultCfnParams["cluster"].value,
+                    {
+                        "CLITemplate": "efs",
+                        "VPCId": "vpc-12345678",
+                        "MasterSubnetId": "subnet-12345678",
+                        "EFSOptions": "efs,NONE,generalPurpose,NONE,NONE,false,bursting,Valid",
+                    }
+                ),
+        ),
+        (
+                "ebs1",
+                utils.merge_dicts(
+                    DefaultCfnParams["cluster"].value,
+                    {
+                        "CLITemplate": "ebs1",
+                        "VPCId": "vpc-12345678",
+                        "MasterSubnetId": "subnet-12345678",
+                        "NumberOfEBSVol": "1",
+                        "SharedDir": "ebs1,NONE,NONE,NONE,NONE",
+                        "VolumeType": "io1,gp2,gp2,gp2,gp2",
+                        "VolumeSize": "40,20,20,20,20",
+                        "VolumeIOPS": "200,100,100,100,100",
+                        "EBSEncryption": "true,false,false,false,false",
+                        "EBSKMSKeyId": "kms_key,NONE,NONE,NONE,NONE",
+                        "EBSVolumeId": "vol-12345678,NONE,NONE,NONE,NONE",
+                    }
+                ),
+        ),
+        (
+                "ebs2",
+                utils.merge_dicts(
+                    DefaultCfnParams["cluster"].value,
+                    {
+                        "CLITemplate": "ebs2",
+                        "VPCId": "vpc-12345678",
+                        "MasterSubnetId": "subnet-12345678",
+                        "NumberOfEBSVol": "2",
+                        "SharedDir": "ebs1,ebs2,NONE,NONE,NONE",
+                        "VolumeType": "io1,standard,gp2,gp2,gp2",
+                        "VolumeSize": "40,30,20,20,20",
+                        "VolumeIOPS": "200,300,100,100,100",
+                        "EBSEncryption": "true,false,false,false,false",
+                        "EBSKMSKeyId": "kms_key,NONE,NONE,NONE,NONE",
+                        "EBSVolumeId": "vol-12345678,NONE,NONE,NONE,NONE",
+                    }
+                ),
+        ),
+    ]
+)
+def test_cluster_params(mocker, pcluster_config_reader, settings_label, expected_cfn_params):
+    """Unit tests for parsing Cluster related options."""
+    mocker.patch("pcluster.config.params_types.get_efs_mount_target_id", return_value="mount_target_id")
+    mocker.patch("pcluster.config.validators.get_supported_features", return_value={
+        "instances": ["t2.large"],
+        "baseos": ["ubuntu1404"],
+        "schedulers": ["slurm"],
+    })
+    utils.assert_section_params(
+        mocker, pcluster_config_reader, settings_label, expected_cfn_params, num_of_params=CFN_PARAMS_NUMBER
+    )

@@ -18,6 +18,7 @@ from assertpy import assert_that
 from pcluster.config.params_types import Param
 from pcluster.config.pcluster_config import PclusterConfig
 from tests.pcluster.config.defaults import DefaultDict
+from pcluster.config.mapping import ALIASES, AWS, CLUSTER, GLOBAL
 
 
 def get_param_map(section_map, param_key):
@@ -153,6 +154,7 @@ def assert_section_to_file(section_map, section_dict, expected_config_parser_dic
             else:
                 assert_that(output_config_parser.get(section_key, param_key)).is_equal_to(param_value)
 
+
 def assert_section_to_cfn(section_map, section_dict, expected_cfn_params):
 
     pcluster_config = PclusterConfig(config_file="wrong-file")
@@ -169,3 +171,28 @@ def assert_section_to_cfn(section_map, section_dict, expected_cfn_params):
     cfn_params = section.to_cfn()
     assert_that(cfn_params).is_equal_to(expected_cfn_params)
 
+
+def assert_section_params(mocker, pcluster_config_reader, settings_label, expected_cfn_params, num_of_params):
+    mocker.patch.object(PclusterConfig, "_PclusterConfig__validate")
+    if isinstance(expected_cfn_params, SystemExit):
+        with pytest.raises(SystemExit):
+            _ = PclusterConfig(
+                config_file=pcluster_config_reader(settings_label=settings_label),
+                file_sections=[AWS, GLOBAL, CLUSTER],
+                cluster_label="default",
+                fail_on_file_absence=True,
+            )
+    else:
+        pcluster_config = PclusterConfig(
+            config_file=pcluster_config_reader(settings_label=settings_label),
+            file_sections=[AWS, GLOBAL, CLUSTER],
+            fail_on_file_absence=True,
+        )
+
+        pcluster_config.get_master_avail_zone = mocker.MagicMock(return_value="mocked_avail_zone")
+        _, _, cfn_params, _ = pcluster_config.to_cfn()
+
+        assert_that(len(expected_cfn_params)).is_equal_to(num_of_params)
+
+        for param_key, param_value in expected_cfn_params.items():
+            assert_that(cfn_params.get(param_key)).is_equal_to(expected_cfn_params.get(param_key))

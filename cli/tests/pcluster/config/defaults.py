@@ -234,6 +234,10 @@ DEFAULT_CLUSTER_CFN_PARAMS = {
     "FSXOptions": "NONE,NONE,NONE,NONE,NONE,NONE,NONE,NONE",
 }
 
+
+CFN_PARAMS_NUMBER = 53  # See cloudformation.json
+
+
 class DefaultCfnParams(Enum):
     scaling = DEFAULT_SCALING_CFN_PARAMS
     vpc = DEFAULT_VPC_CFN_PARAMS

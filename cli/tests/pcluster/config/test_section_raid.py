@@ -60,7 +60,7 @@ def test_raid_section_from_cfn(cfn_params_dict, expected_section_dict):
         ({"raid default": {"volume_type": "gp2"}}, {"volume_type": "gp2"}, None),
         # invalid value
         ({"raid default": {"raid_type": "wrong_value"}}, None, "must be an Integer"),
-        ({"raid default": {"volume_type": "wrong_value"}}, None, "must be an Integer"),
+        ({"raid default": {"volume_type": "wrong_value"}}, None, "invalid value"),
         # invalid key
         (
                 {"raid default": {"invalid_key": "fake_value"}},
