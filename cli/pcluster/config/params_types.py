@@ -8,15 +8,21 @@
 # or in the "LICENSE.txt" file accompanying this file. This file is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES
 # OR CONDITIONS OF ANY KIND, express or implied. See the License for the specific language governing permissions and
 # limitations under the License.
-import logging
 import json
+import logging
 import re
-from configparser import DuplicateSectionError, NoSectionError, NoOptionError
+from configparser import DuplicateSectionError, NoOptionError, NoSectionError
 from json import JSONDecodeError
 
 from pcluster.utils import error, get_cfn_param, get_efs_mount_target_id, warn
 
 LOGGER = logging.getLogger(__name__)
+
+
+# ---------------------- standard Parameters ---------------------- #
+# The following classes represent the Param of the standard types
+# like String, Int, Float, Bool and Json
+# and how to convert them from/to CFN/file.
 
 
 class Param(object):
@@ -42,7 +48,7 @@ class Param(object):
         else:
             self._from_map()
 
-    def _from_string(self, string_value):
+    def from_string(self, string_value):
         param_value = self.get_default_value()
 
         if isinstance(string_value, str):
@@ -68,9 +74,9 @@ class Param(object):
         cfn_converter = self.map.get("cfn", None)
         if cfn_converter and cfn_params:
             cfn_value = get_cfn_param(cfn_params, cfn_converter) if cfn_converter else "NONE"
-            self.value = self._from_string(cfn_value)
+            self.value = self.from_string(cfn_value)
         elif cfn_value:
-            self.value = self._from_string(cfn_value)
+            self.value = self.from_string(cfn_value)
         else:
             self._from_map()
 
@@ -137,7 +143,6 @@ class Param(object):
         cfn_converter = self.map.get("cfn", None)
 
         if cfn_converter:
-            #section_dict = self.pcluster_config.get_section_config(self.section_key)
             cfn_value = self.to_cfn_value()
             cfn_params.update({cfn_converter: str(cfn_value)})
 
@@ -148,7 +153,6 @@ class Param(object):
 
     def to_cfn_value(self):
         return str(self.value if self.value is not None else self.map.get("default", "NONE"))
-
 
 
 class FloatParam(Param):
@@ -166,7 +170,7 @@ class FloatParam(Param):
         except ValueError:
             error("Configuration parameter '{0}' must be a Float".format(self.key))
 
-    def _from_string(self, string_value):
+    def from_string(self, string_value):
         param_value = self.get_default_value()
 
         try:
@@ -195,7 +199,7 @@ class BoolParam(Param):
         except ValueError:
             error("Configuration parameter '{0}' must be a Boolean".format(self.key))
 
-    def _from_string(self, string_value):
+    def from_string(self, string_value):
         param_value = self.get_default_value()
 
         if string_value is not None:
@@ -238,7 +242,7 @@ class IntParam(Param):
         except ValueError:
             error("Configuration parameter '{0}' must be an Integer".format(self.key))
 
-    def _from_string(self, string_value):
+    def from_string(self, string_value):
         param_value = self.get_default_value()
         try:
             if string_value is not None:
@@ -261,10 +265,10 @@ class JsonParam(Param):
         """
         section_name = _get_file_section_name(self.section_key, self.section_label)
         item_value = config_parser.get(section_name, self.key)
-        self.value = self._from_string(item_value)
+        self.value = self.from_string(item_value)
         self._check_allowed_values()
 
-    def _from_string(self, string_value):
+    def from_string(self, string_value):
         param_value = self.get_default_value()
         try:
             if string_value is not None:
@@ -280,6 +284,11 @@ class JsonParam(Param):
 
     def get_default_value(self):
         return self.map.get("default", {})
+
+
+# ---------------------- custom Parameters ---------------------- #
+# The following classes represent "custom" parameters
+# that require some custom action during CFN/file conversion
 
 
 class SharedDirParam(Param):
@@ -389,6 +398,9 @@ class MinSizeParam(IntParam):
             cfn_params.update({self.map.get("cfn"): str(cfn_value)})
 
         return cfn_params
+
+
+# ---------------------- SettingsParam ---------------------- #
 
 
 class SettingsParam(Param):
@@ -609,12 +621,8 @@ class EBSSettingsParam(SettingsParam):
         return cfn_params
 
 
-class SectionNotFoundError(Exception):
-    pass
-
-
-def _get_file_section_name(section_key, section_label=None):
-    return section_key + (" {0}".format(section_label) if section_label else "")
+# ---------------------- custom Section ---------------------- #
+# The following classes represent the Section(s) and how to convert them from/to CFN/file.
 
 
 class Section(object):
@@ -794,12 +802,37 @@ class Section(object):
         return cfn_params
 
     def add_param(self, param):
+        """
+        Add a Param to the Section.
+
+        The internal representation is a dictionary like:
+        {
+            "key_name": Param,
+            "base_os": Param,
+            "use_public_ips": BoolParam,
+            ...
+        }
+
+        :param param: the Param object to add to the Section
+        """
         self.params[param.key] = param
 
     def get_param(self, param_key):
+        """
+        Return the Param object corresponding to the given key.
+
+        :param param_key: yhe key to identify the Param object in the internal dictionary
+        :return: a Param object
+        """
         return self.params[param_key]
 
     def get_param_value(self, param_key):
+        """
+        Return the value of the Param object corresponding to the given key.
+
+        :param param_key: the key to identify the Param object in the internal dictionary
+        :return: the value of the Param object or None if the param is not present in the Section
+        """
         return self.get_param(param_key).value if self.get_param(param_key) else None
 
 
@@ -848,4 +881,12 @@ class ClusterSection(Section):
         cfn_params.update({"CLITemplate": self.label})
         cfn_params.update({"AvailabilityZone": self.pcluster_config.get_master_avail_zone()})
         return cfn_params
+
+
+class SectionNotFoundError(Exception):
+    pass
+
+
+def _get_file_section_name(section_key, section_label=None):
+    return section_key + (" {0}".format(section_label) if section_label else "")
 

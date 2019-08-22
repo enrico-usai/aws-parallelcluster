@@ -18,7 +18,7 @@ import stat
 import boto3
 
 from pcluster.config.mapping import get_section_type, AWS, CLUSTER, ALIASES, GLOBAL
-from pcluster.utils import fail
+from pcluster.utils import fail, get_stack_name
 
 LOGGER = logging.getLogger(__name__)
 
@@ -32,16 +32,14 @@ class PclusterConfig(object):
             cluster_label=None,  # args.cluster_template
             region=None,
             cluster_name=None,
-            fail_on_config_file_absence=False,
+            fail_on_file_absence=False,
     ):
         self.sections = {}
 
         # always parse the configuration file if there, to get AWS section
-        self._init_config_parser(config_file, fail_on_config_file_absence)
+        self._init_config_parser(config_file, fail_on_file_absence)
         # init AWS section
-        section_type = get_section_type(AWS)
-        section = section_type(AWS, pcluster_config=self, config_parser=self.config_parser, fail_on_absence=False)
-        self.add_section(section)
+        self.__init_section_from_file(AWS, self.config_parser)
         self.__init_region(region)
         self.__init_aws_credentials()
 
@@ -49,7 +47,7 @@ class PclusterConfig(object):
         if cluster_name:
             self.__from_cfn(cluster_name)
         else:
-            self.__from_file(file_sections, cluster_label, self.config_parser, fail_on_config_file_absence)
+            self.__from_file(file_sections, cluster_label, self.config_parser, fail_on_file_absence)
 
         self.__validate()
 
@@ -94,15 +92,28 @@ class PclusterConfig(object):
 
     def get_sections(self, section_key):
         """
-        Get the sections identified by the given key.
+        Get the Section(s) identified by the given key.
+
+        Example of output:
+        {
+            "ebs" : {
+                "ebs1": Section, "ebs2": Section
+            }
+        }
 
         :param section_key: the identifier of the section type
+        :return a dictionary containing the section
         """
         return self.sections.get(section_key, {})
 
     def get_section(self, section_key, section_label=None):
         """
-        Get the section identified by the given key and label.
+        Get the Section identified by the given key and label.
+
+        Example of output:
+        {
+            "ebs1": Section
+        }
 
         :param section_key: the identifier of the section type
         :param section_label: the label of the section, returns the first section if empty.
@@ -115,13 +126,23 @@ class PclusterConfig(object):
         return section
 
     def add_section(self, section):
-        """Add a section to the PclusterConfig object."""
+        """
+        Add a section to the PclusterConfig object.
+
+        The internal sections structure is a dictionary:
+        {
+            "ebs" :{"ebs1": Section, "ebs2": Section},
+            "vpc" :{"default": Section}
+        }
+
+        :param section, a Section object
+        """
         if section.key not in self.sections:
             self.sections[section.key] = {}
         self.sections[section.key][section.label if section.label else "default"] = section
 
     def __init_aws_credentials(self):
-        # set credentials in th environment to be available for all the boto3 calls
+        """Set credentials in th environment to be available for all the boto3 calls."""
         os.environ["AWS_DEFAULT_REGION"] = self.region
 
         # Init credentials by checking if they have been provided in config
@@ -135,14 +156,15 @@ class PclusterConfig(object):
             if aws_secret_access_key:
                 os.environ["AWS_SECRET_ACCESS_KEY"] = aws_secret_access_key
         except AttributeError:
-            # If there is no aws configuration
+            # If there is no [aws] section in the config file,
+            # we rely on the AWS CLI configuration or already set env variable
             pass
 
     def __init_region(self, region=None):
         """
         Evaluate region to use.
 
-        Order is 1) explicit request 2) AWS_DEFAULT_REGION env 3) Config file 4) us-east-1
+        Order is 1) explicit request 2) AWS_DEFAULT_REGION env 3) Config file 4) default coming from mapping
         """
         if region:
             self.region = region
@@ -153,7 +175,7 @@ class PclusterConfig(object):
 
     def to_file(self):
         """
-        Convert the internal representation of the cluster to the file sections.
+        Convert the internal representation of the cluster to the relative file sections.
 
         NOTE: aws, global, aliases sections will be excluded from this transformation.
         """
@@ -181,7 +203,7 @@ class PclusterConfig(object):
         Convert the internal representation of the cluster to a list of CFN parameters.
 
         :return: the region, the template_url,
-        the list of cfn parameters associated with the given configuration and the tags
+                 the list of cfn parameters associated with the given configuration and the tags
         """
         cluster_section = self.get_section("cluster")
         cfn_params = cluster_section.to_cfn()
@@ -190,38 +212,61 @@ class PclusterConfig(object):
 
         return self.region, template_url, cfn_params, tags
 
-    def __from_file(self, file_sections, cluster_label=None, config_parser=None, fail_on_cluster_config_absence=False):
-        if ALIASES in file_sections:
-            section_type = get_section_type(ALIASES)
-            section = section_type(ALIASES, pcluster_config=self, config_parser=config_parser, fail_on_absence=False)
-            self.add_section(section)
-
-        if GLOBAL in file_sections:
-            section_type = get_section_type(GLOBAL)
-            section = section_type(GLOBAL, pcluster_config=self, config_parser=config_parser, fail_on_absence=False)
-            self.add_section(section)
-            # FIXME it could initializes also CLUSTER
+    def __from_file(self, file_sections, cluster_label=None, config_parser=None, fail_on_file_absence=False):
+        for section_map in [ALIASES, GLOBAL]:
+            if section_map in file_sections:
+                self.__init_section_from_file(section_map, config_parser)
 
         # get cluster by cluster_label
         if CLUSTER in file_sections:
             if not cluster_label:
-                cluster_label = self.get_section("global").get_param_value("cluster_template") if self.get_section("global") else None
-            section_type = get_section_type(CLUSTER)
-            section = section_type(CLUSTER, pcluster_config=self, section_label=cluster_label, config_parser=config_parser, fail_on_absence=fail_on_cluster_config_absence)
-            self.add_section(section)
+                cluster_label = (
+                    self.get_section("global").get_param_value("cluster_template")
+                    if self.get_section("global")
+                    else None
+                )
+            self.__init_section_from_file(
+                CLUSTER, config_parser, section_label=cluster_label, fail_on_absence=fail_on_file_absence
+            )
+
+    def __init_section_from_file(self, section_map, config_parser, section_label=None, fail_on_absence=False):
+        """
+        Initialize the Section object and add it to the internal structure.
+
+        :param section_enum_item: the enum item corresponding to the section to convert
+        :param config_parser: the config parser object to parse
+        :param section_label: the label of the section (if there)
+        :param fail_on_absence: if true, the initilaizaiton will fail if the section doesn't exist in the file
+        :return:
+        """
+        section_type = get_section_type(section_map)
+        section = section_type(
+            section_map=section_map,
+            pcluster_config=self,
+            section_label=section_label,
+            config_parser=config_parser,
+            fail_on_absence=fail_on_absence,
+        )
+        self.add_section(section)
 
     def __from_cfn(self, cluster_name):
-        stack_name = "parallelcluster-" + cluster_name
+        stack_name = get_stack_name(cluster_name)
 
         cfn_client = boto3.client("cloudformation", region_name=self.region)
         stack = cfn_client.describe_stacks(StackName=stack_name).get("Stacks")[0]
 
         section_type = get_section_type(CLUSTER)
-        section = section_type(CLUSTER, pcluster_config=self, cfn_params=stack.get("Parameters", []))
+        section = section_type(
+            section_map=CLUSTER,
+            pcluster_config=self,
+            cfn_params=stack.get("Parameters", []),
+        )
         self.add_section(section)
 
     def __validate(self):
-        fail_on_error = self.get_section("global").get_param_value("sanity_check") if self.get_section("global") else True
+        fail_on_error = (
+            self.get_section("global").get_param_value("sanity_check") if self.get_section("global") else True
+        )
 
         for section_key, sections in self.sections.items():
             for section_label, section in sections.items():

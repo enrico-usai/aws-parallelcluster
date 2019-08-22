@@ -406,9 +406,9 @@ def main():
     except KeyboardInterrupt:
         LOGGER.info("Exiting...")
         sys.exit(1)
-    except Exception as e:
-        LOGGER.error("Unexpected error of type %s: %s", type(e).__name__, e)
-        sys.exit(1)
+    #except Exception as e:
+    #    LOGGER.error("Unexpected error of type %s: %s", type(e).__name__, e)
+    #    sys.exit(1)
 
 
 if __name__ == "__main__":

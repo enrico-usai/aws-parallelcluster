@@ -30,11 +30,9 @@ import pkg_resources
 from botocore.exceptions import ClientError
 from tabulate import tabulate
 
-from pcluster.utils import get_installed_version, get_stack_output_value, verify_stack_creation
 import pcluster.utils as utils
 from pcluster.config.mapping import ALIASES, AWS, GLOBAL, CLUSTER
 from pcluster.config.pcluster_config import PclusterConfig
-from pcluster.utils import get_installed_version, get_stack_output_value, verify_stack_creation
 
 if sys.version_info[0] >= 3:
     from urllib.request import urlretrieve
@@ -61,7 +59,7 @@ def create_bucket_with_batch_resources(stack_name, resources_dir, region):
 
 
 def version():
-    return get_installed_version()
+    return utils.get_installed_version()
 
 
 def create(args):  # noqa: C901 FIXME!!!
@@ -74,7 +72,7 @@ def create(args):  # noqa: C901 FIXME!!!
         config_file=args.config_file,
         file_sections=[AWS, GLOBAL, CLUSTER],
         cluster_label=args.cluster_template,
-        fail_on_config_file_absence=True,
+        fail_on_file_absence=True,
     )
     region, cfn_template_url, cfn_params, cfn_tags = pcluster_config.to_cfn()
 
@@ -82,8 +80,8 @@ def create(args):  # noqa: C901 FIXME!!!
     batch_temporary_bucket = None
     try:
         cfn = boto3.client("cloudformation")
-        stack_name = "parallelcluster-" + args.cluster_name
-        pcluster_version = get_installed_version()
+        stack_name = utils.get_stack_name(args.cluster_name)
+        pcluster_version = utils.get_installed_version()
 
         # If scheduler is awsbatch create bucket with resources
         if cfn_params["Scheduler"] == "awsbatch":
@@ -132,7 +130,7 @@ def create(args):  # noqa: C901 FIXME!!!
         LOGGER.debug("StackId: %s", stack.get("StackId"))
 
         if not args.nowait:
-            verify_stack_creation(cfn, stack_name)
+            utils.verify_stack_creation(cfn, stack_name)
             LOGGER.info("")
             result_stack = cfn.describe_stacks(StackName=stack_name).get("Stacks")[0]
             _print_stack_outputs(result_stack)
@@ -198,13 +196,13 @@ def is_ganglia_enabled(parameters):
 
 def update(args):  # noqa: C901 FIXME!!!
     LOGGER.info("Updating: %s", args.cluster_name)
-    stack_name = "parallelcluster-" + args.cluster_name
+    stack_name = utils.get_stack_name(args.cluster_name)
     pcluster_config = PclusterConfig(
         region=args.region,
         config_file=args.config_file,
         file_sections=[AWS, GLOBAL, CLUSTER],
         cluster_label=args.cluster_template,
-        fail_on_config_file_absence=True,
+        fail_on_file_absence=True,
     )
     _, cfn_params, _ = pcluster_config.to_cfn()
 
@@ -280,7 +278,7 @@ def update(args):  # noqa: C901 FIXME!!!
 
 def start(args):
     # Set resource limits on compute fleet or awsbatch CE to min/max/desired = 0/max/0
-    stack_name = "parallelcluster-" + args.cluster_name
+    stack_name = utils.get_stack_name(args.cluster_name)
     pcluster_config = PclusterConfig(
         region=args.region, config_file=args.config_file, cluster_name=args.cluster_name,
     )
@@ -310,7 +308,7 @@ def start(args):
 
 def stop(args):
     # Set resource limits on compute fleet or awsbatch ce to min/max/desired = 0/0/0
-    stack_name = "parallelcluster-" + args.cluster_name
+    stack_name = utils.get_stack_name(args.cluster_name)
     pcluster_config = PclusterConfig(
         region=args.region, config_file=args.config_file, cluster_name=args.cluster_name,
     )
@@ -338,7 +336,7 @@ def get_batch_ce(stack_name):
     cfn = boto3.client("cloudformation")
     try:
         outputs = cfn.describe_stacks(StackName=stack_name).get("Stacks")[0].get("Outputs")
-        return get_stack_output_value(outputs, "BatchComputeEnvironmentArn")
+        return utils.get_stack_output_value(outputs, "BatchComputeEnvironmentArn")
     except ClientError as e:
         LOGGER.critical(e.response.get("Error").get("Message"))
         sys.exit(1)
@@ -380,11 +378,11 @@ def list_stacks(args):
         stacks = cfn.describe_stacks().get("Stacks")
         result = []
         for stack in stacks:
-            if stack.get("ParentId") is None and stack.get("StackName").startswith("parallelcluster-"):
+            if stack.get("ParentId") is None and stack.get("StackName").startswith(utils.PCLUSTER_STACK_PREFIX):
                 pcluster_version = get_version(stack)
                 result.append(
                     [
-                        stack.get("StackName")[len("parallelcluster-"):],  # noqa: E203
+                        stack.get("StackName")[len(utils.PCLUSTER_STACK_PREFIX):],  # noqa: E203
                         colorize(stack.get("StackStatus"), args),
                         pcluster_version,
                     ]
@@ -523,7 +521,7 @@ def stop_batch_ce(ce_name):
 
 
 def instances(args):
-    stack_name = "parallelcluster-" + args.cluster_name
+    stack_name = utils.get_stack_name(args.cluster_name)
     pcluster_config = PclusterConfig(
         region=args.region, config_file=args.config_file, cluster_name=args.cluster_name,
     )
@@ -579,8 +577,8 @@ def _get_param_value(params, key_name):
 
 
 def command(args, extra_args):  # noqa: C901 FIXME!!!
-    stack = "parallelcluster-" + args.cluster_name
-    pcluster_config = PclusterConfig(config_file=args.config_file, file_sections=[AWS, GLOBAL, ALIASES])
+    stack = utils.get_stack_name(args.cluster_name)
+    pcluster_config = PclusterConfig(config_file=args.config_file, file_sections=[AWS, ALIASES])
 
     if args.command in pcluster_config.get_section("aliases"):
         config_command = pcluster_config.get_section("aliases").get_param_value(args.command)
@@ -599,8 +597,8 @@ def command(args, extra_args):  # noqa: C901 FIXME!!!
             sys.exit(1)
         elif status in valid_status:
             outputs = stack_result.get("Outputs")
-            username = get_stack_output_value(outputs, "ClusterUser")
-            ip = get_stack_output_value(outputs, "MasterPublicIP") or _get_master_server_ip(stack)
+            username = utils.get_stack_output_value(outputs, "ClusterUser")
+            ip = utils.get_stack_output_value(outputs, "MasterPublicIP") or _get_master_server_ip(stack)
 
             if not username:
                 LOGGER.info("Failed to get cluster %s username.", args.cluster_name)
@@ -642,7 +640,7 @@ def command(args, extra_args):  # noqa: C901 FIXME!!!
 
 
 def status(args):  # noqa: C901 FIXME!!!
-    stack_name = "parallelcluster-" + args.cluster_name
+    stack_name = utils.get_stack_name(args.cluster_name)
 
     # Parse configuration file to read the AWS section
     _ = PclusterConfig(region=args.region, config_file=args.config_file)
@@ -703,7 +701,7 @@ def status(args):  # noqa: C901 FIXME!!!
 def delete(args):
     saw_update = False
     LOGGER.info("Deleting: %s", args.cluster_name)
-    stack = "parallelcluster-" + args.cluster_name
+    stack = utils.get_stack_name(args.cluster_name)
 
     # Parse configuration file to read the AWS section
     _ = PclusterConfig(region=args.region, config_file=args.config_file)
@@ -906,7 +904,7 @@ def create_ami(args):
             config_file=args.config_file,
             file_sections=[AWS, GLOBAL, CLUSTER],
             cluster_label="default",
-            fail_on_config_file_absence=True,
+            fail_on_file_absence=True,
         )
 
         vpc_section = pcluster_config.get_section("vpc")
@@ -968,6 +966,6 @@ def _get_default_template_url(region):
         "aws-parallelcluster-{VERSION}.cfn.json".format(
             REGION=region,
             SUFFIX=".cn" if region.startswith("cn") else "",
-            VERSION=get_installed_version()
+            VERSION=utils.get_installed_version()
         )
     )

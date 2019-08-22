@@ -39,14 +39,14 @@ def test_efs_params(mocker, pcluster_config_reader, test_datadir, efs_settings, 
                 config_file=pcluster_config_reader(efs_settings=efs_settings),
                 file_sections=[AWS, GLOBAL, CLUSTER],
                 cluster_label="default",
-                fail_on_config_file_absence=True,
+                fail_on_file_absence=True,
             )
     else:
         pcluster_config = PclusterConfig(
             config_file=pcluster_config_reader(efs_settings=efs_settings),
             file_sections=[AWS, GLOBAL, CLUSTER],
             cluster_label="default",
-            fail_on_config_file_absence=True,
+            fail_on_file_absence=True,
         )
 
         pcluster_config.get_master_avail_zone = mocker.MagicMock(return_value="fake_avail_zone")
@@ -224,13 +224,13 @@ def test_cluster_params(mocker, pcluster_config_reader, test_datadir, cluster_se
             _ = PclusterConfig(
                 config_file=pcluster_config_reader(cluster_settings=cluster_settings),
                 file_sections=[AWS, GLOBAL, CLUSTER],
-                fail_on_config_file_absence=True,
+                fail_on_file_absence=True,
             )
     else:
         pcluster_config = PclusterConfig(
             config_file=pcluster_config_reader(cluster_settings=cluster_settings),
             file_sections=[AWS, GLOBAL, CLUSTER],
-            fail_on_config_file_absence=True,
+            fail_on_file_absence=True,
         )
 
         pcluster_config.get_master_avail_zone = mocker.MagicMock(return_value="mocked_avail_zone")

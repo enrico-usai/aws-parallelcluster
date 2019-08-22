@@ -29,6 +29,12 @@ from botocore.exceptions import ClientError
 
 LOGGER = logging.getLogger(__name__)
 
+PCLUSTER_STACK_PREFIX = "parallelcluster-"
+
+
+def get_stack_name(cluster_name):
+    return PCLUSTER_STACK_PREFIX + cluster_name
+
 
 def create_s3_bucket(bucket_name, region):
     """
