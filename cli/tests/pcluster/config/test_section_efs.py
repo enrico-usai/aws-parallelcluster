@@ -119,16 +119,38 @@ def test_efs_section_to_cfn(mocker, section_dict, expected_cfn_params):
 @pytest.mark.parametrize(
     "settings_label, expected_cfn_params",
     [
-        ("test1", DefaultCfnParams["efs"].value),
-        ("test2", {"EFSOptions": "efs,NONE,generalPurpose,NONE,NONE,false,bursting,Valid"}),
-        ("test3", {"EFSOptions": "efs,fs-12345,maxIO,key1,1020.0,false,provisioned,Valid"}),
-        ("test4", {"EFSOptions": "/efs,NONE,generalPurpose,NONE,NONE,true,bursting,Valid"}),
+        (
+                "test1",
+                utils.merge_dicts(
+                    DefaultCfnParams["cluster"].value,
+                    DefaultCfnParams["efs"].value,
+                )
+        ),
+        (
+                "test2",
+                utils.merge_dicts(
+                    DefaultCfnParams["cluster"].value,
+                    {"EFSOptions": "efs,NONE,generalPurpose,NONE,NONE,false,bursting,Valid"},
+                )
+        ),
+        (
+                "test3",
+                utils.merge_dicts(
+                    DefaultCfnParams["cluster"].value,
+                    {"EFSOptions": "efs,fs-12345,maxIO,key1,1020.0,false,provisioned,Valid"},
+                )
+        ),
+        (
+                "test4",
+                utils.merge_dicts(
+                    DefaultCfnParams["cluster"].value,
+                    {"EFSOptions": "/efs,NONE,generalPurpose,NONE,NONE,true,bursting,Valid"},
+                )
+        ),
         ("test1,test2", SystemExit()),
     ]
 )
 def test_efs_params(mocker, pcluster_config_reader, settings_label, expected_cfn_params):
     """Unit tests for parsing EFS related options."""
     mocker.patch("pcluster.config.params_types.get_efs_mount_target_id", return_value="mount_target_id")
-    utils.assert_section_params(
-        mocker, pcluster_config_reader, settings_label, expected_cfn_params, num_of_params=1
-    )
+    utils.assert_section_params(mocker, pcluster_config_reader, settings_label, expected_cfn_params)

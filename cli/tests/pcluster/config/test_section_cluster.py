@@ -12,7 +12,7 @@ import pytest
 
 from pcluster.config.mapping import CLUSTER
 import tests.pcluster.config.utils as utils
-from tests.pcluster.config.defaults import DefaultDict, DefaultCfnParams, CFN_PARAMS_NUMBER
+from tests.pcluster.config.defaults import DefaultDict, DefaultCfnParams
 
 
 @pytest.mark.parametrize(
@@ -302,6 +302,6 @@ def test_cluster_params(mocker, pcluster_config_reader, settings_label, expected
         "baseos": ["ubuntu1404"],
         "schedulers": ["slurm"],
     })
-    utils.assert_section_params(
-        mocker, pcluster_config_reader, settings_label, expected_cfn_params, num_of_params=CFN_PARAMS_NUMBER
-    )
+    utils.assert_section_params(mocker, pcluster_config_reader, settings_label, expected_cfn_params)
+
+

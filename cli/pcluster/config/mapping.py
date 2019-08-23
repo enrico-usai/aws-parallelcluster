@@ -313,7 +313,6 @@ CLUSTER = {
         },
         # Cluster configuration
         "placement_group": {
-            "default": "DYNAMIC",
             "cfn": "PlacementGroup",
             "validator": placement_group_validator,
         },
@@ -330,8 +329,8 @@ CLUSTER = {
         },
         "master_root_volume_size": {
             "type": IntParam,
-            "default": 17,
-            "allowed_values": r"^([0-9]+[0-9]{2}|[2-9][0-9]|1[7-9])$",  # >= 17
+            "default": 20,
+            "allowed_values": r"^([0-9]+[0-9]{2}|[2-9][0-9])$",  # >= 20
             "cfn": "MasterRootVolumeSize",
         },
         # Compute fleet
@@ -342,8 +341,8 @@ CLUSTER = {
         },
         "compute_root_volume_size": {
             "type": IntParam,
-            "default": 17,
-            "allowed_values": r"^([0-9]+[0-9]{2}|[2-9][0-9]|1[7-9])$",  # >= 17
+            "default": 20,
+            "allowed_values": r"^([0-9]+[0-9]{2}|[2-9][0-9])$",  # >= 20
             "cfn": "ComputeRootVolumeSize",
         },
         "initial_queue_size": {

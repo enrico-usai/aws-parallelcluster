@@ -11,6 +11,22 @@
 
 from enum import Enum
 
+# ------------------ Default internal representation values ------------------ #
+
+DEFAULT_AWS_DICT = {
+    "aws_region_name": "us-east-1",
+}
+
+DEFAULT_GLOBAL_DICT = {
+    "cluster_template": "default",
+    "update_check": True,
+    "sanity_check": True,
+}
+
+DEFAULT_ALIASES_DICT = {
+    "ssh": "ssh {CFN_USER}@{MASTER_IP} {ARGS}",
+}
+
 
 DEFAULT_SCALING_DICT = {
     "scaledown_idletime": 10,
@@ -76,12 +92,12 @@ DEFAULT_CLUSTER_DICT = {
     "base_os": "alinux",
     "scheduler": "sge",
     "shared_dir": "/shared",
-    "placement_group": "DYNAMIC",
+    "placement_group": None,
     "placement": "compute",
     "master_instance_type": "t2.micro",
-    "master_root_volume_size": 17,
+    "master_root_volume_size": 20,
     "compute_instance_type": "t2.micro",
-    "compute_root_volume_size": 17,
+    "compute_root_volume_size": 20,
     "initial_queue_size": 0,
     "max_queue_size": 10,
     "maintain_initial_size": False,
@@ -132,6 +148,15 @@ class DefaultDict(Enum):
     pcluster = DEFAULT_PCLUSTER_DICT
 
 
+# ------------------ Default CFN parameters ------------------ #
+
+# number of CFN parameters created by the PclusterConfig object.
+CFN_CONFIG_NUM_OF_PARAMS = 53
+
+# CFN parameters created by the pcluster CLI
+CFN_CLI_RESERVED_PARAMS = ["ResourcesS3Bucket"]
+
+
 DEFAULT_SCALING_CFN_PARAMS = {
     "ScaleDownIdleTime": "10",
 }
@@ -177,12 +202,12 @@ DEFAULT_CLUSTER_CFN_PARAMS = {
     "CLITemplate": "default",
     "Scheduler": "sge",
     "SharedDir": "/shared",
-    "PlacementGroup": "DYNAMIC",
+    "PlacementGroup": "NONE",
     "Placement": "compute",
     "MasterInstanceType": "t2.micro",
-    "MasterRootVolumeSize": "17",
+    "MasterRootVolumeSize": "20",
     "ComputeInstanceType": "t2.micro",
-    "ComputeRootVolumeSize": "17",
+    "ComputeRootVolumeSize": "20",
     "DesiredSize": "0",
     "MaxSize": "10",
     "MinSize": "0",
@@ -233,9 +258,6 @@ DEFAULT_CLUSTER_CFN_PARAMS = {
     # fsx
     "FSXOptions": "NONE,NONE,NONE,NONE,NONE,NONE,NONE,NONE",
 }
-
-
-CFN_PARAMS_NUMBER = 53  # See cloudformation.json
 
 
 class DefaultCfnParams(Enum):

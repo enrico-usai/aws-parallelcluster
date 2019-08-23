@@ -12,7 +12,7 @@ import pytest
 
 import tests.pcluster.config.utils as utils
 from pcluster.config.mapping import EBS
-from tests.pcluster.config.defaults import DefaultDict
+from tests.pcluster.config.defaults import DefaultDict, DefaultCfnParams
 
 
 @pytest.mark.parametrize(
@@ -153,34 +153,38 @@ def test_ebs_param_from_file(param_key, param_value, expected_value, expected_me
     [
         (
                 "ebs1",
-                {
-                    "NumberOfEBSVol": "1",
-                    "SharedDir": "ebs1,NONE,NONE,NONE,NONE",
-                    "VolumeType": "io1,gp2,gp2,gp2,gp2",
-                    "VolumeSize": "40,20,20,20,20",
-                    "VolumeIOPS": "200,100,100,100,100",
-                    "EBSEncryption": "true,false,false,false,false",
-                    "EBSKMSKeyId": "kms_key,NONE,NONE,NONE,NONE",
-                    "EBSVolumeId": "vol-12345678,NONE,NONE,NONE,NONE",
-                }
+                utils.merge_dicts(
+                    DefaultCfnParams["cluster"].value,
+                    {
+                        "NumberOfEBSVol": "1",
+                        "SharedDir": "ebs1,NONE,NONE,NONE,NONE",
+                        "VolumeType": "io1,gp2,gp2,gp2,gp2",
+                        "VolumeSize": "40,20,20,20,20",
+                        "VolumeIOPS": "200,100,100,100,100",
+                        "EBSEncryption": "true,false,false,false,false",
+                        "EBSKMSKeyId": "kms_key,NONE,NONE,NONE,NONE",
+                        "EBSVolumeId": "vol-12345678,NONE,NONE,NONE,NONE",
+                    },
+                )
         ),
         (
                 "ebs2",
-                {
-                    "NumberOfEBSVol": "1",
-                    "SharedDir": "ebs2,NONE,NONE,NONE,NONE",
-                    "VolumeType": "standard,gp2,gp2,gp2,gp2",
-                    "VolumeSize": "30,20,20,20,20",
-                    "VolumeIOPS": "300,100,100,100,100",
-                    "EBSEncryption": "false,false,false,false,false",
-                    "EBSKMSKeyId": "NONE,NONE,NONE,NONE,NONE",
-                    "EBSVolumeId": "NONE,NONE,NONE,NONE,NONE",
-                }
+                utils.merge_dicts(
+                    DefaultCfnParams["cluster"].value,
+                    {
+                        "NumberOfEBSVol": "1",
+                        "SharedDir": "ebs2,NONE,NONE,NONE,NONE",
+                        "VolumeType": "standard,gp2,gp2,gp2,gp2",
+                        "VolumeSize": "30,20,20,20,20",
+                        "VolumeIOPS": "300,100,100,100,100",
+                        "EBSEncryption": "false,false,false,false,false",
+                        "EBSKMSKeyId": "NONE,NONE,NONE,NONE,NONE",
+                        "EBSVolumeId": "NONE,NONE,NONE,NONE,NONE",
+                    },
+                )
         ),
     ]
 )
 def test_ebs_params(mocker, pcluster_config_reader, settings_label, expected_cfn_params):
     """Unit tests for parsing EBS related options."""
-    utils.assert_section_params(
-        mocker, pcluster_config_reader, settings_label, expected_cfn_params, num_of_params=8
-    )
+    utils.assert_section_params(mocker, pcluster_config_reader, settings_label, expected_cfn_params)

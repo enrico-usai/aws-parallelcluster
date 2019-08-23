@@ -10,15 +10,16 @@
 # limitations under the License.
 
 import configparser
+import os
 from configparser import NoOptionError, NoSectionError
 
 import pytest
 from assertpy import assert_that
 
+from pcluster.config.mapping import AWS, CLUSTER, GLOBAL
 from pcluster.config.params_types import Param
 from pcluster.config.pcluster_config import PclusterConfig
-from tests.pcluster.config.defaults import DefaultDict
-from pcluster.config.mapping import ALIASES, AWS, CLUSTER, GLOBAL
+from tests.pcluster.config.defaults import DefaultDict, CFN_CONFIG_NUM_OF_PARAMS
 
 
 def get_param_map(section_map, param_key):
@@ -32,6 +33,11 @@ def merge_dicts(*args):
     for input_dict in args:
         merged_dict.update(input_dict)
     return merged_dict
+
+
+def get_pcluster_config_example():
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    return os.path.join(current_dir, "..", "..", "..", "pcluster", "examples", "config")
 
 
 def assert_param_from_file(section_map, param_key, param_value, expected_value, expected_message):
@@ -172,7 +178,7 @@ def assert_section_to_cfn(section_map, section_dict, expected_cfn_params):
     assert_that(cfn_params).is_equal_to(expected_cfn_params)
 
 
-def assert_section_params(mocker, pcluster_config_reader, settings_label, expected_cfn_params, num_of_params):
+def assert_section_params(mocker, pcluster_config_reader, settings_label, expected_cfn_params):
     mocker.patch.object(PclusterConfig, "_PclusterConfig__validate")
     if isinstance(expected_cfn_params, SystemExit):
         with pytest.raises(SystemExit):
@@ -192,7 +198,7 @@ def assert_section_params(mocker, pcluster_config_reader, settings_label, expect
         pcluster_config.get_master_avail_zone = mocker.MagicMock(return_value="mocked_avail_zone")
         _, _, cfn_params, _ = pcluster_config.to_cfn()
 
-        assert_that(len(expected_cfn_params)).is_equal_to(num_of_params)
+        assert_that(len(cfn_params)).is_equal_to(CFN_CONFIG_NUM_OF_PARAMS)
 
-        for param_key, param_value in expected_cfn_params.items():
-            assert_that(cfn_params.get(param_key)).is_equal_to(expected_cfn_params.get(param_key))
+        for param_key, param_value in cfn_params.items():
+            assert_that(cfn_params.get(param_key), description=param_key).is_equal_to(expected_cfn_params.get(param_key))
