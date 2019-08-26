@@ -59,10 +59,15 @@ def test_example_config_consistency(mocker):
 
 def test_defaults_consistency():
     """Verifies that the defaults values for the CFN parameters used in the tests are the same in the CFN template."""
+    template_num_of_params = _get_pcluster_cfn_num_of_params()
+
+    # verify that the number of parameters in the template is lower than the limit of 60 parameters
+    # https://docs.aws.amazon.com/en_us/AWSCloudFormation/latest/UserGuide/parameters-section-structure.html
+    assert_that(template_num_of_params).is_less_than_or_equal_to(60)
 
     # verify number of parameters used for tests with number of parameters in CFN template
     total_number_of_params = CFN_CONFIG_NUM_OF_PARAMS + len(CFN_CLI_RESERVED_PARAMS)
-    assert_that(total_number_of_params).is_equal_to(_get_pcluster_cfn_num_of_params())
+    assert_that(total_number_of_params).is_equal_to(template_num_of_params)
 
     cfn_params = [section_cfn_params.value for section_cfn_params in DefaultCfnParams]
     default_cfn_values = utils.merge_dicts(*cfn_params)
