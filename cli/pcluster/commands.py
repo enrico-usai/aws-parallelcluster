@@ -279,9 +279,7 @@ def update(args):  # noqa: C901 FIXME!!!
 def start(args):
     # Set resource limits on compute fleet or awsbatch CE to min/max/desired = 0/max/0
     stack_name = utils.get_stack_name(args.cluster_name)
-    pcluster_config = PclusterConfig(
-        region=args.region, config_file=args.config_file, cluster_name=args.cluster_name,
-    )
+    pcluster_config = PclusterConfig(region=args.region, config_file=args.config_file, cluster_name=args.cluster_name)
     cluster_section = pcluster_config.get_section("cluster")
 
     if cluster_section.get_param_value("scheduler") == "awsbatch":
@@ -309,9 +307,7 @@ def start(args):
 def stop(args):
     # Set resource limits on compute fleet or awsbatch ce to min/max/desired = 0/0/0
     stack_name = utils.get_stack_name(args.cluster_name)
-    pcluster_config = PclusterConfig(
-        region=args.region, config_file=args.config_file, cluster_name=args.cluster_name,
-    )
+    pcluster_config = PclusterConfig(region=args.region, config_file=args.config_file, cluster_name=args.cluster_name)
     cluster_section = pcluster_config.get_section("cluster")
 
     if cluster_section.get_param_value("scheduler") == "awsbatch":
@@ -522,9 +518,7 @@ def stop_batch_ce(ce_name):
 
 def instances(args):
     stack_name = utils.get_stack_name(args.cluster_name)
-    pcluster_config = PclusterConfig(
-        region=args.region, config_file=args.config_file, cluster_name=args.cluster_name,
-    )
+    pcluster_config = PclusterConfig(region=args.region, config_file=args.config_file, cluster_name=args.cluster_name)
     cluster_section = pcluster_config.get_section("cluster")
 
     instances = []
@@ -903,8 +897,8 @@ def create_ami(args):
             region=args.region,
             config_file=args.config_file,
             file_sections=[AWS, GLOBAL, CLUSTER],
-            cluster_label="default",
             fail_on_file_absence=True,
+            #cluster_label="default",
         )
 
         vpc_section = pcluster_config.get_section("vpc")

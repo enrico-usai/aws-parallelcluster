@@ -36,19 +36,19 @@ class Param(object):
 
         # initialize param value
         if cfn_params or cfn_value:
-            self._from_cfn(cfn_params=cfn_params, cfn_value=cfn_value)
+            self._init_from_cfn(cfn_params=cfn_params, cfn_value=cfn_value)
         elif config_parser:
             try:
-                self._from_file(config_parser)
+                self._init_from_file(config_parser)
             except NoOptionError:
-                self._from_map()
+                self._init_from_map()
             except NoSectionError:
                 section_name = _get_file_section_name(self.section_key, self.section_label)
                 error("Section '[{0}]' not found in the config file.".format(section_name))
         else:
-            self._from_map()
+            self._init_from_map()
 
-    def from_string(self, string_value):
+    def get_value_from_string(self, string_value):
         param_value = self.get_default_value()
 
         if isinstance(string_value, str):
@@ -59,7 +59,7 @@ class Param(object):
 
         return param_value
 
-    def _from_file(self, config_parser):
+    def _init_from_file(self, config_parser):
         """
         Initialize param_value from config_parser.
 
@@ -70,17 +70,17 @@ class Param(object):
         self.value = config_parser.get(section_name, self.key)
         self._check_allowed_values()
 
-    def _from_cfn(self, cfn_params=None, cfn_value=None):
+    def _init_from_cfn(self, cfn_params=None, cfn_value=None):
         cfn_converter = self.map.get("cfn", None)
         if cfn_converter and cfn_params:
             cfn_value = get_cfn_param(cfn_params, cfn_converter) if cfn_converter else "NONE"
-            self.value = self.from_string(cfn_value)
+            self.value = self.get_value_from_string(cfn_value)
         elif cfn_value:
-            self.value = self.from_string(cfn_value)
+            self.value = self.get_value_from_string(cfn_value)
         else:
-            self._from_map()
+            self._init_from_map()
 
-    def _from_map(self):
+    def _init_from_map(self):
         self.value = self.get_default_value()
         if self.value:
             LOGGER.debug("Setting default value '{0}' for key '{1}'".format(self.value, self.key))
@@ -143,7 +143,7 @@ class Param(object):
         cfn_converter = self.map.get("cfn", None)
 
         if cfn_converter:
-            cfn_value = self.to_cfn_value()
+            cfn_value = self.get_cfn_value()
             cfn_params.update({cfn_converter: str(cfn_value)})
 
         return cfn_params
@@ -151,12 +151,12 @@ class Param(object):
     def get_default_value(self):
         return self.map.get("default", None)
 
-    def to_cfn_value(self):
+    def get_cfn_value(self):
         return str(self.value if self.value is not None else self.map.get("default", "NONE"))
 
 
 class FloatParam(Param):
-    def _from_file(self, config_parser):
+    def _init_from_file(self, config_parser):
         """
         Initialize param_value from config_parser.
 
@@ -170,7 +170,7 @@ class FloatParam(Param):
         except ValueError:
             error("Configuration parameter '{0}' must be a Float".format(self.key))
 
-    def from_string(self, string_value):
+    def get_value_from_string(self, string_value):
         param_value = self.get_default_value()
 
         try:
@@ -185,7 +185,7 @@ class FloatParam(Param):
 
 
 class BoolParam(Param):
-    def _from_file(self, config_parser):
+    def _init_from_file(self, config_parser):
         """
         Initialize param_value from config_parser.
 
@@ -199,7 +199,7 @@ class BoolParam(Param):
         except ValueError:
             error("Configuration parameter '{0}' must be a Boolean".format(self.key))
 
-    def from_string(self, string_value):
+    def get_value_from_string(self, string_value):
         param_value = self.get_default_value()
 
         if string_value is not None:
@@ -214,7 +214,7 @@ class BoolParam(Param):
     def to_file(self, config_parser):
         section_name = _get_file_section_name(self.section_key, self.section_label)
         if self.value != self.get_default_value():
-            config_parser.set(section_name, self.key, self.to_cfn_value())
+            config_parser.set(section_name, self.key, self.get_cfn_value())
         else:
             # remove parameter from config_parser if there
             try:
@@ -222,13 +222,13 @@ class BoolParam(Param):
             except NoSectionError:
                 pass
 
-    def to_cfn_value(self):
+    def get_cfn_value(self):
         param_value = self.get_default_value() if self.value is None else self.value
         return "true" if param_value else "false"
 
 
 class IntParam(Param):
-    def _from_file(self, config_parser):
+    def _init_from_file(self, config_parser):
         """
         Initialize param_value from config_parser.
 
@@ -242,7 +242,7 @@ class IntParam(Param):
         except ValueError:
             error("Configuration parameter '{0}' must be an Integer".format(self.key))
 
-    def from_string(self, string_value):
+    def get_value_from_string(self, string_value):
         param_value = self.get_default_value()
         try:
             if string_value is not None:
@@ -256,7 +256,7 @@ class IntParam(Param):
 
 
 class JsonParam(Param):
-    def _from_file(self, config_parser):
+    def _init_from_file(self, config_parser):
         """
         Initialize param_value from config_parser.
 
@@ -265,10 +265,10 @@ class JsonParam(Param):
         """
         section_name = _get_file_section_name(self.section_key, self.section_label)
         item_value = config_parser.get(section_name, self.key)
-        self.value = self.from_string(item_value)
+        self.value = self.get_value_from_string(item_value)
         self._check_allowed_values()
 
-    def from_string(self, string_value):
+    def get_value_from_string(self, string_value):
         param_value = self.get_default_value()
         try:
             if string_value:
@@ -303,7 +303,7 @@ class SharedDirParam(Param):
         cfn_params = {}
         # if contains ebs_settings --> single SharedDir
         if not self.pcluster_config.get_section("ebs"):
-            cfn_params.update({self.map.get("cfn"): self.to_cfn_value()})
+            cfn_params.update({self.map.get("cfn"): self.get_cfn_value()})
         # else: there are ebs volumes, let the EBSSettings populate the SharedDir CFN parameter.
         return cfn_params
 
@@ -316,7 +316,7 @@ class SharedDirParam(Param):
 
 
 class SpotPriceParam(IntParam):
-    def _from_cfn(self, cfn_params, cfn_value=None):
+    def _init_from_cfn(self, cfn_params, cfn_value=None):
         cfn_converter = self.map.get("cfn", None)
         # We have both spot_price and spot_bid_percentage in the same param
         self.value = int(float(get_cfn_param(cfn_params, cfn_converter)))
@@ -409,7 +409,7 @@ class SettingsParam(Param):
         self.related_section_type = self.related_section_map.get("type")
         super().__init__(section_key, section_label, param_key, param_map, pcluster_config, cfn_value, config_parser, cfn_params)
 
-    def _from_file(self, config_parser):
+    def _init_from_file(self, config_parser):
         """
         Initialize param_value from config_parser.
 
@@ -434,15 +434,15 @@ class SettingsParam(Param):
                     )
                     self.pcluster_config.add_section(section)
         except NoOptionError:
-            self._from_map()
+            self._init_from_map()
 
-    def _from_cfn(self, cfn_params, cfn_value=None):
+    def _init_from_cfn(self, cfn_params, cfn_value=None):
         # TODO Use the label if available
         self.value = self.map.get("default", None)
         section = self.related_section_type(self.related_section_map, self.pcluster_config, section_label=self.value, cfn_params=cfn_params)
         self.pcluster_config.add_section(section)
 
-    def _from_map(self):
+    def _init_from_map(self):
         self.value = self.map.get("default", None)
         if self.value:
             # the SettingsParam has a default label, it means that it is required to initialize the
@@ -502,7 +502,7 @@ class SettingsParam(Param):
 
 class EBSSettingsParam(SettingsParam):
 
-    def _from_file(self, config_parser):
+    def _init_from_file(self, config_parser):
         """
         Initialize param_value from config_parser.
 
@@ -519,9 +519,9 @@ class EBSSettingsParam(SettingsParam):
                     )
                     self.pcluster_config.add_section(section)
         except NoOptionError:
-            self._from_map()
+            self._init_from_map()
 
-    def _from_cfn(self, cfn_params, cfn_value=None):
+    def _init_from_cfn(self, cfn_params, cfn_value=None):
 
         num_of_ebs = int(get_cfn_param(cfn_params, "NumberOfEBSVol"))
         labels = []
@@ -574,9 +574,7 @@ class EBSSettingsParam(SettingsParam):
             section.to_file(config_parser)
 
     def to_cfn(self):
-        """
-        Convert a list of sections to multiple cfn params.
-        """
+        """Convert a list of sections to multiple CFN params."""
         sections = {}
         if self.value:
             for section_label in self.value.split(","):
@@ -637,10 +635,10 @@ class Section(object):
         # initialize section_dict
         self.params = {}
         if cfn_params:
-            self._from_cfn(cfn_params)
+            self._init_params_from_cfn(cfn_params)
         elif config_parser:
             try:
-                self._from_file(config_parser)
+                self._init_params_from_file(config_parser)
             except SectionNotFoundError:
                 if fail_on_absence:
                     error("Section '[{0}]' not found in the config file.")
@@ -650,11 +648,11 @@ class Section(object):
                             _get_file_section_name(self.key, self.label)
                         )
                     )
-                    self._from_map()
+                    self._init_params_from_map()
         else:
-            self._from_map()
+            self._init_params_from_map()
 
-    def _from_file(self, config_parser):
+    def _init_params_from_file(self, config_parser):
         """
         :param config_parser: ConfigParser object
         """
@@ -678,7 +676,7 @@ class Section(object):
         else:
             raise SectionNotFoundError
 
-    def _from_cfn(self, cfn_params):
+    def _init_params_from_cfn(self, cfn_params):
         # TODO get the label if saved in cfn
         cfn_converter = self.map.get("cfn", None)
         if cfn_converter:
@@ -705,7 +703,7 @@ class Section(object):
                 param = param_type(self.key, self.label, param_key, param_map, self.pcluster_config, cfn_params=cfn_params)
                 self.add_param(param)
 
-    def _from_map(self):
+    def _init_params_from_map(self):
         for param_key, param_map in self.map.get("params").items():
             param_type = param_map.get("type", Param)
             param = param_type(self.key, self.label, param_key, param_map, self.pcluster_config)
@@ -727,9 +725,9 @@ class Section(object):
                 elif warnings:
                     warn("The section [{0}] is wrongly configured\n{1}".format(section_name, "\n".join(warnings)))
                 else:
-                    LOGGER.debug("Configuration section '{0}' is valid".format(section_name))
+                    LOGGER.debug("Section '[{0}]' is valid".format(section_name))
             else:
-                LOGGER.debug("Configuration section '[{0}]' has not validators".format(section_name))  # TODO remove
+                LOGGER.debug("Section '[{0}]' has not validators".format(section_name))
 
             # validate items
             for param_key, param_map in self.map.get("params").items():
@@ -775,11 +773,11 @@ class Section(object):
             for param_key, param_map in self.map.get("params").items():
                 param = self.get_param(param_key)
                 if param:
-                    cfn_items.append(param.to_cfn_value())
+                    cfn_items.append(param.get_cfn_value())
                 else:
                     param_type = param_map.get("type", Param)
                     param = param_type(self.key, self.label, param_key, param_map, self.pcluster_config)
-                    cfn_items.append(param.to_cfn_value())
+                    cfn_items.append(param.get_cfn_value())
 
             if cfn_items[0] == "NONE":
                 # empty dict or first item is NONE --> set all values to NONE
@@ -846,11 +844,11 @@ class EFSSection(Section):
         for param_key, param_map in self.map.get("params").items():
             param = self.get_param(param_key)
             if param:
-                cfn_items.append(param.to_cfn_value())
+                cfn_items.append(param.get_cfn_value())
             else:
                 param_type = param_map.get("type", Param)
                 param = param_type(self.key, self.label, param_key, param_map, self.pcluster_config)
-                cfn_items.append(param.to_cfn_value())
+                cfn_items.append(param.get_cfn_value())
 
         if cfn_items[0] == "NONE":
             efs_section_valid = False
@@ -871,9 +869,9 @@ class EFSSection(Section):
 
 class ClusterSection(Section):
 
-    def _from_cfn(self, cfn_params):
+    def _init_params_from_cfn(self, cfn_params):
         self.label = get_cfn_param(cfn_params, "CLITemplate")
-        super()._from_cfn(cfn_params)
+        super()._init_params_from_cfn(cfn_params)
 
     def to_cfn(self):
         cfn_params = super().to_cfn()

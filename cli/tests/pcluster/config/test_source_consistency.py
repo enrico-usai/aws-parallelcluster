@@ -37,7 +37,10 @@ def test_mapping_consistency():
 
 
 def test_example_config_consistency(mocker):
+    """Validate example file and try to convert to CFN"""
+
     # get config file from example
+    # mock validation to avoid boto3 calls required at validation stage
     mocker.patch.object(PclusterConfig, "_PclusterConfig__validate")
     pcluster_config = PclusterConfig(
         config_file=utils.get_pcluster_config_example(),
@@ -57,14 +60,14 @@ def test_example_config_consistency(mocker):
 def test_defaults_consistency():
     """Verifies that the defaults values for the CFN parameters used in the tests are the same in the CFN template."""
 
-    # verify number of parameters
+    # verify number of parameters used for tests with number of parameters in CFN template
     total_number_of_params = CFN_CONFIG_NUM_OF_PARAMS + len(CFN_CLI_RESERVED_PARAMS)
     assert_that(total_number_of_params).is_equal_to(_get_pcluster_cfn_num_of_params())
 
     cfn_params = [section_cfn_params.value for section_cfn_params in DefaultCfnParams]
     default_cfn_values = utils.merge_dicts(*cfn_params)
 
-    # verify default parameter values
+    # verify default parameter values used for tests with default values in CFN template
     pcluster_cfn_json = _get_pcluster_cfn_json()
     for param_key, param in pcluster_cfn_json["Parameters"].items():
         if param_key not in CFN_CLI_RESERVED_PARAMS:

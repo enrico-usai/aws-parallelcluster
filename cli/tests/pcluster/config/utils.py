@@ -183,9 +183,9 @@ def assert_section_params(mocker, pcluster_config_reader, settings_label, expect
     if isinstance(expected_cfn_params, SystemExit):
         with pytest.raises(SystemExit):
             _ = PclusterConfig(
+                cluster_label="default",
                 config_file=pcluster_config_reader(settings_label=settings_label),
                 file_sections=[AWS, GLOBAL, CLUSTER],
-                cluster_label="default",
                 fail_on_file_absence=True,
             )
     else:

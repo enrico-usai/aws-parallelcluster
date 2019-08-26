@@ -50,7 +50,7 @@ def test_param_to_cfn_value(section_map, param_key, param_value, expected_value)
     param_map, param_type = get_param_map(section_map, param_key)
     param = param_type(section_map.get("key"), "default", param_key, param_map, pcluster_config)
     param.value = param_value
-    cfn_value = param.to_cfn_value()
+    cfn_value = param.get_cfn_value()
     assert_that(cfn_value).is_equal_to(expected_value)
 
 

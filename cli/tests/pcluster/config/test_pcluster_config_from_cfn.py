@@ -68,7 +68,7 @@ def test_param_from_cfn_value(section_map, param_key, cfn_value, expected_value)
 
     pcluster_config = PclusterConfig(config_file="wrong-file")
 
-    param_value = param_type(section_map.get("key"), "default", param_key, param_map, pcluster_config).from_string(cfn_value)
+    param_value = param_type(section_map.get("key"), "default", param_key, param_map, pcluster_config).get_value_from_string(cfn_value)
     assert_that(param_value).is_equal_to(expected_value)
 
 

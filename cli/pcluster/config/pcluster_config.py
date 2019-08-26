@@ -24,16 +24,37 @@ LOGGER = logging.getLogger(__name__)
 
 
 class PclusterConfig(object):
-    """Manage ParallelCluster Config."""
+    """
+    Class to manage the configuration of a cluster created (or to create) with ParallelCluster.
+
+    This class par
+    This class contains a dictionary of sections associated to the given cluster
+    """
     def __init__(
             self,
+            region=None,
             config_file=None,
             file_sections=[AWS],
             cluster_label=None,  # args.cluster_template
-            region=None,
-            cluster_name=None,
             fail_on_file_absence=False,
+            cluster_name=None,
     ):
+        """
+        The initialization can start from file, from a CFN Stack or from the internal mapping.
+
+        NOTE: The class tries to parse the config file (the default one, if not specified) to get AWS credentials
+
+        :param region: the aws region to override the one in the config file
+        # --- from file initialization parameters:
+        :param config_file: if specified the initialization of the sections will start from the file
+        :param file_sections: the sections of the configuration file to parse and initialize,
+        by default the init reads the configuration file to get AWS credentials.
+        :param cluster_label: the label associated to a [cluster ...] section in the file
+        :param fail_on_file_absence: initialization will fail if the specified file or a default one doesn't exist
+        # --- from Stack initialization parameters:
+        :param cluster_name: the cluster name associated to a running Stack,
+        if specified the initialization will start from the running Stack
+        """
         self.sections = {}
 
         # always parse the configuration file if there, to get AWS section
@@ -45,9 +66,9 @@ class PclusterConfig(object):
 
         # init pcluster_config object, from cfn or from config_file
         if cluster_name:
-            self.__from_cfn(cluster_name)
+            self.__init_sections_from_cfn(cluster_name)
         else:
-            self.__from_file(file_sections, cluster_label, self.config_parser, fail_on_file_absence)
+            self.__init_sections_from_file(file_sections, cluster_label, self.config_parser, fail_on_file_absence)
 
         self.__validate()
 
@@ -212,7 +233,9 @@ class PclusterConfig(object):
 
         return self.region, template_url, cfn_params, tags
 
-    def __from_file(self, file_sections, cluster_label=None, config_parser=None, fail_on_file_absence=False):
+    def __init_sections_from_file(
+            self, file_sections, cluster_label=None, config_parser=None, fail_on_file_absence=False
+    ):
         for section_map in [ALIASES, GLOBAL]:
             if section_map in file_sections:
                 self.__init_section_from_file(section_map, config_parser)
@@ -249,7 +272,7 @@ class PclusterConfig(object):
         )
         self.add_section(section)
 
-    def __from_cfn(self, cluster_name):
+    def __init_sections_from_cfn(self, cluster_name):
         stack_name = get_stack_name(cluster_name)
 
         cfn_client = boto3.client("cloudformation", region_name=self.region)
