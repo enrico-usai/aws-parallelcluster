@@ -255,15 +255,15 @@ def ec2_vpc_id_validator(param_key, param_value, pcluster_config):
 
         # Check for DNS support in the VPC
         if (
-                not ec2.describe_vpc_attribute(VpcId=param_value, Attribute="enableDnsSupport")
-                    .get("EnableDnsSupport")
-                    .get("Value")
+                not ec2.describe_vpc_attribute(
+                    VpcId=param_value, Attribute="enableDnsSupport"
+                ).get("EnableDnsSupport").get("Value")
         ):
             errors.append("DNS Support is not enabled in the VPC %s" % param_value)
         if (
-                not ec2.describe_vpc_attribute(VpcId=param_value, Attribute="enableDnsHostnames")
-                    .get("EnableDnsHostnames")
-                    .get("Value")
+                not ec2.describe_vpc_attribute(
+                    VpcId=param_value, Attribute="enableDnsHostnames"
+                ).get("EnableDnsHostnames").get("Value")
         ):
             errors.append("DNS Hostnames not enabled in the VPC %s" % param_value)
 

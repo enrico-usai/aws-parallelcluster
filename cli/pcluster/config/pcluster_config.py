@@ -45,13 +45,15 @@ class PclusterConfig(object):
         NOTE: The class tries to parse the config file (the default one, if not specified) to get AWS credentials
 
         :param region: the aws region to override the one in the config file
-        # --- from file initialization parameters:
+
+        # "From file" initialization parameters:
         :param config_file: if specified the initialization of the sections will start from the file
         :param file_sections: the sections of the configuration file to parse and initialize,
         by default the init reads the configuration file to get AWS credentials.
         :param cluster_label: the label associated to a [cluster ...] section in the file
         :param fail_on_file_absence: initialization will fail if the specified file or a default one doesn't exist
-        # --- from Stack initialization parameters:
+
+        # "From Stack" initialization parameters:
         :param cluster_name: the cluster name associated to a running Stack,
         if specified the initialization will start from the running Stack
         """

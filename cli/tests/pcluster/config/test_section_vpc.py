@@ -170,17 +170,25 @@ def test_vpc_param_from_file(param_key, param_value, expected_value, expected_me
 
 
 @pytest.mark.parametrize(
-    "param_key, config_parser_dict, expected_message",
+    "param_dict, expected_message",
     [
-        ("vpc_id", {"vpc default": {"vpc_id": "wrong_value"}}, ".* has an invalid value .*"),
-        ("master_subnet_id", {"vpc default": {"master_subnet_id": "wrong_value"}}, ".* has an invalid value .*"),
-        ("ssh_from", {"vpc default": {"ssh_from": "wrong_value"}}, ".* has an invalid value .*"),
-        ("additional_sg", {"vpc default": {"additional_sg": "wrong_value"}}, ".* has an invalid value .*"),
-        ("compute_subnet_id", {"vpc default": {"compute_subnet_id": "wrong_value"}}, ".* has an invalid value .*"),
-        ("compute_subnet_cidr", {"vpc default": {"compute_subnet_cidr": "wrong_value"}}, ".* has an invalid value .*"),
-        ("use_public_ips", {"vpc default": {"use_public_ips": "wrong_value"}}, ".* must be a Boolean"),
-        ("vpc_security_group_id", {"vpc default": {"vpc_security_group_id": "wrong_value"}}, ".* has an invalid value .*"),
+        ({"vpc_id": "wrong_value"}, "Allowed values are"),
+        ({"vpc_id": "vpc-12345678"}, "does not exist"),
+        ({"master_subnet_id": "wrong_value"}, "Allowed values are"),
+        ({"ssh_from": "wrong_value"}, "Allowed values are"),
+        ({"ssh_from": "0.0.0.0/0"}, None),
+        ({"additional_sg": "wrong_value"}, "Allowed values are"),
+        ({"compute_subnet_id": "wrong_value"}, "Allowed values are"),
+        ({"compute_subnet_cidr": "wrong_value"}, "Allowed values are"),
+        ({"use_public_ips": "wrong_value"}, "must be a Boolean"),
+        ({"vpc_security_group_id": "wrong_value"}, "Allowed values are"),
     ]
 )
-def test_vpc_param_validator(param_key, config_parser_dict, expected_message):
-    utils.assert_param_validator(VPC, param_key, config_parser_dict, expected_message)
+def test_vpc_param_validator(param_dict, expected_message):
+
+    config_parser_dict = {
+        "cluster default": {"vpc_settings": "default"},
+        "vpc default": param_dict
+    }
+    utils.assert_param_validator(config_parser_dict, expected_message)
+

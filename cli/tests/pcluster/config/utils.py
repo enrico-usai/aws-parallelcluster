@@ -11,12 +11,13 @@
 
 import configparser
 import os
+import tempfile
 from configparser import NoOptionError, NoSectionError
 
 import pytest
 from assertpy import assert_that
 
-from pcluster.config.mapping import AWS, CLUSTER, GLOBAL
+from pcluster.config.mapping import AWS, CLUSTER, GLOBAL, ALIASES
 from pcluster.config.params_types import Param
 from pcluster.config.pcluster_config import PclusterConfig
 from tests.pcluster.config.defaults import DefaultDict, CFN_CONFIG_NUM_OF_PARAMS
@@ -61,18 +62,15 @@ def assert_param_from_file(section_map, param_key, param_value, expected_value, 
         assert_that(param.value, description="{0} assert fail".format(param.key)).is_equal_to(expected_value)
 
 
-def assert_param_validator(section_map, param_key, config_parser_dict, expected_message):
-    param_map, param_type = get_param_map(section_map, param_key)
-    pcluster_config = PclusterConfig(config_file="wrong-file")
-
+def assert_param_validator(config_parser_dict, expected_message):
     config_parser = configparser.ConfigParser()
     config_parser.read_dict(config_parser_dict)
 
     if expected_message:
         with pytest.raises(SystemExit, match=expected_message):
-            param_type(section_map.get("key"), "default", param_key, param_map, pcluster_config, config_parser=config_parser).validate()
+            _ = init_pcluster_config_from_configparser(config_parser)
     else:
-        param_type(section_map.get("key"), "default", param_key, param_map, pcluster_config, config_parser=config_parser).validate()
+        _ = init_pcluster_config_from_configparser(config_parser)
 
 
 def assert_section_from_cfn(section_map, cfn_params_dict, expected_section_dict):
@@ -202,3 +200,18 @@ def assert_section_params(mocker, pcluster_config_reader, settings_label, expect
 
         for param_key, param_value in cfn_params.items():
             assert_that(cfn_params.get(param_key), description=param_key).is_equal_to(expected_cfn_params.get(param_key))
+
+
+def init_pcluster_config_from_configparser(config_parser):
+    with tempfile.NamedTemporaryFile(delete=False) as config_file:
+
+        with open(config_file.name, "w") as cf:
+            config_parser.write(cf)
+
+        pcluster_config = PclusterConfig(
+            config_file=config_file.name,
+            cluster_label="default",
+            file_sections=[AWS, GLOBAL, CLUSTER, ALIASES],
+            fail_on_file_absence=True,
+        )
+    return pcluster_config
