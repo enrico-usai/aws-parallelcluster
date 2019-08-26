@@ -8,6 +8,7 @@
 # or in the "LICENSE.txt" file accompanying this file. This file is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES
 # OR CONDITIONS OF ANY KIND, express or implied. See the License for the specific language governing permissions and
 # limitations under the License.
+from enum import Enum
 
 from future.moves.collections import OrderedDict
 
@@ -52,6 +53,13 @@ from pcluster.config.validators import (
     raid_volume_iops_validator,
     url_validator,
 )
+
+
+class CommonRegex(Enum):
+    CIDR = r"^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}/(0|1[6-9]|2[0-9]|3[0-2])$"
+    SECURITY_GROUP_ID = r"^sg-[0-9a-z]{8}$|^sg-[0-9a-z]{17}$"
+    SUBNET_ID = r"^subnet-[0-9a-z]{8}$|^subnet-[0-9a-z]{17}$"
+
 
 AWS = {
     "type": Section,
@@ -100,27 +108,27 @@ VPC = {
         },
         "master_subnet_id": {
             "cfn": "MasterSubnetId",
-            "allowed_values": r"^subnet-[0-9a-z]{8}$|^subnet-[0-9a-z]{17}$",
+            "allowed_values": CommonRegex.SUBNET_ID.value,
             "validator": ec2_subnet_id_validator,
         },
         "ssh_from": {
             "default": "0.0.0.0/0",
-            "allowed_values": r"^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}/(1[6-9]|2[0-9]|3[0-2])$",
+            "allowed_values": CommonRegex.CIDR.value,
             "cfn": "AccessFrom",
         },
         "additional_sg": {
             "cfn": "AdditionalSG",
-            "allowed_values": r"^sg-[0-9a-z]{8}$|^sg-[0-9a-z]{17}$",
+            "allowed_values": CommonRegex.SECURITY_GROUP_ID.value,
             "validator": ec2_security_group_validator
         },
         "compute_subnet_id": {
             "cfn": "ComputeSubnetId",
-            "allowed_values": r"^subnet-[0-9a-z]{8}$|^subnet-[0-9a-z]{17}$",
+            "allowed_values": CommonRegex.SUBNET_ID.value,
             "validator": ec2_subnet_id_validator,
         },
         "compute_subnet_cidr": {
             "cfn": "ComputeSubnetCidr",
-            "allowed_values": r"^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}/(1[6-9]|2[0-9]|3[0-2])$",
+            "allowed_values": CommonRegex.CIDR.value,
         },
         "use_public_ips": {
             "type": BoolParam,
@@ -129,7 +137,7 @@ VPC = {
         },
         "vpc_security_group_id": {
             "cfn": "VPCSecurityGroupId",
-            "allowed_values": r"^sg-[0-9a-z]{8}$|^sg-[0-9a-z]{17}$",
+            "allowed_values": CommonRegex.SECURITY_GROUP_ID.value,
             "validator": ec2_security_group_validator
         },
     }
