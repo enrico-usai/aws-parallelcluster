@@ -261,7 +261,7 @@ class PclusterConfig(object):
         :param section_enum_item: the enum item corresponding to the section to convert
         :param config_parser: the config parser object to parse
         :param section_label: the label of the section (if there)
-        :param fail_on_absence: if true, the initilaizaiton will fail if the section doesn't exist in the file
+        :param fail_on_absence: if true, the initialization will fail if the section doesn't exist in the file
         :return:
         """
         section_type = get_section_type(section_map)

@@ -460,14 +460,6 @@ class SettingsParam(Param):
                 section = self.related_section_type(self.related_section_map, self.pcluster_config, section_label=self.value)
                 self.pcluster_config.add_section(section)
 
-    def validate(self, fail_on_error=True):
-        # validate related sections
-        if self.value:
-             for section_label in self.value.split(","):
-                  section = self.pcluster_config.get_section(self.related_section_key, section_label)
-                  section.validate(fail_on_error)
-        return
-
     def to_file(self, config_parser):
         section = self.pcluster_config.get_section(self.related_section_key, self.value)
 

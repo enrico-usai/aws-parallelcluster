@@ -62,9 +62,9 @@ def convert_to_date_mock(request, mocker):
 
 
 @pytest.fixture()
-def boto3_stubber(request, mocker):
+def awsbatch_boto3_stubber(request, mocker):
     """
-    Create a function to easily mock boto3 clients.
+    Create a function to easily mock boto3 clients created with Boto3ClientFactory.
 
     To mock a boto3 service simply pass the name of the service to mock and
     the mocked requests, where mocked_requests is an object containing the method to mock,
@@ -131,6 +131,56 @@ def awsbatchcliconfig_mock(request, mocker):
     for key, value in DEFAULT_AWSBATCHCLICONFIG_MOCK_CONFIG.items():
         setattr(mock.return_value, key, value)
     return mock
+
+
+@pytest.fixture()
+def boto3_stubber(request, mocker):
+    """
+    Create a function to easily mock boto3 clients.
+
+    To mock a boto3 service simply pass the name of the service to mock and
+    the mocked requests, where mocked_requests is an object containing the method to mock,
+    the response to return and the expected params for the boto3 method that gets called.
+
+    The function makes use of botocore.Stubber to mock the boto3 API calls.
+    Multiple boto3 services can be mocked as part of the same test.
+    """
+    __tracebackhide__ = True
+    created_stubbers = []
+    mocked_clients = {}
+
+    module_under_test = request.module.__name__.replace("test_", "").replace("tests.", "")
+    mocked_client_factory = mocker.patch(module_under_test + ".boto3", autospec=True)
+    mocked_client_factory.client.side_effect = lambda x: mocked_clients[x]
+
+    def _boto3_stubber(service, mocked_requests):
+        client = boto3.client(service)
+        stubber = Stubber(client)
+        # Save a ref to the stubber so that we can deactivate it at the end of the test.
+        created_stubbers.append(stubber)
+
+        # Attach mocked requests to the Stubber and activate it.
+        if not isinstance(mocked_requests, list):
+            mocked_requests = [mocked_requests]
+        for mocked_request in mocked_requests:
+            stubber.add_response(
+                mocked_request.method, mocked_request.response, expected_params=mocked_request.expected_params
+            )
+        stubber.activate()
+
+        # Add stubber to the collection of mocked clients. This allows to mock multiple clients.
+        # Mocking twice the same client will replace the previous one.
+        mocked_clients[service] = client
+        return client
+
+    # yield allows to return the value and then continue the execution when the test is over.
+    # Used for resources cleanup.
+    yield _boto3_stubber
+
+    # Assert that all mocked requests were consumed and deactivate all stubbers.
+    for stubber in created_stubbers:
+        stubber.assert_no_pending_responses()
+        stubber.deactivate()
 
 
 @pytest.fixture()
