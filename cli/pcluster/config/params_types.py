@@ -519,7 +519,7 @@ class SettingsParam(Param):
         self.related_section_map = param_map.get("referred_section")
         self.related_section_key = self.related_section_map.get("key")
         self.related_section_type = self.related_section_map.get("type")
-        super().__init__(
+        super(SettingsParam, self).__init__(
             section_key, section_label, param_key, param_map, pcluster_config, cfn_value, config_parser, cfn_params
         )
 
@@ -1011,10 +1011,10 @@ class EFSSection(Section):
 class ClusterSection(Section):
     def _init_params_from_cfn(self, cfn_params):
         self.label = get_cfn_param(cfn_params, "CLITemplate")
-        super()._init_params_from_cfn(cfn_params)
+        super(ClusterSection, self)._init_params_from_cfn(cfn_params)
 
     def to_cfn(self):
-        cfn_params = super().to_cfn()
+        cfn_params = super(ClusterSection, self).to_cfn()
         cfn_params.update({"CLITemplate": self.label})
         cfn_params.update({"AvailabilityZone": self.pcluster_config.get_master_avail_zone()})
         return cfn_params
