@@ -89,7 +89,7 @@ class PclusterConfig(object):
             config_file = os.path.expanduser(os.path.join("~", ".parallelcluster", "config"))
             default_config = True
 
-        self.config_file = (
+        self.config_file = str(
             config_file if config_file else os.path.expanduser(os.path.join("~", ".parallelcluster", "config"))
         )
 

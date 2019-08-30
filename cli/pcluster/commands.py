@@ -204,7 +204,7 @@ def update(args):  # noqa: C901 FIXME!!!
         cluster_label=args.cluster_template,
         fail_on_file_absence=True,
     )
-    _, cfn_params, _ = pcluster_config.to_cfn()
+    _, _, cfn_params, _ = pcluster_config.to_cfn()
 
     capabilities = ["CAPABILITY_IAM"]
 

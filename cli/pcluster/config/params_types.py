@@ -11,7 +11,6 @@
 import json
 import logging
 import re
-from json import JSONDecodeError
 
 from configparser import DuplicateSectionError, NoOptionError, NoSectionError
 
@@ -284,7 +283,7 @@ class JsonParam(Param):
                 string_value = string_value.strip()
                 if string_value != "NONE":
                     param_value = json.loads(string_value)
-        except (TypeError, JSONDecodeError) as e:
+        except (TypeError, ValueError) as e:
             error("Error parsing JSON parameter '{0}'. {1}".format(self.key), e)
 
         return param_value
