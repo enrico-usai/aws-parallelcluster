@@ -18,21 +18,432 @@ from tests.pcluster.config.defaults import DefaultDict, DefaultCfnParams
 @pytest.mark.parametrize(
     "cfn_params_dict, expected_section_dict",
     [
+        ({}, DefaultDict["cluster"].value),
         (
                 DefaultCfnParams["cluster"].value,
+                DefaultDict["cluster"].value,
+        ),
+        # awsbatch defaults
+        (
+                utils.merge_dicts(
+                    DefaultCfnParams["cluster"].value,
+                    {
+                        "Scheduler": "awsbatch",
+                    }
+                ),
                 utils.merge_dicts(
                     DefaultDict["cluster"].value,
                     {
-                        "desired_vcpus": 0,  # value coming from DesiredSize
-                        "spot_bid_percentage": 10.0,  # value coming from SpotPrice
+                        "scheduler": "awsbatch",
+                        "min_vcpus": 0,
+                        "desired_vcpus": 0,
+                        "max_vcpus": 10,
+                        "spot_bid_percentage": 0.0,
+                        # verify also not awsbatch values
+                        "initial_queue_size": 0,
+                        "max_queue_size": 10,
+                        "maintain_initial_size": False,
+                        "spot_price": 0,
                     }
                 )
         ),
-        ({}, DefaultDict["cluster"].value),
+        # awsbatch custom
+        (
+                utils.merge_dicts(
+                    DefaultCfnParams["cluster"].value,
+                    {
+                        "Scheduler": "awsbatch",
+                        "MinSize": "2",
+                        "DesiredSize": "4",
+                        "MaxSize": "8",
+                        "SpotPrice": "0.5",
+                    }
+                ),
+                utils.merge_dicts(
+                    DefaultDict["cluster"].value,
+                    {
+                        "scheduler": "awsbatch",
+                        "min_vcpus": 2,
+                        "desired_vcpus": 4,
+                        "max_vcpus": 8,
+                        "spot_bid_percentage": 0.5,
+                        # verify also not awsbatch values
+                        "initial_queue_size": 0,
+                        "max_queue_size": 10,
+                        "maintain_initial_size": False,
+                        "spot_price": 0,
+                    }
+                )
+        ),
+        # traditional scheduler custom
+        (
+                utils.merge_dicts(
+                    DefaultCfnParams["cluster"].value,
+                    {
+                        "Scheduler": "slurm",
+                        "MinSize": "2",
+                        "DesiredSize": "2",
+                        "MaxSize": "8",
+                        "SpotPrice": "10",
+                    }
+                ),
+                utils.merge_dicts(
+                    DefaultDict["cluster"].value,
+                    {
+                        "scheduler": "slurm",
+                        "initial_queue_size": 2,
+                        "max_queue_size": 8,
+                        "maintain_initial_size": True,
+                        "spot_price": 10,
+                        # verify also awsbatch values
+                        "min_vcpus": 0,
+                        "desired_vcpus": 4,
+                        "max_vcpus": 10,
+                        "spot_bid_percentage": 0.0,
+                    }
+                )
+        ),
         # TODO test all cluster parameters
     ]
 )
-def test_cluster_section_from_cfn(cfn_params_dict, expected_section_dict):
+def test_cluster_section_from_241_cfn(cfn_params_dict, expected_section_dict):
+    """Test conversion from 2.4.1 CFN input parameters."""
+    utils.assert_section_from_cfn(CLUSTER, cfn_params_dict, expected_section_dict)
+
+
+@pytest.mark.parametrize(
+    "cfn_params_dict, expected_section_dict",
+    [
+        (
+                {
+                    "AccessFrom": "0.0.0.0/0",
+                    "AdditionalCfnTemplate": "NONE",
+                    "AdditionalSG": "NONE",
+                    "AvailabilityZone": "eu-west-1a",
+                    "BaseOS": "alinux",
+                    "CLITemplate": "default",
+                    "ClusterType": "ondemand",
+                    "ComputeInstanceType": "c4.large",
+                    "ComputeRootVolumeSize": "15",
+                    "ComputeSubnetCidr": "NONE",
+                    "ComputeSubnetId": "subnet-0436191fe84fcff4c",
+                    "ComputeWaitConditionCount": "1",
+                    "CustomAMI": "NONE",
+                    "CustomAWSBatchTemplateURL": "NONE",
+                    "CustomChefCookbook": "NONE",
+                    "CustomChefRunList": "NONE",
+                    "DesiredSize": "1",
+                    "EBSEncryption": "false, false, false, false, false",
+                    "EBSKMSKeyId": "NONE, NONE, NONE, NONE, NONE",
+                    "EBSSnapshotId": "NONE, NONE, NONE, NONE, NONE",
+                    "EBSVolumeId": "NONE, NONE, NONE, NONE, NONE",
+                    "EC2IAMRoleName": "NONE",
+                    "EFSOptions": "NONE, NONE, NONE, NONE, NONE, NONE, NONE, NONE",
+                    "EncryptedEphemeral": "false",
+                    "EphemeralDir": "/scratch",
+                    "ExtraJson": "{}",
+                    "KeyName": "test",
+                    "MasterInstanceType": "c4.large",
+                    "MasterRootVolumeSize": "15",
+                    "MasterSubnetId": "subnet-03bfbc8d4e2e3a8f6",
+                    "MaxSize": "3",
+                    "MinSize": "1",
+                    "NumberOfEBSVol": "1",
+                    "Placement": "cluster",
+                    "PlacementGroup": "NONE",
+                    "PostInstallArgs": "NONE",
+                    "PostInstallScript": "NONE",
+                    "PreInstallArgs": "NONE",
+                    "PreInstallScript": "NONE",
+                    "ProxyServer": "NONE",
+                    "RAIDOptions": "NONE,NONE,NONE,NONE,NONE,NONE,NONE,NONE",
+                    "ResourcesS3Bucket": "NONE",
+                    "S3ReadResource": "NONE",
+                    "S3ReadWriteResource": "NONE",
+                    "ScaleDownIdleTime": "10",
+                    "Scheduler": "torque",
+                    "SharedDir": "/shared",
+                    "SpotPrice": "0.00",
+                    "Tenancy": "default",
+                    "UsePublicIps": "true",
+                    "VPCId": "vpc-004aabeb385513a0d",
+                    "VPCSecurityGroupId": "NONE",
+                    "VolumeIOPS": "100, 100, 100, 100, 100",
+                    "VolumeSize": "20, 20, 20, 20, 20",
+                    "VolumeType": "gp2, gp2, gp2, gp2, gp2",
+                },
+                utils.merge_dicts(
+                    DefaultDict["cluster"].value,
+                    {
+                        "key_name": "test",
+                        "scheduler": "torque",
+                        "master_instance_type": "c4.large",
+                        "master_root_volume_size": 15,
+                        "compute_instance_type": "c4.large",
+                        "compute_root_volume_size": 15,
+                        "initial_queue_size": 1,
+                        "max_queue_size": 3,
+                        "placement": "cluster",
+                        "maintain_initial_size": True,
+                    }
+                )
+        )
+    ]
+)
+def test_cluster_section_from_240_cfn(cfn_params_dict, expected_section_dict):
+    """Test conversion from 2.4.0 CFN input parameters."""
+    utils.assert_section_from_cfn(CLUSTER, cfn_params_dict, expected_section_dict)
+
+
+@pytest.mark.parametrize(
+    "cfn_params_dict, expected_section_dict",
+    [
+        # 2.3.1 CFN inputs
+        (
+                {
+                    "AccessFrom": "0.0.0.0/0",
+                    "AdditionalCfnTemplate": "NONE",
+                    "AdditionalSG": "NONE",
+                    "AvailabilityZone": "eu-west-1a",
+                    "BaseOS": "centos7",
+                    "CLITemplate": "default",
+                    "ClusterType": "ondemand",
+                    "ComputeInstanceType": "t2.micro",
+                    "ComputeRootVolumeSize": "250",
+                    "ComputeSubnetCidr": "NONE",
+                    "ComputeSubnetId": "subnet-0436191fe84fcff4c",
+                    "ComputeWaitConditionCount": "2",
+                    "CustomAMI": "NONE",
+                    "CustomAWSBatchTemplateURL": "NONE",
+                    "CustomChefCookbook": "NONE",
+                    "CustomChefRunList": "NONE",
+                    "DesiredSize": "2",
+                    "EBSEncryption": "NONE,NONE,NONE,NONE,NONE",
+                    "EBSKMSKeyId": "NONE,NONE,NONE,NONE,NONE",
+                    "EBSSnapshotId": "NONE,NONE,NONE,NONE,NONE",
+                    "EBSVolumeId": "NONE,NONE,NONE,NONE,NONE",
+                    "EC2IAMRoleName": "NONE",
+                    "EFSOptions": "NONE, NONE, NONE, NONE, NONE, NONE, NONE, NONE",
+                    "EncryptedEphemeral": "false",
+                    "EphemeralDir": "/scratch",
+                    "ExtraJson": "{}",
+                    "FSXOptions": "NONE, NONE, NONE, NONE, NONE, NONE, NONE, NONE",
+                    "KeyName": "test",
+                    "MasterInstanceType": "t2.micro",
+                    "MasterRootVolumeSize": "250",
+                    "MasterSubnetId": "subnet-03bfbc8d4e2e3a8f6",
+                    "MaxSize": "2",
+                    "MinSize": "0",
+                    "NumberOfEBSVol": "1",
+                    "Placement": "compute",
+                    "PlacementGroup": "NONE",
+                    "PostInstallArgs": "NONE",
+                    "PostInstallScript": "NONE",
+                    "PreInstallArgs": "NONE",
+                    "PreInstallScript": "NONE",
+                    "ProxyServer": "NONE",
+                    "RAIDOptions": "NONE,NONE,NONE,NONE,NONE,NONE,NONE,NONE",
+                    "ResourcesS3Bucket": "NONE",
+                    "S3ReadResource": "NONE",
+                    "S3ReadWriteResource": "NONE",
+                    "ScaleDownIdleTime": "10",
+                    "Scheduler": "slurm",
+                    "SharedDir": "/shared",
+                    "SpotPrice": "0.00",
+                    "Tenancy": "default",
+                    "UsePublicIps": "true",
+                    "VPCId": "vpc-004aabeb385513a0d",
+                    "VPCSecurityGroupId": "NONE",
+                    "VolumeIOPS": "NONE,NONE,NONE,NONE,NONE",
+                    "VolumeSize": "20,NONE,NONE,NONE,NONE",
+                    "VolumeType": "gp2,NONE,NONE,NONE,NONE",
+                },
+                utils.merge_dicts(
+                    DefaultDict["cluster"].value,
+                    {
+                        "key_name": "test",
+                        "scheduler": "slurm",
+                        "master_instance_type": "t2.micro",
+                        "master_root_volume_size": 250,
+                        "compute_instance_type": "t2.micro",
+                        "compute_root_volume_size": 250,
+                        "initial_queue_size": 2,
+                        "max_queue_size": 2,
+                        "placement": "compute",
+                        "base_os": "centos7",
+                    }
+                )
+        ),
+    ]
+)
+def test_cluster_section_from_231_cfn(cfn_params_dict, expected_section_dict):
+    """Test conversion from 2.3.1 CFN input parameters."""
+    utils.assert_section_from_cfn(CLUSTER, cfn_params_dict, expected_section_dict)
+
+
+@pytest.mark.parametrize(
+    "cfn_params_dict, expected_section_dict",
+    [
+        (
+                {
+                    "AccessFrom": "0.0.0.0/0",
+                    "AdditionalCfnTemplate": "NONE",
+                    "AdditionalSG": "NONE",
+                    "AvailabilityZone": "eu-west-1a",
+                    "BaseOS": "alinux",
+                    "CLITemplate": "default",
+                    "ClusterType": "ondemand",
+                    "ComputeInstanceType": "c4.large",
+                    "ComputeRootVolumeSize": "15",
+                    "ComputeSubnetCidr": "NONE",
+                    "ComputeSubnetId": "subnet-0436191fe84fcff4c",
+                    "ComputeWaitConditionCount": "0",
+                    "CustomAMI": "NONE",
+                    "CustomAWSBatchTemplateURL": "NONE",
+                    "CustomChefCookbook": "NONE",
+                    "CustomChefRunList": "NONE",
+                    "DesiredSize": "0",
+                    "EBSEncryption": "false, false, false, false, false",
+                    "EBSKMSKeyId": "NONE, NONE, NONE, NONE, NONE",
+                    "EBSSnapshotId": "NONE, NONE, NONE, NONE, NONE",
+                    "EBSVolumeId": "NONE, NONE, NONE, NONE, NONE",
+                    "EC2IAMRoleName": "NONE",
+                    "EFSOptions": "NONE, NONE, NONE, NONE, NONE, NONE, NONE, NONE",
+                    "EncryptedEphemeral": "false",
+                    "EphemeralDir": "/scratch",
+                    "ExtraJson": "{}",
+                    "KeyName": "test",
+                    "MasterInstanceType": "c4.large",
+                    "MasterRootVolumeSize": "15",
+                    "MasterSubnetId": "subnet-03bfbc8d4e2e3a8f6",
+                    "MaxSize": "3",
+                    "MinSize": "0",
+                    "NumberOfEBSVol": "1",
+                    "Placement": "cluster",
+                    "PlacementGroup": "NONE",
+                    "PostInstallArgs": "NONE",
+                    "PostInstallScript": "NONE",
+                    "PreInstallArgs": "NONE",
+                    "PreInstallScript": "NONE",
+                    "ProxyServer": "NONE",
+                    "RAIDOptions": "NONE,NONE,NONE,NONE,NONE,NONE,NONE,NONE",
+                    "ResourcesS3Bucket": "NONE",
+                    "S3ReadResource": "NONE",
+                    "S3ReadWriteResource": "NONE",
+                    "ScaleDownIdleTime": "10",
+                    "Scheduler": "torque",
+                    "SharedDir": "/shared",
+                    "SpotPrice": "0.00",
+                    "Tenancy": "default",
+                    "UsePublicIps": "true",
+                    "VPCId": "vpc-004aabeb385513a0d",
+                    "VPCSecurityGroupId": "NONE",
+                    "VolumeIOPS": "100, 100, 100, 100, 100",
+                    "VolumeSize": "20, 20, 20, 20, 20",
+                    "VolumeType": "gp2, gp2, gp2, gp2, gp2"
+                },
+                utils.merge_dicts(
+                    DefaultDict["cluster"].value,
+                    {
+                        "key_name": "test",
+                        "scheduler": "torque",
+                        "master_instance_type": "c4.large",
+                        "master_root_volume_size": 15,
+                        "compute_instance_type": "c4.large",
+                        "compute_root_volume_size": 15,
+                        "initial_queue_size": 0,
+                        "max_queue_size": 3,
+                        "placement": "cluster",
+                    }
+                )
+        ),
+    ]
+)
+def test_cluster_section_from_210_cfn(cfn_params_dict, expected_section_dict):
+    """Test conversion from 2.1.0 CFN input parameters."""
+    utils.assert_section_from_cfn(CLUSTER, cfn_params_dict, expected_section_dict)
+
+
+@pytest.mark.parametrize(
+    "cfn_params_dict, expected_section_dict",
+    [
+        (
+            {
+                "AccessFrom": "0.0.0.0/0",
+                "AdditionalCfnTemplate": "NONE",
+                "AdditionalSG": "NONE",
+                "AvailabilityZone": "eu-west-1a",
+                "BaseOS": "alinux",
+                "CLITemplate": "default",
+                "ClusterReadyScript": "NONE",
+                "ClusterType": "ondemand",
+                "ComputeInstanceType": "c4.large",
+                "ComputeRootVolumeSize": "15",
+                "ComputeSubnetCidr": "NONE",
+                "ComputeSubnetId": "subnet-0436191fe84fcff4c",
+                "ComputeWaitConditionCount": "2",
+                "CustomAMI": "NONE",
+                "CustomAWSBatchTemplateURL": "NONE",
+                "CustomChefCookbook": "NONE",
+                "CustomChefRunList": "NONE",
+                "DesiredSize": "0",
+                "EBSEncryption": "false, false, false, false, false",
+                "EBSKMSKeyId": "NONE, NONE, NONE, NONE, NONE",
+                "EBSSnapshotId": "NONE, NONE, NONE, NONE, NONE",
+                "EBSVolumeId": "NONE, NONE, NONE, NONE, NONE",
+                "EC2IAMRoleName": "NONE",
+                "EncryptedEphemeral": "false",
+                "EphemeralDir": "/scratch",
+                "EphemeralKMSKeyId": "NONE",
+                "ExtraJson": "{}",
+                "KeyName": "test",
+                "MasterInstanceType": "c5.large",
+                "MasterRootVolumeSize": "15",
+                "MasterSubnetId": "subnet-03bfbc8d4e2e3a8f6",
+                "MaxSize": "10",
+                "MinSize": "0",
+                "NumberOfEBSVol": "1",
+                "Placement": "cluster",
+                "PlacementGroup": "NONE",
+                "PostInstallArgs": "NONE",
+                "PostInstallScript": "NONE",
+                "PreInstallArgs": "NONE",
+                "PreInstallScript": "NONE",
+                "ProxyServer": "NONE",
+                "ResourcesS3Bucket": "NONE",
+                "S3ReadResource": "NONE",
+                "S3ReadWriteResource": "NONE",
+                "ScaleDownIdleTime": "10",
+                "Scheduler": "torque",
+                "SharedDir": "/shared",
+                "SpotPrice": "0.00",
+                "Tenancy": "default",
+                "UsePublicIps": "true",
+                "VPCId": "vpc-004aabeb385513a0d",
+                "VPCSecurityGroupId": "NONE",
+                "VolumeIOPS": "100, 100, 100, 100, 100",
+                "VolumeSize": "20, 20, 20, 20, 20",
+                "VolumeType": "gp2, gp2, gp2, gp2, gp2",
+            },
+            utils.merge_dicts(
+                DefaultDict["cluster"].value,
+                {
+                    "key_name": "test",
+                    "scheduler": "torque",
+                    "master_instance_type": "c5.large",
+                    "master_root_volume_size": 15,
+                    "compute_instance_type": "c4.large",
+                    "compute_root_volume_size": 15,
+                    "initial_queue_size": 0,
+                    "max_queue_size": 10,
+                    "placement": "cluster",
+                }
+            )
+        )
+    ]
+)
+def test_cluster_section_from_200_cfn(cfn_params_dict, expected_section_dict):
+    """Test conversion from 2.0.0 CFN input parameters."""
     utils.assert_section_from_cfn(CLUSTER, cfn_params_dict, expected_section_dict)
 
 
@@ -136,8 +547,6 @@ def test_cluster_section_to_cfn(mocker, section_dict, expected_cfn_params):
 @pytest.mark.parametrize(
     "settings_label, expected_cfn_params",
     [
-        #("wrong_label", None, "Section .* not found in the config file"), # TODO convert cluster_template in SettingsParam
-        #("test1,test2", None, "It can only contains a single .* section label"),
         ("default", DefaultCfnParams["cluster"].value),
         (
                 "custom1",
@@ -190,7 +599,7 @@ def test_cluster_section_to_cfn(mocker, section_dict, expected_cfn_params):
                     {
                         "CLITemplate": "batch",
                         "Scheduler": "awsbatch",
-                        "DesiredSize": "2",
+                        "DesiredSize": "4",
                         "MaxSize": "10",
                         "MinSize": "0",
                         "SpotPrice": "0.0",

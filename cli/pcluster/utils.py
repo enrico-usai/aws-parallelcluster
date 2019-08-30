@@ -302,7 +302,8 @@ def get_cfn_param(params, key_name):
     :param key_name: Parameter Key
     :return: ParameterValue if that parameter exists, otherwise None
     """
-    return next((i.get("ParameterValue") for i in params if i.get("ParameterKey") == key_name), "NONE")
+    param_value = next((i.get("ParameterValue") for i in params if i.get("ParameterKey") == key_name), "NONE")
+    return param_value.strip()
 
 
 def get_efs_mount_target_id(efs_fs_id, avail_zone):

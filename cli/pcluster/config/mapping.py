@@ -376,7 +376,7 @@ CLUSTER = {
         },
         "desired_vcpus": {
             "type": DesiredSizeParam,
-            "default": 2,
+            "default": 4,
             "cfn": "DesiredSize",
         },
         "max_vcpus": {
@@ -391,12 +391,12 @@ CLUSTER = {
         },
         "spot_price": {
             "type": SpotPriceParam,
-            "default": 10,  # TODO verify
+            "default": 0,
             "cfn": "SpotPrice",
         },
         "spot_bid_percentage": {
             "type": SpotBidPercentageParam,
-            "default": 0.00,
+            "default": 0.0,
             "cfn": "SpotPrice",
         },
         # Access and networking

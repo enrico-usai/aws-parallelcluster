@@ -48,9 +48,9 @@ from pcluster.config.pcluster_config import PclusterConfig
         (CLUSTER, "shared_dir", "fake_value", "fake_value"),
         (CLUSTER, "shared_dir", "test", "test"),
         # SpotPriceParam --> IntParam
-        (CLUSTER, "spot_price", "", 10),
-        (CLUSTER, "spot_price", "NONE", 10),
-        (CLUSTER, "spot_price", "wrong_value", 10),
+        (CLUSTER, "spot_price", "", 0),
+        (CLUSTER, "spot_price", "NONE", 0),
+        (CLUSTER, "spot_price", "wrong_value", 0),
         (CLUSTER, "spot_price", "10", 10),
         (CLUSTER, "spot_price", "3", 3),
         # SpotBidPercentageParam --> FloatParam
@@ -64,11 +64,14 @@ from pcluster.config.pcluster_config import PclusterConfig
     ]
 )
 def test_param_from_cfn_value(section_map, param_key, cfn_value, expected_value):
+    """Test conversion from cfn value of simple parameters, that don't depends from multiple CFN parameters."""
     param_map, param_type = get_param_map(section_map, param_key)
 
     pcluster_config = PclusterConfig(config_file="wrong-file")
 
-    param_value = param_type(section_map.get("key"), "default", param_key, param_map, pcluster_config).get_value_from_string(cfn_value)
+    param_value = param_type(
+        section_map.get("key"), "default", param_key, param_map, pcluster_config
+    ).get_value_from_string(cfn_value)
     assert_that(param_value).is_equal_to(expected_value)
 
 
@@ -92,17 +95,10 @@ def test_param_from_cfn_value(section_map, param_key, cfn_value, expected_value)
         (SCALING, "scaledown_idletime", {"ScaleDownIdleTime": "wrong_value"},  10),
         (SCALING, "scaledown_idletime", {"ScaleDownIdleTime": "10"},  10),
         (SCALING, "scaledown_idletime", {"ScaleDownIdleTime": "3"},  3),
-        # SpotBidPercentageParam --> FloatParam
-        (CLUSTER, "spot_bid_percentage", {"SpotPrice": ""}, 0.0),
-        (CLUSTER, "spot_bid_percentage", {"SpotPrice": "NONE"}, 0.0),
-        (CLUSTER, "spot_bid_percentage", {"SpotPrice": "wrong_value"}, 0.0),
-        (CLUSTER, "spot_bid_percentage", {"SpotPrice": "0.0009"}, 0.0009),
-        (CLUSTER, "spot_bid_percentage", {"SpotPrice": "0.0"}, 0.0),
-        (CLUSTER, "spot_bid_percentage", {"SpotPrice": "10"}, 10),
-        (CLUSTER, "spot_bid_percentage", {"SpotPrice": "3"}, 3),
     ]
 )
 def test_param_from_cfn(section_map, param_key, cfn_params_dict, expected_value):
+    """Test conversion of simple parameters, that don't depends from multiple CFN parameters."""
     param_map, param_type = get_param_map(section_map, param_key)
     cfn_params = []
     for cfn_key, cfn_value in cfn_params_dict.items():
@@ -113,7 +109,6 @@ def test_param_from_cfn(section_map, param_key, cfn_params_dict, expected_value)
     param = param_type(section_map.get("key"), "default", param_key, param_map, pcluster_config, cfn_params=cfn_params)
 
     assert_that(param.value, description="param key {0}".format(param_key)).is_equal_to(expected_value)
-
 
 
 

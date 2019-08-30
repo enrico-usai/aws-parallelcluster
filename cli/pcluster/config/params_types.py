@@ -174,10 +174,10 @@ class FloatParam(Param):
         param_value = self.get_default_value()
 
         try:
-            if string_value is not None:
-                if isinstance(string_value, str):
-                    string_value = string_value.strip()
-                param_value = float(string_value)
+            if string_value is not None and isinstance(string_value, str):
+                string_value = string_value.strip()
+                if string_value != "NONE":
+                    param_value = float(string_value)
         except ValueError:
             pass
 
@@ -202,10 +202,8 @@ class BoolParam(Param):
     def get_value_from_string(self, string_value):
         param_value = self.get_default_value()
 
-        if string_value is not None:
-            if isinstance(string_value, str):
-                string_value = string_value.strip()
-
+        if string_value is not None and isinstance(string_value, str):
+            string_value = string_value.strip()
             if string_value != "NONE":
                 param_value = string_value == "true"
 
@@ -245,10 +243,10 @@ class IntParam(Param):
     def get_value_from_string(self, string_value):
         param_value = self.get_default_value()
         try:
-            if string_value is not None:
-                if isinstance(string_value, str):
-                    string_value = string_value.strip()
-                param_value = int(string_value)
+            if string_value is not None and isinstance(string_value, str):
+                string_value = string_value.strip()
+                if string_value != "NONE":
+                    param_value = int(string_value)
         except ValueError:
             pass
 
@@ -271,10 +269,9 @@ class JsonParam(Param):
     def get_value_from_string(self, string_value):
         param_value = self.get_default_value()
         try:
-            if string_value:
-                if isinstance(string_value, str):
-                    string_value = string_value.strip()
-
+            # do not convert empty string
+            if string_value and isinstance(string_value, str):
+                string_value = string_value.strip()
                 if string_value != "NONE":
                     param_value = json.loads(string_value)
         except (TypeError, JSONDecodeError) as e:
@@ -318,8 +315,17 @@ class SharedDirParam(Param):
 class SpotPriceParam(IntParam):
     def _init_from_cfn(self, cfn_params, cfn_value=None):
         cfn_converter = self.map.get("cfn", None)
-        # We have both spot_price and spot_bid_percentage in the same param
-        self.value = int(float(get_cfn_param(cfn_params, cfn_converter)))
+        if cfn_converter and cfn_params:
+            if get_cfn_param(cfn_params, "Scheduler") == "awsbatch":
+                self._init_from_map()
+            else:
+                # we have the same CFN input parameters for both spot_price and spot_bid_percentage
+                # so the CFN input could be a float
+                self.value = int(float(get_cfn_param(cfn_params, cfn_converter)))
+        elif cfn_value:
+            self.value = self.get_value_from_string(cfn_value)
+        else:
+            self._init_from_map()
 
     def to_cfn(self):
         cfn_params = {}
@@ -333,6 +339,18 @@ class SpotPriceParam(IntParam):
 
 
 class SpotBidPercentageParam(FloatParam):
+    def _init_from_cfn(self, cfn_params, cfn_value=None):
+        cfn_converter = self.map.get("cfn", None)
+        if cfn_converter and cfn_params:
+            if get_cfn_param(cfn_params, "Scheduler") == "awsbatch":
+                self.value = float(get_cfn_param(cfn_params, cfn_converter))
+            else:
+                self._init_from_map()
+        elif cfn_value:
+            self.value = self.get_value_from_string(cfn_value)
+        else:
+            self._init_from_map()
+
     def to_cfn(self):
         cfn_params = {}
 
@@ -345,6 +363,26 @@ class SpotBidPercentageParam(FloatParam):
 
 
 class DesiredSizeParam(IntParam):
+    def _init_from_cfn(self, cfn_params=None, cfn_value=None):
+        cfn_converter = self.map.get("cfn", None)
+        if cfn_converter and cfn_params:
+            cfn_value = get_cfn_param(cfn_params, cfn_converter) if cfn_converter else "NONE"
+            # initialize the value from cfn or from map according to the scheduler
+            if get_cfn_param(cfn_params, "Scheduler") == "awsbatch":
+                if self.key == "initial_queue_size":
+                    self._init_from_map()
+                elif self.key == "desired_vcpus":
+                    self.value = self.get_value_from_string(cfn_value)
+            else:
+                if self.key == "initial_queue_size":
+                    self.value = self.get_value_from_string(cfn_value)
+                elif self.key == "desired_vcpus":
+                    self._init_from_map()
+        elif cfn_value:
+            self.value = self.get_value_from_string(cfn_value)
+        else:
+            self._init_from_map()
+
     def to_cfn(self):
         cfn_params = {}
 
@@ -360,6 +398,27 @@ class DesiredSizeParam(IntParam):
 
 
 class MaxSizeParam(IntParam):
+    def _init_from_cfn(self, cfn_params=None, cfn_value=None):
+
+        cfn_converter = self.map.get("cfn", None)
+        if cfn_converter and cfn_params:
+            cfn_value = get_cfn_param(cfn_params, cfn_converter) if cfn_converter else "NONE"
+            # initialize the value from cfn or from map according to the scheduler
+            if get_cfn_param(cfn_params, "Scheduler") == "awsbatch":
+                if self.key == "max_queue_size":
+                    self._init_from_map()
+                elif self.key == "max_vcpus":
+                    self.value = self.get_value_from_string(cfn_value)
+            else:
+                if self.key == "max_queue_size":
+                    self.value = self.get_value_from_string(cfn_value)
+                elif self.key == "max_vcpus":
+                    self._init_from_map()
+        elif cfn_value:
+            self.value = self.get_value_from_string(cfn_value)
+        else:
+            self._init_from_map()
+
     def to_cfn(self):
         cfn_params = {}
 
@@ -375,6 +434,23 @@ class MaxSizeParam(IntParam):
 
 
 class MaintainInitialSizeParam(BoolParam):
+    def _init_from_cfn(self, cfn_params=None, cfn_value=None):
+
+        cfn_converter = self.map.get("cfn", None)
+        if cfn_converter and cfn_params:
+            # initialize the value from cfn or from map according to the scheduler
+            if get_cfn_param(cfn_params, "Scheduler") == "awsbatch":
+                self._init_from_map()
+            else:
+                # MinSize param > 0 means that maintain_initial_size was set to true at cluster creation
+                min_size_cfn_value = get_cfn_param(cfn_params, cfn_converter) if cfn_converter else "0"
+                min_size_value = int(min_size_cfn_value) if min_size_cfn_value != "NONE" else 0
+                self.value = min_size_value > 0
+        elif cfn_value:
+            self.value = self.get_value_from_string(cfn_value)
+        else:
+            self._init_from_map()
+
     def to_cfn(self):
         cfn_params = {}
 
@@ -388,6 +464,21 @@ class MaintainInitialSizeParam(BoolParam):
 
 
 class MinSizeParam(IntParam):
+    def _init_from_cfn(self, cfn_params=None, cfn_value=None):
+
+        cfn_converter = self.map.get("cfn", None)
+        if cfn_converter and cfn_params:
+            cfn_value = get_cfn_param(cfn_params, cfn_converter) if cfn_converter else "NONE"
+            # initialize the value from cfn or from map according to the scheduler
+            if get_cfn_param(cfn_params, "Scheduler") == "awsbatch":
+                self.value = self.get_value_from_string(cfn_value)
+            else:
+                self._init_from_map()
+        elif cfn_value:
+            self.value = self.get_value_from_string(cfn_value)
+        else:
+            self._init_from_map()
+
     def to_cfn(self):
         cfn_params = {}
 
@@ -514,33 +605,34 @@ class EBSSettingsParam(SettingsParam):
             self._init_from_map()
 
     def _init_from_cfn(self, cfn_params, cfn_value=None):
-
-        num_of_ebs = int(get_cfn_param(cfn_params, "NumberOfEBSVol"))
+        # init ebs section only if there are more than one ebs (the default one)
         labels = []
-        for index in range(num_of_ebs):
-            configured_params = False
-            # TODO fixme the label if available
-            label = "{0}{1}".format(self.related_section_key, str(index + 1))
-            labels.append(label)
+        num_of_ebs = int(get_cfn_param(cfn_params, "NumberOfEBSVol"))
+        if num_of_ebs > 1:
+            for index in range(num_of_ebs):
+                configured_params = False
+                # TODO fixme the label if available
+                label = "{0}{1}".format(self.related_section_key, str(index + 1))
+                labels.append(label)
 
-            # create empty section
-            related_section_type = self.related_section_map.get("type", Section)
-            related_section = related_section_type(self.related_section_map, label)
+                # create empty section
+                related_section_type = self.related_section_map.get("type", Section)
+                related_section = related_section_type(self.related_section_map, label)
 
-            for param_key, param_map in self.related_section_map.get("params").items():
-                cfn_converter = param_map.get("cfn", None)
-                if cfn_converter:
+                for param_key, param_map in self.related_section_map.get("params").items():
+                    cfn_converter = param_map.get("cfn", None)
+                    if cfn_converter:
 
-                    param_type = param_map.get("type", Param)
-                    cfn_value = get_cfn_param(cfn_params, cfn_converter).split(",")[index]
-                    param = param_type(self.section_key, self.section_label, param_key, param_map, self.pcluster_config, cfn_value=cfn_value)
-                    related_section.add_param(param)
+                        param_type = param_map.get("type", Param)
+                        cfn_value = get_cfn_param(cfn_params, cfn_converter).split(",")[index]
+                        param = param_type(self.section_key, self.section_label, param_key, param_map, self.pcluster_config, cfn_value=cfn_value)
+                        related_section.add_param(param)
 
-                    if param.value != param_map.get("default", None):
-                        configured_params = True
+                        if param.value != param_map.get("default", None):
+                            configured_params = True
 
-            if configured_params:
-                self.pcluster_config.add_section(related_section)
+                if configured_params:
+                    self.pcluster_config.add_section(related_section)
         self.value = ",".join(labels) if labels else None
 
     def to_file(self, config_parser):
@@ -576,9 +668,9 @@ class EBSSettingsParam(SettingsParam):
         max_number_of_ebs_volumes = 5
 
         cfn_params = {}
-        number_of_ebs_volumes = len(sections)
+        number_of_ebs_sections = len(sections)
         for param_key, param_map in self.related_section_map.get("params").items():
-            if number_of_ebs_volumes == 0 and param_key == "shared_dir":
+            if number_of_ebs_sections == 0 and param_key == "shared_dir":
                 # The same CFN parameter is used for both single and multiple EBS cases
                 # if there are no ebs volumes, let the SharedDirParam populate the "SharedDir" CFN parameter.
                 continue
@@ -600,12 +692,15 @@ class EBSSettingsParam(SettingsParam):
                 # add missing items until the max, with a default param
                 param_type = param_map.get("type", Param)
                 param = param_type(self.related_section_key, "default", param_key, param_map, self.pcluster_config)
-                cfn_value_list.extend([param.to_cfn().get(cfn_converter)] * (max_number_of_ebs_volumes - number_of_ebs_volumes))
+                cfn_value_list.extend(
+                    [param.to_cfn().get(cfn_converter)] * (max_number_of_ebs_volumes - number_of_ebs_sections)
+                )
 
                 cfn_value = ",".join(cfn_value_list)
                 cfn_params.update({cfn_converter: cfn_value})
 
-        cfn_params.update({"NumberOfEBSVol": str(number_of_ebs_volumes)})
+        # We always have at least one EBS volume
+        cfn_params.update({"NumberOfEBSVol": str(max(number_of_ebs_sections, 1))})
 
         return cfn_params
 
