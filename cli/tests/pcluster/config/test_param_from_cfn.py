@@ -40,7 +40,7 @@ from tests.pcluster.config.utils import get_param_map
         # JsonParam
         (CLUSTER, "extra_json", "", {}),
         (CLUSTER, "extra_json", "NONE", {}),
-        (CLUSTER, "extra_json", "{\"test\": \"test1\"}", {"test": "test1"}),
+        (CLUSTER, "extra_json", '{"test": "test1"}', {"test": "test1"}),
         # SharedDirParam
         (CLUSTER, "shared_dir", "", "/shared"),
         (CLUSTER, "shared_dir", "NONE", "/shared"),

@@ -119,7 +119,7 @@ VPC = {
         "additional_sg": {
             "cfn": "AdditionalSG",
             "allowed_values": CommonRegex.SECURITY_GROUP_ID.value,
-            "validator": ec2_security_group_validator
+            "validator": ec2_security_group_validator,
         },
         "compute_subnet_id": {
             "cfn": "ComputeSubnetId",
@@ -138,9 +138,9 @@ VPC = {
         "vpc_security_group_id": {
             "cfn": "VPCSecurityGroupId",
             "allowed_values": CommonRegex.SECURITY_GROUP_ID.value,
-            "validator": ec2_security_group_validator
+            "validator": ec2_security_group_validator,
         },
-    }
+    },
 }
 
 EBS = {
@@ -184,7 +184,7 @@ EBS = {
             "allowed_values": r"^vol-[0-9a-z]{8}$|^vol-[0-9a-z]{17}$",
             "validator": ec2_volume_validator,
         },
-    }
+    },
 }
 
 EFS = {
@@ -193,29 +193,31 @@ EFS = {
     "label": "default",
     "cfn": "EFSOptions",
     "validator": efs_validator,
-    "params": OrderedDict({
-        "shared_dir": {},
-        "efs_fs_id": {
-            "validator": efs_id_validator,
-        },
-        "performance_mode": {
-            "default": "generalPurpose",
-            "allowed_values": ["generalPurpose", "maxIO"],
-        },
-        "efs_kms_key_id": {},
-        "provisioned_throughput": {
-            "allowed_values": r"^([0-9]{1,3}|10[0-1][0-9]|102[0-4])(\.[0-9])?$",  # 0.0 to 1024.0
-            "type": FloatParam,
-        },
-        "encrypted": {
-            "type": BoolParam,
-            "default": False,
-        },
-        "throughput_mode": {
-            "default": "bursting",
-            "allowed_values": ["provisioned", "bursting"],
-        },
-    })
+    "params": OrderedDict(
+        {
+            "shared_dir": {},
+            "efs_fs_id": {
+                "validator": efs_id_validator,
+            },
+            "performance_mode": {
+                "default": "generalPurpose",
+                "allowed_values": ["generalPurpose", "maxIO"],
+            },
+            "efs_kms_key_id": {},
+            "provisioned_throughput": {
+                "allowed_values": r"^([0-9]{1,3}|10[0-1][0-9]|102[0-4])(\.[0-9])?$",  # 0.0 to 1024.0
+                "type": FloatParam,
+            },
+            "encrypted": {
+                "type": BoolParam,
+                "default": False,
+            },
+            "throughput_mode": {
+                "default": "bursting",
+                "allowed_values": ["provisioned", "bursting"],
+            },
+        }
+    )
 }
 
 RAID = {
@@ -223,42 +225,43 @@ RAID = {
     "label": "default",
     "type": Section,
     "cfn": "RAIDOptions",
-    "params":  OrderedDict({
-        "shared_dir": {
-        },
-        "raid_type": {
-            "type": IntParam,
-            "allowed_values": [0, 1],
-        },
-        "num_of_raid_volumes": {
-            "type": IntParam,
-            "allowed_values": "^[1-5]$"
-        },
-        "volume_type": {
-            "default": "gp2",
-            "allowed_values": ["standard", "io1", "gp2", "st1", "sc1"],
-            "cfn": "VolumeType",
-        },
-        "volume_size": {
-            "type": IntParam,
-            "default": 20,
-            "cfn": "VolumeSize",
-        },
-        "volume_iops": {
-            "type": IntParam,
-            "default": 100,
-            "cfn": "VolumeIOPS",
-            "validator": raid_volume_iops_validator
-        },
-        "encrypted": {
-            "type": BoolParam,
-            "default": False,
-            "cfn": "EBSEncryption",
-        },
-        "ebs_kms_key_id": {
-            "cfn": "EBSKMSKeyId",
-        },
-    })
+    "params":  OrderedDict(
+        {
+            "shared_dir": {},
+            "raid_type": {
+                "type": IntParam,
+                "allowed_values": [0, 1],
+            },
+            "num_of_raid_volumes": {
+                "type": IntParam,
+                "allowed_values": "^[1-5]$",
+            },
+            "volume_type": {
+                "default": "gp2",
+                "allowed_values": ["standard", "io1", "gp2", "st1", "sc1"],
+                "cfn": "VolumeType",
+            },
+            "volume_size": {
+                "type": IntParam,
+                "default": 20,
+                "cfn": "VolumeSize",
+            },
+            "volume_iops": {
+                "type": IntParam,
+                "default": 100,
+                "cfn": "VolumeIOPS",
+                "validator": raid_volume_iops_validator,
+            },
+            "encrypted": {
+                "type": BoolParam,
+                "default": False,
+                "cfn": "EBSEncryption",
+            },
+            "ebs_kms_key_id": {
+                "cfn": "EBSKMSKeyId",
+            },
+        }
+    )
 }
 
 
@@ -268,24 +271,26 @@ FSX = {
     "type": Section,
     "validator": fsx_validator,
     "cfn": "FSXOptions",
-    "params": OrderedDict({
-        "shared_dir": {},
-        "fsx_fs_id": {
-            "validator": fsx_id_validator,
-        },
-        "storage_capacity": {
-            "type": IntParam,
-            "validator": fsx_storage_capacity_validator
-        },
-        "fsx_kms_key_id": {},
-        "imported_file_chunk_size": {
-            "type": IntParam,
-            "validator": fsx_imported_file_chunk_size_validator
-        },
-        "export_path": {},
-        "import_path": {},
-        "weekly_maintenance_start_time": {},
-    })
+    "params": OrderedDict(
+        {
+            "shared_dir": {},
+            "fsx_fs_id": {
+                "validator": fsx_id_validator,
+            },
+            "storage_capacity": {
+                "type": IntParam,
+                "validator": fsx_storage_capacity_validator
+            },
+            "fsx_kms_key_id": {},
+            "imported_file_chunk_size": {
+                "type": IntParam,
+                "validator": fsx_imported_file_chunk_size_validator
+            },
+            "export_path": {},
+            "import_path": {},
+            "weekly_maintenance_start_time": {},
+        }
+    )
 }
 
 CLUSTER = {
@@ -501,7 +506,7 @@ GLOBAL = {
     "key": "global",
     "params": {
         "cluster_template": {
-            #"type": SettingsParam,
+            # "type": SettingsParam,
             "default": "default",
             "referred_section": CLUSTER,
         },

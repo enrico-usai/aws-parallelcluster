@@ -19,36 +19,42 @@ from tests.pcluster.config.defaults import DefaultCfnParams, DefaultDict
     "cfn_params_dict, expected_section_dict",
     [
         ({}, DefaultDict["ebs"].value),
-        ({
-             "SharedDir": "NONE",
-             "EBSSnapshotId": "NONE",
-             "VolumeType": "NONE",
-             "VolumeSize": "NONE",
-             "VolumeIOPS": "NONE",
-             "EBSEncryption": "NONE",
-             "EBSKMSKeyId": "NONE",
-             "EBSVolumeId": "NONE",
-         }, DefaultDict["ebs"].value),
-        ({
-             "SharedDir": "/shareddir",
-             "EBSSnapshotId": "snap-id",
-             "VolumeType": "io1",
-             "VolumeSize": "30",
-             "VolumeIOPS": "200",
-             "EBSEncryption": "true",
-             "EBSKMSKeyId": "kms-key",
-             "EBSVolumeId": "ebs-id",
-         }, {
-             "shared_dir": "/shareddir",
-             "ebs_snapshot_id": "snap-id",
-             "volume_type": "io1",
-             "volume_size": 30,
-             "volume_iops": 200,
-             "encrypted": True,
-             "ebs_kms_key_id": "kms-key",
-             "ebs_volume_id": "ebs-id",
-         }),
-    ]
+        (
+            {
+                "SharedDir": "NONE",
+                "EBSSnapshotId": "NONE",
+                "VolumeType": "NONE",
+                "VolumeSize": "NONE",
+                "VolumeIOPS": "NONE",
+                "EBSEncryption": "NONE",
+                "EBSKMSKeyId": "NONE",
+                "EBSVolumeId": "NONE",
+            },
+            DefaultDict["ebs"].value,
+        ),
+        (
+            {
+                "SharedDir": "/shareddir",
+                "EBSSnapshotId": "snap-id",
+                "VolumeType": "io1",
+                "VolumeSize": "30",
+                "VolumeIOPS": "200",
+                "EBSEncryption": "true",
+                "EBSKMSKeyId": "kms-key",
+                "EBSVolumeId": "ebs-id",
+            },
+            {
+                "shared_dir": "/shareddir",
+                "ebs_snapshot_id": "snap-id",
+                "volume_type": "io1",
+                "volume_size": 30,
+                "volume_iops": 200,
+                "encrypted": True,
+                "ebs_kms_key_id": "kms-key",
+                "ebs_volume_id": "ebs-id",
+            },
+        ),
+    ],
 )
 def test_ebs_section_from_cfn(cfn_params_dict, expected_section_dict):
     utils.assert_section_from_cfn(EBS, cfn_params_dict, expected_section_dict)
@@ -64,7 +70,7 @@ def test_ebs_section_from_cfn(cfn_params_dict, expected_section_dict):
         # other values
         ({"volume_type": "io1"}, {"ebs default": {"volume_type": "io1"}}, None),
         ({"volume_size": 30}, {"ebs default": {"volume_size": "30"}}, None),
-    ]
+    ],
 )
 def test_ebs_section_to_file(section_dict, expected_config_parser_dict, expected_message):
     utils.assert_section_to_file(EBS, section_dict, expected_config_parser_dict, expected_message)
@@ -74,41 +80,41 @@ def test_ebs_section_to_file(section_dict, expected_config_parser_dict, expected
     "section_dict, expected_cfn_params",
     [
         (
-                DefaultDict["ebs"].value,
-                {
-                    "SharedDir": "NONE",
-                    "EBSSnapshotId": "NONE",
-                    "VolumeType": "gp2",
-                    "VolumeSize": "20",
-                    "VolumeIOPS": "100",
-                    "EBSEncryption": "false",
-                    "EBSKMSKeyId": "NONE",
-                    "EBSVolumeId": "NONE",
-                }
+            DefaultDict["ebs"].value,
+            {
+                "SharedDir": "NONE",
+                "EBSSnapshotId": "NONE",
+                "VolumeType": "gp2",
+                "VolumeSize": "20",
+                "VolumeIOPS": "100",
+                "EBSEncryption": "false",
+                "EBSKMSKeyId": "NONE",
+                "EBSVolumeId": "NONE",
+            },
         ),
         (
-                {
-                    "shared_dir": "test",
-                    "ebs_snapshot_id": "test",
-                    "volume_type": "test",
-                    "volume_size": 30,
-                    "volume_iops": 200,
-                    "encrypted": True,
-                    "ebs_kms_key_id": "test",
-                    "ebs_volume_id": "test",
-                },
-                {
-                    "SharedDir": "test",
-                    "EBSSnapshotId": "test",
-                    "VolumeType": "test",
-                    "VolumeSize": "30",
-                    "VolumeIOPS": "200",
-                    "EBSEncryption": "true",
-                    "EBSKMSKeyId": "test",
-                    "EBSVolumeId": "test",
-                }
+            {
+                "shared_dir": "test",
+                "ebs_snapshot_id": "test",
+                "volume_type": "test",
+                "volume_size": 30,
+                "volume_iops": 200,
+                "encrypted": True,
+                "ebs_kms_key_id": "test",
+                "ebs_volume_id": "test",
+            },
+            {
+                "SharedDir": "test",
+                "EBSSnapshotId": "test",
+                "VolumeType": "test",
+                "VolumeSize": "30",
+                "VolumeIOPS": "200",
+                "EBSEncryption": "true",
+                "EBSKMSKeyId": "test",
+                "EBSVolumeId": "test",
+            },
         ),
-    ]
+    ],
 )
 def test_ebs_section_to_cfn(section_dict, expected_cfn_params):
     utils.assert_section_to_cfn(EBS, section_dict, expected_cfn_params)
@@ -142,7 +148,7 @@ def test_ebs_section_to_cfn(section_dict, expected_cfn_params):
         ("ebs_volume_id", "NONE", None, "has an invalid value"),
         ("ebs_volume_id", "vol-12345678", "vol-12345678", None),
         ("ebs_volume_id", "vol-12345678901234567", "vol-12345678901234567", None),
-    ]
+    ],
 )
 def test_ebs_param_from_file(param_key, param_value, expected_value, expected_message):
     utils.assert_param_from_file(EBS, param_key, param_value, expected_value, expected_message)
@@ -152,38 +158,38 @@ def test_ebs_param_from_file(param_key, param_value, expected_value, expected_me
     "settings_label, expected_cfn_params",
     [
         (
-                "ebs1",
-                utils.merge_dicts(
-                    DefaultCfnParams["cluster"].value,
-                    {
-                        "NumberOfEBSVol": "1",
-                        "SharedDir": "ebs1,NONE,NONE,NONE,NONE",
-                        "VolumeType": "io1,gp2,gp2,gp2,gp2",
-                        "VolumeSize": "40,20,20,20,20",
-                        "VolumeIOPS": "200,100,100,100,100",
-                        "EBSEncryption": "true,false,false,false,false",
-                        "EBSKMSKeyId": "kms_key,NONE,NONE,NONE,NONE",
-                        "EBSVolumeId": "vol-12345678,NONE,NONE,NONE,NONE",
-                    },
-                )
+            "ebs1",
+            utils.merge_dicts(
+                DefaultCfnParams["cluster"].value,
+                {
+                    "NumberOfEBSVol": "1",
+                    "SharedDir": "ebs1,NONE,NONE,NONE,NONE",
+                    "VolumeType": "io1,gp2,gp2,gp2,gp2",
+                    "VolumeSize": "40,20,20,20,20",
+                    "VolumeIOPS": "200,100,100,100,100",
+                    "EBSEncryption": "true,false,false,false,false",
+                    "EBSKMSKeyId": "kms_key,NONE,NONE,NONE,NONE",
+                    "EBSVolumeId": "vol-12345678,NONE,NONE,NONE,NONE",
+                },
+            ),
         ),
         (
-                "ebs2",
-                utils.merge_dicts(
-                    DefaultCfnParams["cluster"].value,
-                    {
-                        "NumberOfEBSVol": "1",
-                        "SharedDir": "ebs2,NONE,NONE,NONE,NONE",
-                        "VolumeType": "standard,gp2,gp2,gp2,gp2",
-                        "VolumeSize": "30,20,20,20,20",
-                        "VolumeIOPS": "300,100,100,100,100",
-                        "EBSEncryption": "false,false,false,false,false",
-                        "EBSKMSKeyId": "NONE,NONE,NONE,NONE,NONE",
-                        "EBSVolumeId": "NONE,NONE,NONE,NONE,NONE",
-                    },
-                )
+            "ebs2",
+            utils.merge_dicts(
+                DefaultCfnParams["cluster"].value,
+                {
+                    "NumberOfEBSVol": "1",
+                    "SharedDir": "ebs2,NONE,NONE,NONE,NONE",
+                    "VolumeType": "standard,gp2,gp2,gp2,gp2",
+                    "VolumeSize": "30,20,20,20,20",
+                    "VolumeIOPS": "300,100,100,100,100",
+                    "EBSEncryption": "false,false,false,false,false",
+                    "EBSKMSKeyId": "NONE,NONE,NONE,NONE,NONE",
+                    "EBSVolumeId": "NONE,NONE,NONE,NONE,NONE",
+                },
+            ),
         ),
-    ]
+    ],
 )
 def test_ebs_params(mocker, pcluster_config_reader, settings_label, expected_cfn_params):
     """Unit tests for parsing EBS related options."""
