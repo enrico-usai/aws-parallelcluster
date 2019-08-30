@@ -15,6 +15,7 @@ import re
 from configparser import DuplicateSectionError, NoOptionError, NoSectionError
 
 from pcluster.utils import error, get_cfn_param, get_efs_mount_target_id, warn
+from future.moves.collections import OrderedDict
 
 LOGGER = logging.getLogger(__name__)
 
@@ -695,7 +696,7 @@ class EBSSettingsParam(SettingsParam):
 
     def to_cfn(self):
         """Convert a list of sections to multiple CFN params."""
-        sections = {}
+        sections = OrderedDict({})
         if self.value:
             for section_label in self.value.split(","):
                 section = self.pcluster_config.get_section(self.related_section_key, section_label.strip())

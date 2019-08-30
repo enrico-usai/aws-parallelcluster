@@ -194,29 +194,29 @@ EFS = {
     "cfn": "EFSOptions",
     "validator": efs_validator,
     "params": OrderedDict(
-        {
-            "shared_dir": {},
-            "efs_fs_id": {
+        [
+            ("shared_dir", {}),
+            ("efs_fs_id", {
                 "validator": efs_id_validator,
-            },
-            "performance_mode": {
+            }),
+            ("performance_mode", {
                 "default": "generalPurpose",
                 "allowed_values": ["generalPurpose", "maxIO"],
-            },
-            "efs_kms_key_id": {},
-            "provisioned_throughput": {
+            }),
+            ("efs_kms_key_id", {}),
+            ("provisioned_throughput", {
                 "allowed_values": r"^([0-9]{1,3}|10[0-1][0-9]|102[0-4])(\.[0-9])?$",  # 0.0 to 1024.0
                 "type": FloatParam,
-            },
-            "encrypted": {
+            }),
+            ("encrypted", {
                 "type": BoolParam,
                 "default": False,
-            },
-            "throughput_mode": {
+            }),
+            ("throughput_mode", {
                 "default": "bursting",
                 "allowed_values": ["provisioned", "bursting"],
-            },
-        }
+            }),
+        ]
     )
 }
 
@@ -226,41 +226,41 @@ RAID = {
     "type": Section,
     "cfn": "RAIDOptions",
     "params":  OrderedDict(
-        {
-            "shared_dir": {},
-            "raid_type": {
+        [
+            ("shared_dir", {}),
+            ("raid_type", {
                 "type": IntParam,
                 "allowed_values": [0, 1],
-            },
-            "num_of_raid_volumes": {
+            }),
+            ("num_of_raid_volumes", {
                 "type": IntParam,
                 "allowed_values": "^[1-5]$",
-            },
-            "volume_type": {
+            }),
+            ("volume_type", {
                 "default": "gp2",
                 "allowed_values": ["standard", "io1", "gp2", "st1", "sc1"],
                 "cfn": "VolumeType",
-            },
-            "volume_size": {
+            }),
+            ("volume_size", {
                 "type": IntParam,
                 "default": 20,
                 "cfn": "VolumeSize",
-            },
-            "volume_iops": {
+            }),
+            ("volume_iops", {
                 "type": IntParam,
                 "default": 100,
                 "cfn": "VolumeIOPS",
                 "validator": raid_volume_iops_validator,
-            },
-            "encrypted": {
+            }),
+            ("encrypted", {
                 "type": BoolParam,
                 "default": False,
                 "cfn": "EBSEncryption",
-            },
-            "ebs_kms_key_id": {
+            }),
+            ("ebs_kms_key_id", {
                 "cfn": "EBSKMSKeyId",
-            },
-        }
+            }),
+        ]
     )
 }
 
@@ -272,24 +272,24 @@ FSX = {
     "validator": fsx_validator,
     "cfn": "FSXOptions",
     "params": OrderedDict(
-        {
-            "shared_dir": {},
-            "fsx_fs_id": {
+        [
+            ("shared_dir", {}),
+            ("fsx_fs_id", {
                 "validator": fsx_id_validator,
-            },
-            "storage_capacity": {
+            }),
+            ("storage_capacity", {
                 "type": IntParam,
                 "validator": fsx_storage_capacity_validator
-            },
-            "fsx_kms_key_id": {},
-            "imported_file_chunk_size": {
+            }),
+            ("fsx_kms_key_id", {}),
+            ("imported_file_chunk_size", {
                 "type": IntParam,
                 "validator": fsx_imported_file_chunk_size_validator
-            },
-            "export_path": {},
-            "import_path": {},
-            "weekly_maintenance_start_time": {},
-        }
+            }),
+            ("export_path", {}),
+            ("import_path", {}),
+            ("weekly_maintenance_start_time", {}),
+        ]
     )
 }
 

@@ -17,6 +17,7 @@ import stat
 import boto3
 import configparser
 
+from future.moves.collections import OrderedDict
 from pcluster.config.mapping import ALIASES, AWS, CLUSTER, GLOBAL, get_section_type
 from pcluster.utils import fail, get_stack_name
 
@@ -57,7 +58,7 @@ class PclusterConfig(object):
         :param cluster_name: the cluster name associated to a running Stack,
         if specified the initialization will start from the running Stack
         """
-        self.sections = {}
+        self.sections = OrderedDict({})
 
         # always parse the configuration file if there, to get AWS section
         self._init_config_parser(config_file, fail_on_file_absence)

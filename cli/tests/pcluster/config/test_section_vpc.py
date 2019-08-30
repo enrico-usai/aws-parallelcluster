@@ -77,7 +77,7 @@ def test_vpc_section_from_cfn(cfn_params_dict, expected_section_dict):
         (
             {"vpc default": {"invalid_key": "fake_value", "invalid_key2": "fake_value"}},
             None,
-            "'invalid_key,invalid_key2' are not allowed in the .* section",
+            "'invalid_key.*,invalid_key.*' are not allowed in the .* section",  # NOTE: the order is not preserved
         ),
     ],
 )
