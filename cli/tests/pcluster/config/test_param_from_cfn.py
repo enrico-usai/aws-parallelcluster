@@ -11,10 +11,9 @@
 import pytest
 
 from assertpy import assert_that
-
 from pcluster.config.mapping import CLUSTER, SCALING
-from tests.pcluster.config.utils import get_param_map
 from pcluster.config.pcluster_config import PclusterConfig
+from tests.pcluster.config.utils import get_param_map
 
 
 @pytest.mark.parametrize(
@@ -61,7 +60,7 @@ from pcluster.config.pcluster_config import PclusterConfig
         (CLUSTER, "spot_bid_percentage", "0.0", 0.0),
         (CLUSTER, "spot_bid_percentage", "10", 10),
         (CLUSTER, "spot_bid_percentage", "3", 3),
-    ]
+    ],
 )
 def test_param_from_cfn_value(section_map, param_key, cfn_value, expected_value):
     """Test conversion from cfn value of simple parameters, that don't depends from multiple CFN parameters."""
@@ -91,11 +90,11 @@ def test_param_from_cfn_value(section_map, param_key, cfn_value, expected_value)
         (CLUSTER, "encrypted_ephemeral", {"EncryptedEphemeral": "false"}, False),
         # IntParam
         (SCALING, "scaledown_idletime", {"ScaleDownIdleTime": "10"}, 10),
-        (SCALING, "scaledown_idletime", {"ScaleDownIdleTime": "NONE"},  10),
-        (SCALING, "scaledown_idletime", {"ScaleDownIdleTime": "wrong_value"},  10),
-        (SCALING, "scaledown_idletime", {"ScaleDownIdleTime": "10"},  10),
-        (SCALING, "scaledown_idletime", {"ScaleDownIdleTime": "3"},  3),
-    ]
+        (SCALING, "scaledown_idletime", {"ScaleDownIdleTime": "NONE"}, 10),
+        (SCALING, "scaledown_idletime", {"ScaleDownIdleTime": "wrong_value"}, 10),
+        (SCALING, "scaledown_idletime", {"ScaleDownIdleTime": "10"}, 10),
+        (SCALING, "scaledown_idletime", {"ScaleDownIdleTime": "3"}, 3),
+    ],
 )
 def test_param_from_cfn(section_map, param_key, cfn_params_dict, expected_value):
     """Test conversion of simple parameters, that don't depends from multiple CFN parameters."""
@@ -109,6 +108,3 @@ def test_param_from_cfn(section_map, param_key, cfn_params_dict, expected_value)
     param = param_type(section_map.get("key"), "default", param_key, param_map, pcluster_config, cfn_params=cfn_params)
 
     assert_that(param.value, description="param key {0}".format(param_key)).is_equal_to(expected_value)
-
-
-

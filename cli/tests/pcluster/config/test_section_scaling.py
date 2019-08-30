@@ -10,10 +10,9 @@
 # limitations under the License.
 import pytest
 
-import socket
-from pcluster.config.mapping import SCALING
 import tests.pcluster.config.utils as utils
-from tests.pcluster.config.defaults import DefaultDict, DefaultCfnParams
+from pcluster.config.mapping import SCALING
+from tests.pcluster.config.defaults import DefaultCfnParams, DefaultDict
 
 
 @pytest.mark.parametrize(
@@ -23,7 +22,7 @@ from tests.pcluster.config.defaults import DefaultDict, DefaultCfnParams
         ({}, DefaultDict["scaling"].value),
         ({"ScaleDownIdleTime": "NONE"}, DefaultDict["scaling"].value),
         ({"ScaleDownIdleTime": "20"}, {"scaledown_idletime": 20}),
-    ]
+    ],
 )
 def test_scaling_section_from_cfn(cfn_params_dict, expected_section_dict):
     utils.assert_section_from_cfn(SCALING, cfn_params_dict, expected_section_dict)
@@ -39,12 +38,8 @@ def test_scaling_section_from_cfn(cfn_params_dict, expected_section_dict):
         # invalid value
         ({"scaling default": {"scaledown_idletime": "wrong_value"}}, None, "must be an Integer"),
         # invalid key
-        (
-                {"scaling default": {"invalid_key": "fake_value"}},
-                None,
-                "'invalid_key' are not allowed in the .* section",
-        ),
-    ]
+        ({"scaling default": {"invalid_key": "fake_value"}}, None, "'invalid_key' are not allowed in the .* section"),
+    ],
 )
 def test_scaling_section_from_file(config_parser_dict, expected_dict_params, expected_message):
     utils.assert_section_from_file(SCALING, config_parser_dict, expected_dict_params, expected_message)
@@ -59,7 +54,7 @@ def test_scaling_section_from_file(config_parser_dict, expected_dict_params, exp
         ({"scaledown_idletime": 10}, {"scaling default": {"scaledown_idletime": "10"}}, "No section.*"),
         # other values
         ({"scaledown_idletime": 11}, {"scaling default": {"scaledown_idletime": "11"}}, None),
-    ]
+    ],
 )
 def test_scaling_section_to_file(section_dict, expected_config_parser_dict, expected_message):
     utils.assert_section_to_file(SCALING, section_dict, expected_config_parser_dict, expected_message)
@@ -70,7 +65,7 @@ def test_scaling_section_to_file(section_dict, expected_config_parser_dict, expe
     [
         (DefaultDict["scaling"].value, DefaultCfnParams["scaling"].value),
         ({"scaledown_idletime": 20}, {"ScaleDownIdleTime": "20"}),
-    ]
+    ],
 )
 def test_scaling_section_to_cfn(section_dict, expected_cfn_params):
     utils.assert_section_to_cfn(SCALING, section_dict, expected_cfn_params)
@@ -85,8 +80,7 @@ def test_scaling_section_to_cfn(section_dict, expected_cfn_params):
         ("scaledown_idletime", "wrong_value", None, "must be an Integer"),
         ("scaledown_idletime", "10", 10, None),
         ("scaledown_idletime", "3", 3, None),
-    ]
+    ],
 )
 def test_scaling_param_from_file(param_key, param_value, expected_value, expected_message):
     utils.assert_param_from_file(SCALING, param_key, param_value, expected_value, expected_message)
-

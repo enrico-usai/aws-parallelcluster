@@ -12,7 +12,7 @@ import pytest
 
 import tests.pcluster.config.utils as utils
 from pcluster.config.mapping import EBS
-from tests.pcluster.config.defaults import DefaultDict, DefaultCfnParams
+from tests.pcluster.config.defaults import DefaultCfnParams, DefaultDict
 
 
 @pytest.mark.parametrize(

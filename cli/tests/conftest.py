@@ -8,6 +8,7 @@ from __future__ import print_function
 import boto3
 import pytest
 from botocore.stub import Stubber
+
 from jinja2 import Environment, FileSystemLoader
 
 
@@ -203,7 +204,7 @@ def pcluster_config_reader(test_datadir):
 
     def _config_renderer(**kwargs):
         config_file_path = test_datadir / config_file
-        #default_values = _get_default_template_values(vpc_stacks, region, request)
+        # default_values = _get_default_template_values(vpc_stacks, region, request)
         file_loader = FileSystemLoader(str(test_datadir))
         env = Environment(loader=file_loader)
         rendered_template = env.get_template(config_file).render(**{**kwargs})

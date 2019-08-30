@@ -8,7 +8,6 @@
 # or in the "LICENSE.txt" file accompanying this file. This file is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES
 # OR CONDITIONS OF ANY KIND, express or implied. See the License for the specific language governing permissions and
 # limitations under the License.
-import configparser
 import errno
 import inspect
 import logging
@@ -16,8 +15,9 @@ import os
 import stat
 
 import boto3
+import configparser
 
-from pcluster.config.mapping import get_section_type, AWS, CLUSTER, ALIASES, GLOBAL
+from pcluster.config.mapping import ALIASES, AWS, CLUSTER, GLOBAL, get_section_type
 from pcluster.utils import fail, get_stack_name
 
 LOGGER = logging.getLogger(__name__)
@@ -27,17 +27,17 @@ class PclusterConfig(object):
     """
     Class to manage the configuration of a cluster created (or to create) with ParallelCluster.
 
-    This class par
     This class contains a dictionary of sections associated to the given cluster
     """
+
     def __init__(
-            self,
-            region=None,
-            config_file=None,
-            file_sections=[AWS],
-            cluster_label=None,  # args.cluster_template
-            fail_on_file_absence=False,
-            cluster_name=None,
+        self,
+        region=None,
+        config_file=None,
+        file_sections=[AWS],
+        cluster_label=None,  # args.cluster_template
+        fail_on_file_absence=False,
+        cluster_name=None,
     ):
         """
         The initialization can start from file, from a CFN Stack or from the internal mapping.
@@ -236,7 +236,7 @@ class PclusterConfig(object):
         return self.region, template_url, cfn_params, tags
 
     def __init_sections_from_file(
-            self, file_sections, cluster_label=None, config_parser=None, fail_on_file_absence=False
+        self, file_sections, cluster_label=None, config_parser=None, fail_on_file_absence=False
     ):
         for section_map in [ALIASES, GLOBAL]:
             if section_map in file_sections:
@@ -281,11 +281,7 @@ class PclusterConfig(object):
         stack = cfn_client.describe_stacks(StackName=stack_name).get("Stacks")[0]
 
         section_type = get_section_type(CLUSTER)
-        section = section_type(
-            section_map=CLUSTER,
-            pcluster_config=self,
-            cfn_params=stack.get("Parameters", []),
-        )
+        section = section_type(section_map=CLUSTER, pcluster_config=self, cfn_params=stack.get("Parameters", []))
         self.add_section(section)
 
     def __validate(self):

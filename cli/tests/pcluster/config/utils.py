@@ -9,18 +9,18 @@
 # OR CONDITIONS OF ANY KIND, express or implied. See the License for the specific language governing permissions and
 # limitations under the License.
 
-import configparser
 import os
 import tempfile
+
+import configparser
+import pytest
 from configparser import NoOptionError, NoSectionError
 
-import pytest
 from assertpy import assert_that
-
-from pcluster.config.mapping import AWS, CLUSTER, GLOBAL, ALIASES
+from pcluster.config.mapping import ALIASES, AWS, CLUSTER, GLOBAL
 from pcluster.config.params_types import Param
 from pcluster.config.pcluster_config import PclusterConfig
-from tests.pcluster.config.defaults import DefaultDict, CFN_CONFIG_NUM_OF_PARAMS
+from tests.pcluster.config.defaults import CFN_CONFIG_NUM_OF_PARAMS, DefaultDict
 
 
 def get_param_map(section_map, param_key):
@@ -56,9 +56,18 @@ def assert_param_from_file(section_map, param_key, param_value, expected_value, 
 
     if expected_message:
         with pytest.raises(SystemExit, match=expected_message):
-            param_type(section_map.get("key"), section_label, param_key, param_map, pcluster_config, config_parser=config_parser)
+            param_type(
+                section_map.get("key"),
+                section_label,
+                param_key,
+                param_map,
+                pcluster_config,
+                config_parser=config_parser,
+            )
     else:
-        param = param_type(section_map.get("key"), section_label, param_key, param_map, pcluster_config, config_parser=config_parser)
+        param = param_type(
+            section_map.get("key"), section_label, param_key, param_map, pcluster_config, config_parser=config_parser
+        )
         assert_that(param.value, description="{0} assert fail".format(param.key)).is_equal_to(expected_value)
 
 
@@ -199,7 +208,9 @@ def assert_section_params(mocker, pcluster_config_reader, settings_label, expect
         assert_that(len(cfn_params)).is_equal_to(CFN_CONFIG_NUM_OF_PARAMS)
 
         for param_key, param_value in cfn_params.items():
-            assert_that(cfn_params.get(param_key), description=param_key).is_equal_to(expected_cfn_params.get(param_key))
+            assert_that(cfn_params.get(param_key), description=param_key).is_equal_to(
+                expected_cfn_params.get(param_key)
+            )
 
 
 def init_pcluster_config_from_configparser(config_parser):

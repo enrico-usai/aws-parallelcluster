@@ -13,24 +13,14 @@ from enum import Enum
 
 # ------------------ Default internal representation values ------------------ #
 
-DEFAULT_AWS_DICT = {
-    "aws_region_name": "us-east-1",
-}
+DEFAULT_AWS_DICT = {"aws_region_name": "us-east-1"}
 
-DEFAULT_GLOBAL_DICT = {
-    "cluster_template": "default",
-    "update_check": True,
-    "sanity_check": True,
-}
+DEFAULT_GLOBAL_DICT = {"cluster_template": "default", "update_check": True, "sanity_check": True}
 
-DEFAULT_ALIASES_DICT = {
-    "ssh": "ssh {CFN_USER}@{MASTER_IP} {ARGS}",
-}
+DEFAULT_ALIASES_DICT = {"ssh": "ssh {CFN_USER}@{MASTER_IP} {ARGS}"}
 
 
-DEFAULT_SCALING_DICT = {
-    "scaledown_idletime": 10,
-}
+DEFAULT_SCALING_DICT = {"scaledown_idletime": 10}
 
 DEFAULT_VPC_DICT = {
     "vpc_id": None,
@@ -72,7 +62,7 @@ DEFAULT_RAID_DICT = {
     "volume_size": 20,
     "volume_iops": 100,
     "encrypted": False,
-    "ebs_kms_key_id": None
+    "ebs_kms_key_id": None,
 }
 
 DEFAULT_FSX_DICT = {
@@ -83,7 +73,7 @@ DEFAULT_FSX_DICT = {
     "imported_file_chunk_size": None,
     "export_path": None,
     "import_path": None,
-    "weekly_maintenance_start_time": None
+    "weekly_maintenance_start_time": None,
 }
 
 DEFAULT_CLUSTER_DICT = {
@@ -132,9 +122,7 @@ DEFAULT_CLUSTER_DICT = {
     "fsx_settings": None,
 }
 
-DEFAULT_PCLUSTER_DICT = {
-    "cluster": DEFAULT_CLUSTER_DICT,
-}
+DEFAULT_PCLUSTER_DICT = {"cluster": DEFAULT_CLUSTER_DICT}
 
 
 class DefaultDict(Enum):
@@ -157,9 +145,7 @@ CFN_CONFIG_NUM_OF_PARAMS = 53
 CFN_CLI_RESERVED_PARAMS = ["ResourcesS3Bucket"]
 
 
-DEFAULT_SCALING_CFN_PARAMS = {
-    "ScaleDownIdleTime": "10",
-}
+DEFAULT_SCALING_CFN_PARAMS = {"ScaleDownIdleTime": "10"}
 
 DEFAULT_VPC_CFN_PARAMS = {
     "VPCId": "NONE",
@@ -183,17 +169,11 @@ DEFAULT_EBS_CFN_PARAMS = {
     "EBSVolumeId": "NONE,NONE,NONE,NONE,NONE",
 }
 
-DEFAULT_EFS_CFN_PARAMS = {
-    "EFSOptions": "NONE,NONE,NONE,NONE,NONE,NONE,NONE,NONE"
-}
+DEFAULT_EFS_CFN_PARAMS = {"EFSOptions": "NONE,NONE,NONE,NONE,NONE,NONE,NONE,NONE"}
 
-DEFAULT_RAID_CFN_PARAMS = {
-    "RAIDOptions": "NONE,NONE,NONE,NONE,NONE,NONE,NONE,NONE"
-}
+DEFAULT_RAID_CFN_PARAMS = {"RAIDOptions": "NONE,NONE,NONE,NONE,NONE,NONE,NONE,NONE"}
 
-DEFAULT_FSX_CFN_PARAMS = {
-    "FSXOptions": "NONE,NONE,NONE,NONE,NONE,NONE,NONE,NONE"
-}
+DEFAULT_FSX_CFN_PARAMS = {"FSXOptions": "NONE,NONE,NONE,NONE,NONE,NONE,NONE,NONE"}
 
 DEFAULT_CLUSTER_CFN_PARAMS = {
     "KeyName": "NONE",
@@ -268,4 +248,3 @@ class DefaultCfnParams(Enum):
     raid = DEFAULT_RAID_CFN_PARAMS
     fsx = DEFAULT_FSX_CFN_PARAMS
     cluster = DEFAULT_CLUSTER_CFN_PARAMS
-

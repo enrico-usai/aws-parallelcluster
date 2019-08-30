@@ -9,14 +9,12 @@
 # OR CONDITIONS OF ANY KIND, express or implied. See the License for the specific language governing permissions and
 # limitations under the License.
 import configparser
-from configparser import NoOptionError
-
 import pytest
-from assertpy import assert_that
 
-from pcluster.config.mapping import CLUSTER, EBS, EFS, FSX, SCALING, RAID, VPC
-from tests.pcluster.config.utils import get_param_map
+from assertpy import assert_that
+from pcluster.config.mapping import CLUSTER, EBS, EFS, FSX, RAID, SCALING, VPC
 from pcluster.config.pcluster_config import PclusterConfig
+from tests.pcluster.config.utils import get_param_map
 
 
 @pytest.mark.parametrize(
@@ -34,7 +32,7 @@ from pcluster.config.pcluster_config import PclusterConfig
         (SCALING, "scaledown_idletime", None, None),
         (SCALING, "scaledown_idletime", 10, None),
         (SCALING, "scaledown_idletime", 3, "3"),
-    ]
+    ],
 )
 def test_param_to_file(section_map, param_key, param_value, expected_value):
     section_label = "default"
@@ -54,5 +52,3 @@ def test_param_to_file(section_map, param_key, param_value, expected_value):
         assert_that(config_parser.get(section_name, param_key)).is_equal_to(expected_value)
     else:
         assert_that(config_parser.has_option(section_name, param_key)).is_false()
-
-

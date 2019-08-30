@@ -38,11 +38,13 @@ def cluster_validator(section_key, section_label, pcluster_config):
         if max_size < min_size:
             errors.append("max_vcpus must be greater than or equal to min_vcpus")
     else:
-        min_size = section.get_param_value("initial_queue_size") if section.get_param_value("maintain_initial_size") else 0
+        min_size = (
+            section.get_param_value("initial_queue_size") if section.get_param_value("maintain_initial_size") else 0
+        )
         desired_size = section.get_param_value("initial_queue_size")
         max_size = section.get_param_value("max_queue_size")
 
-        #if section.get_param_value_value("initial_queue_size") < min_size:
+        # if section.get_param_value_value("initial_queue_size") < min_size:
         #    errors.append("initial_queue_size must be greater than or equal to min vcpus")
 
         if desired_size > max_size:
@@ -58,7 +60,7 @@ def not_empty_validator(param_key, param_value, pcluster_config):
     errors = []
     warnings = []
 
-    if param_value is None or param_value == '':
+    if param_value is None or param_value == "":
         errors.append("'{0}' parameter must be specified".format(param_key))
     return errors, warnings
 
@@ -255,15 +257,15 @@ def ec2_vpc_id_validator(param_key, param_value, pcluster_config):
 
         # Check for DNS support in the VPC
         if (
-                not ec2.describe_vpc_attribute(
-                    VpcId=param_value, Attribute="enableDnsSupport"
-                ).get("EnableDnsSupport").get("Value")
+            not ec2.describe_vpc_attribute(VpcId=param_value, Attribute="enableDnsSupport")
+            .get("EnableDnsSupport")
+            .get("Value")
         ):
             errors.append("DNS Support is not enabled in the VPC %s" % param_value)
         if (
-                not ec2.describe_vpc_attribute(
-                    VpcId=param_value, Attribute="enableDnsHostnames"
-                ).get("EnableDnsHostnames").get("Value")
+            not ec2.describe_vpc_attribute(VpcId=param_value, Attribute="enableDnsHostnames")
+            .get("EnableDnsHostnames")
+            .get("Value")
         ):
             errors.append("DNS Hostnames not enabled in the VPC %s" % param_value)
 
@@ -308,9 +310,11 @@ def efs_id_validator(param_key, param_value, pcluster_config):
             in_access = False
             out_access = False
             # Get list of security group IDs of the mount target
-            sg_ids = boto3.client("efs").describe_mount_target_security_groups(
-                MountTargetId=mount_target_id
-            ).get("SecurityGroups")
+            sg_ids = (
+                boto3.client("efs")
+                .describe_mount_target_security_groups(MountTargetId=mount_target_id)
+                .get("SecurityGroups")
+            )
             for sg in boto3.client("ec2").describe_security_groups(GroupIds=sg_ids).get("SecurityGroups"):
                 # Check all inbound rules
                 in_rules = sg.get("IpPermissions")
@@ -331,8 +335,8 @@ def efs_id_validator(param_key, param_value, pcluster_config):
                     "There is an existing Mount Target %s in the Availability Zone %s for EFS %s, "
                     "but it does not have a security group that allows inbound and outbound rules to support NFS. "
                     "Please modify the Mount Target's security group, to allow traffic on port 2049."
-                    % (mount_target_id, master_avail_zone, param_value),
-                    )
+                    % (mount_target_id, master_avail_zone, param_value)
+                )
     except ClientError as e:
         errors.append(e.response.get("Error").get("Message"))
 
@@ -406,19 +410,19 @@ def fsx_id_validator(param_key, param_value, pcluster_config):
         if fs.get("VpcId") != vpc_id:
             errors.append(
                 "Currently only support using FSx file system that is in the same VPC as the stack. "
-                "The file system provided is in %s" % fs.get("VpcId"),
+                "The file system provided is in %s" % fs.get("VpcId")
             )
         # If there is an existing mt in the az, need to check the inbound and outbound rules of the security groups
         network_interface_ids = fs.get("NetworkInterfaceIds")
-        network_interface_responses = ec2.describe_network_interfaces(
-            NetworkInterfaceIds=network_interface_ids
-        ).get("NetworkInterfaces")
+        network_interface_responses = ec2.describe_network_interfaces(NetworkInterfaceIds=network_interface_ids).get(
+            "NetworkInterfaces"
+        )
         network_interfaces = [i for i in network_interface_responses if i.get("VpcId") == vpc_id]
         if not _check_nfs_access(ec2, network_interfaces):
             errors.append(
                 "The current security group settings on file system %s does not satisfy "
                 "mounting requirement. The file system must be associated to a security group that allows "
-                "inbound and outbound TCP traffic through port 988." % param_value,
+                "inbound and outbound TCP traffic through port 988." % param_value
             )
     except ClientError as e:
         errors.append(e.response.get("Error").get("Message"))
@@ -606,17 +610,17 @@ def efa_validator(param_key, param_value, pcluster_config):
             for rule in in_rules:
                 # UserIdGroupPairs is always of length 1, so grabbing 0th object is ok
                 if (
-                        rule.get("IpProtocol") == "-1"
-                        and len(rule.get("UserIdGroupPairs")) > 0
-                        and rule.get("UserIdGroupPairs")[0].get("GroupId") == vpc_security_group_id
+                    rule.get("IpProtocol") == "-1"
+                    and len(rule.get("UserIdGroupPairs")) > 0
+                    and rule.get("UserIdGroupPairs")[0].get("GroupId") == vpc_security_group_id
                 ):
                     allowed_in = True
                     break
             for rule in out_rules:
                 if (
-                        rule.get("IpProtocol") == "-1"
-                        and len(rule.get("UserIdGroupPairs")) > 0
-                        and rule.get("UserIdGroupPairs")[0].get("GroupId") == vpc_security_group_id
+                    rule.get("IpProtocol") == "-1"
+                    and len(rule.get("UserIdGroupPairs")) > 0
+                    and rule.get("UserIdGroupPairs")[0].get("GroupId") == vpc_security_group_id
                 ):
                     allowed_out = True
                     break
@@ -632,4 +636,3 @@ def efa_validator(param_key, param_value, pcluster_config):
             errors.append(e.response.get("Error").get("Message"))
 
     return errors, warnings
-

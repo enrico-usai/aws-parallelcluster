@@ -11,8 +11,9 @@
 import json
 import logging
 import re
-from configparser import DuplicateSectionError, NoOptionError, NoSectionError
 from json import JSONDecodeError
+
+from configparser import DuplicateSectionError, NoOptionError, NoSectionError
 
 from pcluster.utils import error, get_cfn_param, get_efs_mount_target_id, warn
 
@@ -26,8 +27,17 @@ LOGGER = logging.getLogger(__name__)
 
 
 class Param(object):
-
-    def __init__(self, section_key, section_label, param_key, param_map, pcluster_config, cfn_value=None, config_parser=None, cfn_params=None):
+    def __init__(
+        self,
+        section_key,
+        section_label,
+        param_key,
+        param_map,
+        pcluster_config,
+        cfn_value=None,
+        config_parser=None,
+        cfn_params=None,
+    ):
         self.section_key = section_key
         self.section_label = section_label
         self.key = param_key
@@ -93,14 +103,14 @@ class Param(object):
                 if self.value not in allowed_values:
                     error(
                         "The configuration parameter '{0}' has an invalid value '{1}'\n"
-                        "Allowed values are: {2}".format(self.key, self.value, allowed_values),
+                        "Allowed values are: {2}".format(self.key, self.value, allowed_values)
                     )
             else:
                 # convert to regex
                 if not re.compile(allowed_values).match(str(self.value)):
                     error(
                         "The configuration parameter '{0}' has an invalid value '{1}'\n"
-                        "Allowed values are: {2}".format(self.key, self.value, allowed_values),
+                        "Allowed values are: {2}".format(self.key, self.value, allowed_values)
                     )
 
     def validate(self, fail_on_error=True):
@@ -296,6 +306,7 @@ class SharedDirParam(Param):
     from the "shared" parameter of the cluster section (e.g. SharedDir = /shared)
     and the "shared" parameter of the ebs sections (e.g. SharedDir = /shared1,/shared2,NONE,NONE,NONE).
     """
+
     def to_cfn(self):
         cfn_params = {}
         # if contains ebs_settings --> single SharedDir
@@ -494,11 +505,23 @@ class MinSizeParam(IntParam):
 
 
 class SettingsParam(Param):
-    def __init__(self, section_key, section_label, param_key, param_map, pcluster_config, cfn_value=None, config_parser=None, cfn_params=None):
+    def __init__(
+        self,
+        section_key,
+        section_label,
+        param_key,
+        param_map,
+        pcluster_config,
+        cfn_value=None,
+        config_parser=None,
+        cfn_params=None,
+    ):
         self.related_section_map = param_map.get("referred_section")
         self.related_section_key = self.related_section_map.get("key")
         self.related_section_type = self.related_section_map.get("type")
-        super().__init__(section_key, section_label, param_key, param_map, pcluster_config, cfn_value, config_parser, cfn_params)
+        super().__init__(
+            section_key, section_label, param_key, param_map, pcluster_config, cfn_value, config_parser, cfn_params
+        )
 
     def _init_from_file(self, config_parser):
         """
@@ -514,14 +537,16 @@ class SettingsParam(Param):
                 if "," in self.value:
                     error(
                         "The value of '{0}' parameter is invalid. "
-                        "It can only contains a single {1} section label.".format(
-                            self.key, self.related_section_key
-                        )
+                        "It can only contains a single {1} section label.".format(self.key, self.related_section_key)
                     )
                 else:
                     # Calls the "from_file" of the Section
                     section = self.related_section_type(
-                        self.related_section_map, self.pcluster_config, section_label=self.value, config_parser=config_parser, fail_on_absence=True
+                        self.related_section_map,
+                        self.pcluster_config,
+                        section_label=self.value,
+                        config_parser=config_parser,
+                        fail_on_absence=True,
                     )
                     self.pcluster_config.add_section(section)
         except NoOptionError:
@@ -530,7 +555,9 @@ class SettingsParam(Param):
     def _init_from_cfn(self, cfn_params, cfn_value=None):
         # TODO Use the label if available
         self.value = self.map.get("default", None)
-        section = self.related_section_type(self.related_section_map, self.pcluster_config, section_label=self.value, cfn_params=cfn_params)
+        section = self.related_section_type(
+            self.related_section_map, self.pcluster_config, section_label=self.value, cfn_params=cfn_params
+        )
         self.pcluster_config.add_section(section)
 
     def _init_from_map(self):
@@ -543,12 +570,12 @@ class SettingsParam(Param):
             if "," in self.value:
                 error(
                     "The default value of '{0}' parameter is invalid. "
-                    "It can only contains a single {1} section label.".format(
-                        self.key, self.related_section_key
-                    )
+                    "It can only contains a single {1} section label.".format(self.key, self.related_section_key)
                 )
             else:
-                section = self.related_section_type(self.related_section_map, self.pcluster_config, section_label=self.value)
+                section = self.related_section_type(
+                    self.related_section_map, self.pcluster_config, section_label=self.value
+                )
                 self.pcluster_config.add_section(section)
 
     def to_file(self, config_parser):
@@ -584,7 +611,6 @@ class SettingsParam(Param):
 
 
 class EBSSettingsParam(SettingsParam):
-
     def _init_from_file(self, config_parser):
         """
         Initialize param_value from config_parser.
@@ -598,7 +624,11 @@ class EBSSettingsParam(SettingsParam):
             if self.value:
                 for section_label in self.value.split(","):
                     section = self.related_section_type(
-                        self.related_section_map, self.pcluster_config, section_label=section_label.strip(), config_parser=config_parser, fail_on_absence=True
+                        self.related_section_map,
+                        self.pcluster_config,
+                        section_label=section_label.strip(),
+                        config_parser=config_parser,
+                        fail_on_absence=True,
                     )
                     self.pcluster_config.add_section(section)
         except NoOptionError:
@@ -625,7 +655,14 @@ class EBSSettingsParam(SettingsParam):
 
                         param_type = param_map.get("type", Param)
                         cfn_value = get_cfn_param(cfn_params, cfn_converter).split(",")[index]
-                        param = param_type(self.section_key, self.section_label, param_key, param_map, self.pcluster_config, cfn_value=cfn_value)
+                        param = param_type(
+                            self.section_key,
+                            self.section_label,
+                            param_key,
+                            param_map,
+                            self.pcluster_config,
+                            cfn_value=cfn_value,
+                        )
                         related_section.add_param(param)
 
                         if param.value != param_map.get("default", None):
@@ -710,9 +747,14 @@ class EBSSettingsParam(SettingsParam):
 
 
 class Section(object):
-
     def __init__(
-            self, section_map, pcluster_config, section_label=None, cfn_params=None, config_parser=None, fail_on_absence=False
+        self,
+        section_map,
+        pcluster_config,
+        section_label=None,
+        cfn_params=None,
+        config_parser=None,
+        fail_on_absence=False,
     ):
         self.map = section_map
         self.key = section_map.get("key")
@@ -750,10 +792,19 @@ class Section(object):
             for param_key, param_map in section_map_items.items():
                 param_type = param_map.get("type", Param)
 
-                param = param_type(self.key, self.label, param_key, param_map, pcluster_config=self.pcluster_config, config_parser=config_parser)
+                param = param_type(
+                    self.key,
+                    self.label,
+                    param_key,
+                    param_map,
+                    pcluster_config=self.pcluster_config,
+                    config_parser=config_parser,
+                )
                 self.add_param(param)
 
-                not_valid_keys = [key for key, value in config_parser.items(section_name) if key not in section_map_items]
+                not_valid_keys = [
+                    key for key, value in config_parser.items(section_name) if key not in section_map_items
+                ]
                 if not_valid_keys:
                     error(
                         "The configuration parameters '{0}' are not allowed in the [{1}] section".format(
@@ -780,14 +831,18 @@ class Section(object):
                     cfn_value = "NONE"
 
                 param_type = param_map.get("type", Param)
-                param = param_type(self.key, self.label, param_key, param_map, self.pcluster_config, cfn_value=cfn_value)
+                param = param_type(
+                    self.key, self.label, param_key, param_map, self.pcluster_config, cfn_value=cfn_value
+                )
 
                 self.add_param(param)
                 cfn_param_index += 1
         else:
             for param_key, param_map in self.map.get("params").items():
                 param_type = param_map.get("type", Param)
-                param = param_type(self.key, self.label, param_key, param_map, self.pcluster_config, cfn_params=cfn_params)
+                param = param_type(
+                    self.key, self.label, param_key, param_map, self.pcluster_config, cfn_params=cfn_params
+                )
                 self.add_param(param)
 
     def _init_params_from_map(self):
@@ -806,8 +861,8 @@ class Section(object):
                 errors, warnings = validation_func(self.key, self.label, self.pcluster_config)
                 if errors:
                     error(
-                        "The section [{0}] is wrongly configured\n"
-                        "{1}".format(section_name, "\n".join(errors)), fail_on_error,
+                        "The section [{0}] is wrongly configured\n" "{1}".format(section_name, "\n".join(errors)),
+                        fail_on_error,
                     )
                 elif warnings:
                     warn("The section [{0}] is wrongly configured\n{1}".format(section_name, "\n".join(warnings)))
@@ -921,7 +976,6 @@ class Section(object):
 
 
 class EFSSection(Section):
-
     def to_cfn(self):
 
         cfn_params = {}
@@ -955,7 +1009,6 @@ class EFSSection(Section):
 
 
 class ClusterSection(Section):
-
     def _init_params_from_cfn(self, cfn_params):
         self.label = get_cfn_param(cfn_params, "CLITemplate")
         super()._init_params_from_cfn(cfn_params)
@@ -973,4 +1026,3 @@ class SectionNotFoundError(Exception):
 
 def _get_file_section_name(section_key, section_label=None):
     return section_key + (" {0}".format(section_label) if section_label else "")
-

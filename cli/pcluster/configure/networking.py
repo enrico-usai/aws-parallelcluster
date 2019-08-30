@@ -8,6 +8,8 @@
 # or in the 'LICENSE.txt' file accompanying this file. This file is distributed on an 'AS IS' BASIS, WITHOUT WARRANTIES
 # OR CONDITIONS OF ANY KIND, express or implied. See the License for the specific language governing permissions and
 # limitations under the License.
+from future.backports import datetime
+
 import abc
 import logging
 import sys
@@ -15,11 +17,10 @@ from enum import Enum
 
 import boto3
 import pkg_resources
-from future.backports import datetime
 
+from pcluster.configure.subnet_computation import evaluate_cidr, get_subnet_cidr
 from pcluster.configure.utils import handle_client_exception
 from pcluster.networking.vpc_factory import VpcFactory
-from pcluster.configure.subnet_computation import evaluate_cidr, get_subnet_cidr
 from pcluster.utils import get_stack_output_value, get_templates_bucket_path, verify_stack_creation
 
 DEFAULT_AWS_REGION_NAME = "us-east-1"
@@ -205,9 +206,7 @@ def _get_vpc_cidr(vpc_id):
 
 @handle_client_exception
 def _get_internet_gateway_id(vpc_id):
-    response = ec2_conn().describe_internet_gateways(
-        Filters=[{"Name": "attachment.vpc-id", "Values": [vpc_id]}]
-    )
+    response = ec2_conn().describe_internet_gateways(Filters=[{"Name": "attachment.vpc-id", "Values": [vpc_id]}])
     return response["InternetGateways"][0]["InternetGatewayId"] if response["InternetGateways"] else ""
 
 

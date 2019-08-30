@@ -12,12 +12,11 @@
 import json
 import os
 
-from assertpy import assert_that
-
 import tests.pcluster.config.utils as utils
-from pcluster.config.mapping import SECTIONS, AWS, GLOBAL, CLUSTER, ALIASES
+from assertpy import assert_that
+from pcluster.config.mapping import ALIASES, AWS, CLUSTER, GLOBAL, SECTIONS
 from pcluster.config.pcluster_config import PclusterConfig
-from tests.pcluster.config.defaults import CFN_CONFIG_NUM_OF_PARAMS, CFN_CLI_RESERVED_PARAMS, DefaultCfnParams
+from tests.pcluster.config.defaults import CFN_CLI_RESERVED_PARAMS, CFN_CONFIG_NUM_OF_PARAMS, DefaultCfnParams
 
 
 def test_mapping_consistency():
@@ -53,8 +52,8 @@ def test_example_config_consistency(mocker):
 
     assert_that(len(cfn_params)).is_equal_to(CFN_CONFIG_NUM_OF_PARAMS)
 
-    #for param_key, param_value in expected_cfn_params.items():
-       # assert_that(cfn_params.get(param_key)).is_equal_to(expected_cfn_params.get(param_key))
+    # for param_key, param_value in expected_cfn_params.items():
+    # assert_that(cfn_params.get(param_key)).is_equal_to(expected_cfn_params.get(param_key))
 
 
 def test_defaults_consistency():

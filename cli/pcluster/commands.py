@@ -31,7 +31,7 @@ from botocore.exceptions import ClientError
 from tabulate import tabulate
 
 import pcluster.utils as utils
-from pcluster.config.mapping import ALIASES, AWS, GLOBAL, CLUSTER
+from pcluster.config.mapping import ALIASES, AWS, CLUSTER, GLOBAL
 from pcluster.config.pcluster_config import PclusterConfig
 
 if sys.version_info[0] >= 3:
@@ -295,7 +295,9 @@ def start(args):
         # Set asg limits
         max_queue_size = cluster_section.get_param_value("max_queue_size")
         min_desired_size = (
-            cluster_section.get_param_value("initial_queue_size") if cluster_section.get_param_value("maintain_initial_size") else 0
+            cluster_section.get_param_value("initial_queue_size")
+            if cluster_section.get_param_value("maintain_initial_size")
+            else 0
         )
         desired_queue_size = min_desired_size
         min_queue_size = min_desired_size
@@ -378,7 +380,7 @@ def list_stacks(args):
                 pcluster_version = get_version(stack)
                 result.append(
                     [
-                        stack.get("StackName")[len(utils.PCLUSTER_STACK_PREFIX):],  # noqa: E203
+                        stack.get("StackName")[len(utils.PCLUSTER_STACK_PREFIX) :],  # noqa: E203
                         colorize(stack.get("StackStatus"), args),
                         pcluster_version,
                     ]
@@ -898,7 +900,7 @@ def create_ami(args):
             config_file=args.config_file,
             file_sections=[AWS, GLOBAL, CLUSTER],
             fail_on_file_absence=True,
-            #cluster_label="default",
+            # cluster_label="default",
         )
 
         vpc_section = pcluster_config.get_section("vpc")
@@ -932,7 +934,7 @@ def create_ami(args):
             template_url = _get_default_template_url(aws_region)
 
         tmp_dir = mkdtemp()
-        cookbook_dir = _get_cookbook_dir(aws_region, template_url , args, tmp_dir)
+        cookbook_dir = _get_cookbook_dir(aws_region, template_url, args, tmp_dir)
 
         packer_command = (
             cookbook_dir
@@ -958,8 +960,6 @@ def _get_default_template_url(region):
     return (
         "https://s3.{REGION}.amazonaws.com{SUFFIX}/{REGION}-aws-parallelcluster/templates/"
         "aws-parallelcluster-{VERSION}.cfn.json".format(
-            REGION=region,
-            SUFFIX=".cn" if region.startswith("cn") else "",
-            VERSION=utils.get_installed_version()
+            REGION=region, SUFFIX=".cn" if region.startswith("cn") else "", VERSION=utils.get_installed_version()
         )
     )

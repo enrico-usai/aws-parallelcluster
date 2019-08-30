@@ -5,9 +5,9 @@ import pytest
 from configparser import ConfigParser
 
 from assertpy import assert_that
+from pcluster.config.pcluster_config import PclusterConfig
 from pcluster.configure.easyconfig import configure
 from pcluster.configure.networking import NetworkConfiguration
-from pcluster.config.pcluster_config import PclusterConfig
 
 EASYCONFIG = "pcluster.configure.easyconfig."
 NETWORKING = "pcluster.configure.networking."
@@ -235,7 +235,9 @@ def test_no_automation_no_awsbatch_no_errors(mocker, capsys, test_datadir):
         compute_instance="t2.micro",
         key="key1",
     )
-    input_composer.add_no_automation_no_empty_vpc(vpc_id="vpc-12345678", master_id="subnet-12345678", compute_id="subnet-23456789")
+    input_composer.add_no_automation_no_empty_vpc(
+        vpc_id="vpc-12345678", master_id="subnet-12345678", compute_id="subnet-23456789"
+    )
     input_composer.finalize_config(mocker)
 
     _verify_test(mocker, capsys, output, error, config, TEMP_PATH_FOR_CONFIG)
@@ -249,7 +251,9 @@ def test_no_automation_yes_awsbatch_no_errors(mocker, capsys, test_datadir):
     input_composer.add_first_flow(
         op_sys=None, min_size="13", max_size="14", master_instance="t2.nano", compute_instance=None, key="key1"
     )
-    input_composer.add_no_automation_no_empty_vpc(vpc_id="vpc-12345678", master_id="subnet-12345678", compute_id="subnet-23456789")
+    input_composer.add_no_automation_no_empty_vpc(
+        vpc_id="vpc-12345678", master_id="subnet-12345678", compute_id="subnet-23456789"
+    )
     input_composer.finalize_config(mocker)
 
     _verify_test(mocker, capsys, output, error, config, TEMP_PATH_FOR_CONFIG)
@@ -560,4 +564,3 @@ def test_prompt_a_list_of_tuple(mocker):
             mocker, vpc_id="vpc-34567891", master_id="subnet-45678912", compute_id="subnet-45678912"
         )
     ).is_true()
-

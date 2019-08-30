@@ -10,9 +10,9 @@
 # limitations under the License.
 import pytest
 
-from pcluster.config.mapping import CLUSTER
 import tests.pcluster.config.utils as utils
-from tests.pcluster.config.defaults import DefaultDict, DefaultCfnParams
+from pcluster.config.mapping import CLUSTER
+from tests.pcluster.config.defaults import DefaultCfnParams, DefaultDict
 
 
 @pytest.mark.parametrize(

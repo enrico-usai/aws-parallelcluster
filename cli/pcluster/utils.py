@@ -321,9 +321,12 @@ def get_efs_mount_target_id(efs_fs_id, avail_zone):
         for mount_target in mount_targets.get("MountTargets"):
             # Check to see if there is an existing mt in the az of the stack
             mount_target_subnet = mount_target.get("SubnetId")
-            mount_target_avail_zone = boto3.client("ec2").describe_subnets(
-                SubnetIds=[mount_target_subnet]
-            ).get("Subnets")[0].get("AvailabilityZone")
+            mount_target_avail_zone = (
+                boto3.client("ec2")
+                .describe_subnets(SubnetIds=[mount_target_subnet])
+                .get("Subnets")[0]
+                .get("AvailabilityZone")
+            )
 
             if avail_zone == mount_target_avail_zone:
                 mount_target_id = mount_target.get("MountTargetId")

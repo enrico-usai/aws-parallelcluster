@@ -165,15 +165,15 @@ Examples::
         "-p",
         "--extra-parameters",
         type=json.loads,
-        help='Adds extra parameters to pass as input to the CloudFormation template.\n'
-             'They must be in the form: {"ParameterKey1": "ParameterValue1", "ParameterKey2": "ParameterValue2"}',
+        help="Adds extra parameters to pass as input to the CloudFormation template.\n"
+        'They must be in the form: {"ParameterKey1": "ParameterValue1", "ParameterKey2": "ParameterValue2"}',
     )
     pcreate.add_argument(
         "-g",
         "--tags",
         type=json.loads,
-        help='Specifies additional tags to be added to the stack.\n'
-             'They must be in the form: {"Key1": "Value1", "Key2": "Value2"}'
+        help="Specifies additional tags to be added to the stack.\n"
+        'They must be in the form: {"Key1": "Value1", "Key2": "Value2"}',
     )
     pcreate.set_defaults(func=create)
 
@@ -202,8 +202,8 @@ Examples::
     pupdate.add_argument(
         "-p",
         "--extra-parameters",
-        help='Adds extra parameters to pass as input to the CloudFormation template.\n'
-             'They must be in the form: {"ParameterKey1": "ParameterValue1", "ParameterKey2": "ParameterValue2"}'
+        help="Adds extra parameters to pass as input to the CloudFormation template.\n"
+        'They must be in the form: {"ParameterKey1": "ParameterValue1", "ParameterKey2": "ParameterValue2"}',
     )
     pupdate.add_argument(
         "-rd",
@@ -406,9 +406,9 @@ def main():
     except KeyboardInterrupt:
         LOGGER.info("Exiting...")
         sys.exit(1)
-    #except Exception as e:
-    #    LOGGER.error("Unexpected error of type %s: %s", type(e).__name__, e)
-    #    sys.exit(1)
+    except Exception as e:
+        LOGGER.error("Unexpected error of type %s: %s", type(e).__name__, e)
+        sys.exit(1)
 
 
 if __name__ == "__main__":

@@ -8,9 +8,9 @@
 # or in the "LICENSE.txt" file accompanying this file. This file is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES
 # OR CONDITIONS OF ANY KIND, express or implied. See the License for the specific language governing permissions and
 # limitations under the License.
-from enum import Enum
-
 from future.moves.collections import OrderedDict
+
+from enum import Enum
 
 from pcluster.config.params_types import (
     BoolParam,
@@ -43,14 +43,14 @@ from pcluster.config.validators import (
     efa_validator,
     efs_id_validator,
     efs_validator,
-    fsx_validator,
     fsx_id_validator,
     fsx_imported_file_chunk_size_validator,
     fsx_storage_capacity_validator,
+    fsx_validator,
     iam_role_validator,
     placement_group_validator,
-    scheduler_validator,
     raid_volume_iops_validator,
+    scheduler_validator,
     url_validator,
 )
 

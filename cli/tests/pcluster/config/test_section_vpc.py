@@ -10,9 +10,9 @@
 # limitations under the License.
 import pytest
 
-from pcluster.config.mapping import VPC
 import tests.pcluster.config.utils as utils
-from tests.pcluster.config.defaults import DefaultDict, DefaultCfnParams
+from pcluster.config.mapping import VPC
+from tests.pcluster.config.defaults import DefaultCfnParams, DefaultDict
 
 
 @pytest.mark.parametrize(
@@ -20,37 +20,42 @@ from tests.pcluster.config.defaults import DefaultDict, DefaultCfnParams
     [
         (DefaultCfnParams["vpc"].value, DefaultDict["vpc"].value),
         ({}, DefaultDict["vpc"].value),
-        ({
-             "VPCId": "NONE",
-             "MasterSubnetId": "NONE",
-             "AccessFrom": "NONE",
-             "AdditionalSG": "NONE",
-             "ComputeSubnetId": "NONE",
-             "ComputeSubnetCidr": "NONE",
-             "UsePublicIps": "true",
-             "VPCSecurityGroupId": "NONE",
-         },
-         DefaultDict["vpc"].value),
-        ({
-             "VPCId": "vpc-12345678",
-             "MasterSubnetId": "subnet-12345678",
-             "AccessFrom": "1.1.1.1/32",
-             "AdditionalSG": "sg-12345678",
-             "ComputeSubnetId": "subnet-12345678",
-             "ComputeSubnetCidr": "1.1.1.1/32",
-             "UsePublicIps": "false",
-             "VPCSecurityGroupId": "sg-12345678",
-         }, {
-             "vpc_id": "vpc-12345678",
-             "master_subnet_id": "subnet-12345678",
-             "ssh_from": "1.1.1.1/32",
-             "additional_sg": "sg-12345678",
-             "compute_subnet_id": "subnet-12345678",
-             "compute_subnet_cidr": "1.1.1.1/32",
-             "use_public_ips": False,
-             "vpc_security_group_id": "sg-12345678",
-         }),
-    ]
+        (
+            {
+                "VPCId": "NONE",
+                "MasterSubnetId": "NONE",
+                "AccessFrom": "NONE",
+                "AdditionalSG": "NONE",
+                "ComputeSubnetId": "NONE",
+                "ComputeSubnetCidr": "NONE",
+                "UsePublicIps": "true",
+                "VPCSecurityGroupId": "NONE",
+            },
+            DefaultDict["vpc"].value,
+        ),
+        (
+            {
+                "VPCId": "vpc-12345678",
+                "MasterSubnetId": "subnet-12345678",
+                "AccessFrom": "1.1.1.1/32",
+                "AdditionalSG": "sg-12345678",
+                "ComputeSubnetId": "subnet-12345678",
+                "ComputeSubnetCidr": "1.1.1.1/32",
+                "UsePublicIps": "false",
+                "VPCSecurityGroupId": "sg-12345678",
+            },
+            {
+                "vpc_id": "vpc-12345678",
+                "master_subnet_id": "subnet-12345678",
+                "ssh_from": "1.1.1.1/32",
+                "additional_sg": "sg-12345678",
+                "compute_subnet_id": "subnet-12345678",
+                "compute_subnet_cidr": "1.1.1.1/32",
+                "use_public_ips": False,
+                "vpc_security_group_id": "sg-12345678",
+            },
+        ),
+    ],
 )
 def test_vpc_section_from_cfn(cfn_params_dict, expected_section_dict):
     utils.assert_section_from_cfn(VPC, cfn_params_dict, expected_section_dict)
@@ -68,17 +73,13 @@ def test_vpc_section_from_cfn(cfn_params_dict, expected_section_dict):
         ({"vpc default": {"vpc_id": "wrong_value"}}, None, "has an invalid value"),
         ({"vpc default": {"ssh_from": "wrong_value"}}, None, "has an invalid value"),
         # invalid key
+        ({"vpc default": {"invalid_key": "fake_value"}}, None, "'invalid_key' are not allowed in the .* section"),
         (
-                {"vpc default": {"invalid_key": "fake_value"}},
-                None,
-                "'invalid_key' are not allowed in the .* section",
+            {"vpc default": {"invalid_key": "fake_value", "invalid_key2": "fake_value"}},
+            None,
+            "'invalid_key,invalid_key2' are not allowed in the .* section",
         ),
-        (
-                {"vpc default": {"invalid_key": "fake_value", "invalid_key2": "fake_value"}},
-                None,
-                "'invalid_key,invalid_key2' are not allowed in the .* section",
-        ),
-    ]
+    ],
 )
 def test_vpc_section_from_file(config_parser_dict, expected_dict_params, expected_message):
     utils.assert_section_from_file(VPC, config_parser_dict, expected_dict_params, expected_message)
@@ -94,7 +95,7 @@ def test_vpc_section_from_file(config_parser_dict, expected_dict_params, expecte
         # other values
         (VPC, {"ssh_from": "1.1.1.1/32"}, {"vpc default": {"ssh_from": "1.1.1.1/32"}}, None),
         (VPC, {"additional_sg": "sg-12345678"}, {"vpc default": {"additional_sg": "sg-12345678"}}, None),
-    ]
+    ],
 )
 def test_vpc_section_to_file(section_map, section_dict, expected_config_parser_dict, expected_message):
     utils.assert_section_to_file(VPC, section_dict, expected_config_parser_dict, expected_message)
@@ -105,28 +106,28 @@ def test_vpc_section_to_file(section_map, section_dict, expected_config_parser_d
     [
         (DefaultDict["vpc"].value, DefaultCfnParams["vpc"].value),
         (
-                {
-                    "vpc_id": "test",
-                    "master_subnet_id": "test",
-                    "ssh_from": "test",
-                    "additional_sg": "test",
-                    "compute_subnet_id": "test",
-                    "compute_subnet_cidr": "test",
-                    "use_public_ips": False,
-                    "vpc_security_group_id": "test",
-                },
-                {
-                    "VPCId": "test",
-                    "MasterSubnetId": "test",
-                    "AccessFrom": "test",
-                    "AdditionalSG": "test",
-                    "ComputeSubnetId": "test",
-                    "ComputeSubnetCidr": "test",
-                    "UsePublicIps": "false",
-                    "VPCSecurityGroupId": "test"
-                },
-        )
-    ]
+            {
+                "vpc_id": "test",
+                "master_subnet_id": "test",
+                "ssh_from": "test",
+                "additional_sg": "test",
+                "compute_subnet_id": "test",
+                "compute_subnet_cidr": "test",
+                "use_public_ips": False,
+                "vpc_security_group_id": "test",
+            },
+            {
+                "VPCId": "test",
+                "MasterSubnetId": "test",
+                "AccessFrom": "test",
+                "AdditionalSG": "test",
+                "ComputeSubnetId": "test",
+                "ComputeSubnetCidr": "test",
+                "UsePublicIps": "false",
+                "VPCSecurityGroupId": "test",
+            },
+        ),
+    ],
 )
 def test_vpc_section_to_cfn(section_dict, expected_cfn_params):
     utils.assert_section_to_cfn(VPC, section_dict, expected_cfn_params)
@@ -163,7 +164,7 @@ def test_vpc_section_to_cfn(section_dict, expected_cfn_params):
         ("compute_subnet_id", "subnet-12345678", "subnet-12345678", None),
         ("compute_subnet_id", "subnet-12345678901234567", "subnet-12345678901234567", None),
         # TODO add all the parameters
-    ]
+    ],
 )
 def test_vpc_param_from_file(param_key, param_value, expected_value, expected_message):
     utils.assert_param_from_file(VPC, param_key, param_value, expected_value, expected_message)

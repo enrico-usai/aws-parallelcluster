@@ -8,11 +8,9 @@
 # or in the "LICENSE.txt" file accompanying this file. This file is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES
 # OR CONDITIONS OF ANY KIND, express or implied. See the License for the specific language governing permissions and
 # limitations under the License.
-import configparser
-
 import pytest
-from assertpy import assert_that
 
+from assertpy import assert_that
 from pcluster.config.mapping import CLUSTER, SCALING
 from pcluster.config.pcluster_config import PclusterConfig
 from tests.pcluster.config.utils import get_param_map
@@ -42,7 +40,7 @@ from tests.pcluster.config.utils import get_param_map
         # SharedDirParam
         (CLUSTER, "shared_dir", "test", "test"),
         (CLUSTER, "shared_dir", None, "/shared"),
-    ]
+    ],
 )
 def test_param_to_cfn_value(section_map, param_key, param_value, expected_value):
     pcluster_config = PclusterConfig(config_file="wrong-file")
@@ -71,9 +69,9 @@ def test_param_to_cfn_value(section_map, param_key, param_value, expected_value)
         (SCALING, "scaledown_idletime", 3, {"ScaleDownIdleTime": "3"}),
         # SharedDirParam
         (CLUSTER, "shared_dir", "test", {"SharedDir": "test"}),
-        #(CLUSTER, "shared_dir", {"ebs": [], "shared_dir": "test"}, {"SharedDir": "test"}),
-        #(CLUSTER, "shared_dir", {"ebs": [{"label": "fake_ebs"}], "shared_dir": "unused_value"}, {}),
-    ]
+        # (CLUSTER, "shared_dir", {"ebs": [], "shared_dir": "test"}, {"SharedDir": "test"}),
+        # (CLUSTER, "shared_dir", {"ebs": [{"label": "fake_ebs"}], "shared_dir": "unused_value"}, {}),
+    ],
 )
 def test_param_to_cfn(section_map, param_key, param_value, expected_cfn_params):
     pcluster_config = PclusterConfig(config_file="wrong-file")
@@ -83,28 +81,3 @@ def test_param_to_cfn(section_map, param_key, param_value, expected_cfn_params):
     param.value = param_value
     cfn_params = param.to_cfn()
     assert_that(cfn_params).is_equal_to(expected_cfn_params)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
