@@ -574,9 +574,9 @@ def _get_param_value(params, key_name):
 
 def command(args, extra_args):  # noqa: C901 FIXME!!!
     stack = utils.get_stack_name(args.cluster_name)
-    pcluster_config = PclusterConfig(config_file=args.config_file, file_sections=[AWS, ALIASES])
+    pcluster_config = PclusterConfig(file_sections=[AWS, ALIASES])
 
-    if args.command in pcluster_config.get_section("aliases"):
+    if args.command in pcluster_config.get_section("aliases").params:
         config_command = pcluster_config.get_section("aliases").get_param_value(args.command)
     else:
         config_command = "ssh {CFN_USER}@{MASTER_IP} {ARGS}"

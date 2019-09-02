@@ -769,14 +769,11 @@ class Section(object):
             try:
                 self._init_params_from_file(config_parser)
             except SectionNotFoundError:
+                section_name = _get_file_section_name(self.key, self.label)
                 if fail_on_absence:
-                    error("Section '[{0}]' not found in the config file.")
+                    error("Section '[{0}]' not found in the config file.".format(section_name))
                 else:
-                    LOGGER.info(
-                        "Section '[{0}]' not found in the config file. Using defaults.".format(
-                            _get_file_section_name(self.key, self.label)
-                        )
-                    )
+                    LOGGER.info("Section '[{0}]' not found in the config file. Using defaults.".format(section_name))
                     self._init_params_from_map()
         else:
             self._init_params_from_map()
@@ -807,8 +804,11 @@ class Section(object):
                 ]
                 if not_valid_keys:
                     error(
-                        "The configuration parameters '{0}' are not allowed in the [{1}] section".format(
-                            ",".join(not_valid_keys), section_name
+                        "The configuration parameter{0} '{1}' {2} not allowed in the [{3}] section".format(
+                            "s" if len(not_valid_keys) > 1 else "",
+                            ",".join(not_valid_keys),
+                            "are" if len(not_valid_keys) > 1 else "is",
+                            section_name,
                         )
                     )
         else:
