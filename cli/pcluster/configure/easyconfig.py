@@ -15,7 +15,6 @@ import logging
 from future import standard_library
 
 from pcluster.config.mapping import AWS, GLOBAL, CLUSTER, ALIASES
-from pcluster.config.params_types import Section
 from pcluster.config.pcluster_config import PclusterConfig
 from pcluster.configure.networking import (
     NetworkConfiguration,
@@ -160,10 +159,9 @@ def configure(args):
 
     # Update configuration values according to user's choices
     pcluster_config.region = aws_region_name
-    #cluster_items = CLUSTER.get("params")
+
     cluster_section.label = cluster_label
     for param_key, param_value in cluster_parameters.items():
-        #param_map = cluster_items.get(param_key)
         param = cluster_section.get_param(param_key)
         param.value = param.get_value_from_string(param_value)
 

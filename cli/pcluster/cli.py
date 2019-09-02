@@ -392,6 +392,10 @@ def main():
     LOGGER.debug(args)
 
     try:
+        # set region in the environment to make it available to all the boto3 calls
+        if args.region:
+            os.environ["AWS_DEFAULT_REGION"] = args.region
+
         if args.func.__name__ == "command":
             args.func(args, extra_args)
         else:

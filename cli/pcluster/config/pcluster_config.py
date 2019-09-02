@@ -33,7 +33,6 @@ class PclusterConfig(object):
 
     def __init__(
         self,
-        region=None,
         config_file=None,
         file_sections=[AWS],
         cluster_label=None,  # args.cluster_template
@@ -44,8 +43,6 @@ class PclusterConfig(object):
         The initialization can start from file, from a CFN Stack or from the internal mapping.
 
         NOTE: The class tries to parse the config file (the default one, if not specified) to get AWS credentials
-
-        :param region: the aws region to override the one in the config file
 
         # "From file" initialization parameters:
         :param config_file: if specified the initialization of the sections will start from the file
@@ -64,7 +61,7 @@ class PclusterConfig(object):
         self._init_config_parser(config_file, fail_on_file_absence)
         # init AWS section
         self.__init_section_from_file(AWS, self.config_parser)
-        self.__init_region(region)
+        self.__init_region()
         self.__init_aws_credentials()
 
         # init pcluster_config object, from cfn or from config_file
@@ -166,9 +163,7 @@ class PclusterConfig(object):
         self.sections[section.key][section.label if section.label else "default"] = section
 
     def __init_aws_credentials(self):
-        """Set credentials in th environment to be available for all the boto3 calls."""
-        os.environ["AWS_DEFAULT_REGION"] = self.region
-
+        """Set credentials in the environment to be available for all the boto3 calls."""
         # Init credentials by checking if they have been provided in config
         try:
             aws_section = self.get_section("aws")
@@ -184,18 +179,17 @@ class PclusterConfig(object):
             # we rely on the AWS CLI configuration or already set env variable
             pass
 
-    def __init_region(self, region=None):
+    def __init_region(self):
         """
-        Evaluate region to use.
+        Evaluate region to use and set in the environment to be available for all the boto3 calls.
 
-        Order is 1) explicit request 2) AWS_DEFAULT_REGION env 3) Config file 4) default coming from mapping
+        Order is 1) AWS_DEFAULT_REGION env 2) Config file 3) default from mapping
         """
-        if region:
-            self.region = region
-        elif os.environ.get("AWS_DEFAULT_REGION"):
+        if os.environ.get("AWS_DEFAULT_REGION"):
             self.region = os.environ.get("AWS_DEFAULT_REGION")
         else:
             self.region = self.get_section("aws").get_param_value("aws_region_name")
+            os.environ["AWS_DEFAULT_REGION"] = self.region
 
     def to_file(self):
         """
@@ -226,15 +220,9 @@ class PclusterConfig(object):
         """
         Convert the internal representation of the cluster to a list of CFN parameters.
 
-        :return: the region, the template_url,
-                 the list of cfn parameters associated with the given configuration and the tags
+        :return: a dict containing the cfn parameters associated with the cluster configuration
         """
-        cluster_section = self.get_section("cluster")
-        cfn_params = cluster_section.to_cfn()
-        template_url = cluster_section.get_param_value("template_url")
-        tags = cluster_section.get_param_value("tags")
-
-        return self.region, template_url, cfn_params, tags
+        return self.get_section("cluster").to_cfn()
 
     def __init_sections_from_file(
         self, file_sections, cluster_label=None, config_parser=None, fail_on_file_absence=False

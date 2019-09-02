@@ -68,13 +68,16 @@ def create(args):  # noqa: C901 FIXME!!!
 
     # Build the config based on args
     pcluster_config = PclusterConfig(
-        region=args.region,
         config_file=args.config_file,
         file_sections=[AWS, GLOBAL, CLUSTER],
         cluster_label=args.cluster_template,
         fail_on_file_absence=True,
     )
-    region, cfn_template_url, cfn_params, cfn_tags = pcluster_config.to_cfn()
+    # get CFN parameters, template url and tags from config
+    cluster_section = pcluster_config.get_section("cluster")
+    cfn_template_url = cluster_section.get_param_value("template_url")
+    cfn_tags = cluster_section.get_param_value("tags")
+    cfn_params = pcluster_config.to_cfn()
 
     capabilities = ["CAPABILITY_IAM"]
     batch_temporary_bucket = None
@@ -98,7 +101,7 @@ def create(args):  # noqa: C901 FIXME!!!
         if args.template_url:
             template_url = args.template_url
         else:
-            template_url = cfn_template_url if cfn_template_url else _get_default_template_url(region)
+            template_url = cfn_template_url if cfn_template_url else _get_default_template_url(pcluster_config.region)
 
         # prepare tags by adding the pcluster version and merging tags defined in command-line and configuration file
         tags = []
@@ -198,18 +201,14 @@ def update(args):  # noqa: C901 FIXME!!!
     LOGGER.info("Updating: %s", args.cluster_name)
     stack_name = utils.get_stack_name(args.cluster_name)
     pcluster_config = PclusterConfig(
-        region=args.region,
         config_file=args.config_file,
         file_sections=[AWS, GLOBAL, CLUSTER],
         cluster_label=args.cluster_template,
         fail_on_file_absence=True,
     )
-    _, _, cfn_params, _ = pcluster_config.to_cfn()
-
-    capabilities = ["CAPABILITY_IAM"]
+    cfn_params = pcluster_config.to_cfn()
 
     cfn = boto3.client("cloudformation")
-
     if cfn_params.get("Scheduler") != "awsbatch":
         asg = boto3.client("autoscaling")
 
@@ -251,6 +250,7 @@ def update(args):  # noqa: C901 FIXME!!!
 
         cfn_params = [{"ParameterKey": key, "ParameterValue": value} for key, value in cfn_params.items()]
         LOGGER.info("Calling update_stack")
+        capabilities = ["CAPABILITY_IAM"]
         cfn.update_stack(
             StackName=stack_name, UsePreviousTemplate=True, Parameters=cfn_params, Capabilities=capabilities
         )
@@ -279,7 +279,7 @@ def update(args):  # noqa: C901 FIXME!!!
 def start(args):
     # Set resource limits on compute fleet or awsbatch CE to min/max/desired = 0/max/0
     stack_name = utils.get_stack_name(args.cluster_name)
-    pcluster_config = PclusterConfig(region=args.region, config_file=args.config_file, cluster_name=args.cluster_name)
+    pcluster_config = PclusterConfig(config_file=args.config_file, cluster_name=args.cluster_name)
     cluster_section = pcluster_config.get_section("cluster")
 
     if cluster_section.get_param_value("scheduler") == "awsbatch":
@@ -309,7 +309,7 @@ def start(args):
 def stop(args):
     # Set resource limits on compute fleet or awsbatch ce to min/max/desired = 0/0/0
     stack_name = utils.get_stack_name(args.cluster_name)
-    pcluster_config = PclusterConfig(region=args.region, config_file=args.config_file, cluster_name=args.cluster_name)
+    pcluster_config = PclusterConfig(config_file=args.config_file, cluster_name=args.cluster_name)
     cluster_section = pcluster_config.get_section("cluster")
 
     if cluster_section.get_param_value("scheduler") == "awsbatch":
@@ -369,7 +369,7 @@ def colorize(stack_status, args):
 
 def list_stacks(args):
     # Parse configuration file to read the AWS section
-    _ = PclusterConfig(region=args.region, config_file=args.config_file)
+    _ = PclusterConfig(config_file=args.config_file)
 
     cfn = boto3.client("cloudformation")
     try:
@@ -520,7 +520,7 @@ def stop_batch_ce(ce_name):
 
 def instances(args):
     stack_name = utils.get_stack_name(args.cluster_name)
-    pcluster_config = PclusterConfig(region=args.region, config_file=args.config_file, cluster_name=args.cluster_name)
+    pcluster_config = PclusterConfig(config_file=args.config_file, cluster_name=args.cluster_name)
     cluster_section = pcluster_config.get_section("cluster")
 
     instances = []
@@ -639,7 +639,7 @@ def status(args):  # noqa: C901 FIXME!!!
     stack_name = utils.get_stack_name(args.cluster_name)
 
     # Parse configuration file to read the AWS section
-    _ = PclusterConfig(region=args.region, config_file=args.config_file)
+    _ = PclusterConfig(config_file=args.config_file)
 
     cfn = boto3.client("cloudformation")
     try:
@@ -700,7 +700,7 @@ def delete(args):
     stack = utils.get_stack_name(args.cluster_name)
 
     # Parse configuration file to read the AWS section
-    _ = PclusterConfig(region=args.region, config_file=args.config_file)
+    _ = PclusterConfig(config_file=args.config_file)
 
     cfn = boto3.client("cloudformation")
     try:
@@ -896,7 +896,6 @@ def create_ami(args):
     try:
         # FIXME it doesn't work if there is no a default section
         pcluster_config = PclusterConfig(
-            region=args.region,
             config_file=args.config_file,
             file_sections=[AWS, GLOBAL, CLUSTER],
             fail_on_file_absence=True,

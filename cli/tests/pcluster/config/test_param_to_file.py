@@ -32,6 +32,15 @@ from tests.pcluster.config.utils import get_param_map
         (SCALING, "scaledown_idletime", None, None),
         (SCALING, "scaledown_idletime", 10, None),
         (SCALING, "scaledown_idletime", 3, "3"),
+        # JsonParam
+        (CLUSTER, "extra_json", None, None),
+        (CLUSTER, "extra_json", {}, {}),
+        (
+                CLUSTER,
+                "extra_json",
+                {"cluster": {"cfn_scheduler_slots": "cores"}},
+                "{'cluster': {'cfn_scheduler_slots': 'cores'}}",
+        ),
     ],
 )
 def test_param_to_file(section_map, param_key, param_value, expected_value):

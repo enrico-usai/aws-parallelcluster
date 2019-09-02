@@ -18,7 +18,7 @@ from configparser import NoOptionError, NoSectionError
 
 from assertpy import assert_that
 from pcluster.config.mapping import ALIASES, AWS, CLUSTER, GLOBAL
-from pcluster.config.params_types import Param
+from pcluster.config.param_types import Param
 from pcluster.config.pcluster_config import PclusterConfig
 from tests.pcluster.config.defaults import CFN_CONFIG_NUM_OF_PARAMS, DefaultDict
 
@@ -203,7 +203,7 @@ def assert_section_params(mocker, pcluster_config_reader, settings_label, expect
         )
 
         pcluster_config.get_master_avail_zone = mocker.MagicMock(return_value="mocked_avail_zone")
-        _, _, cfn_params, _ = pcluster_config.to_cfn()
+        cfn_params = pcluster_config.to_cfn()
 
         assert_that(len(cfn_params)).is_equal_to(CFN_CONFIG_NUM_OF_PARAMS)
 

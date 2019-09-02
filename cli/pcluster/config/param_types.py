@@ -263,7 +263,7 @@ class IntParam(Param):
         return param_value
 
 
-class JsonParam(Param):
+class JsonParam(Param):  # FIXME verify extra json in python 2.7
     def _init_from_file(self, config_parser):
         """
         Initialize param_value from config_parser.

@@ -48,7 +48,7 @@ def test_example_config_consistency(mocker):
     )
 
     pcluster_config.get_master_avail_zone = mocker.MagicMock(return_value="mocked_avail_zone")
-    _, _, cfn_params, _ = pcluster_config.to_cfn()
+    cfn_params = pcluster_config.to_cfn()
 
     assert_that(len(cfn_params)).is_equal_to(CFN_CONFIG_NUM_OF_PARAMS)
 

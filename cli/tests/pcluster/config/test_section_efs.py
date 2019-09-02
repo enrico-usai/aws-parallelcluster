@@ -119,7 +119,7 @@ def test_efs_param_from_file(param_key, param_value, expected_value, expected_me
     ],
 )
 def test_efs_section_to_cfn(mocker, section_dict, expected_cfn_params):
-    mocker.patch("pcluster.config.params_types.get_efs_mount_target_id", return_value="valid_mount_target_id")
+    mocker.patch("pcluster.config.param_types.get_efs_mount_target_id", return_value="valid_mount_target_id")
     mocker.patch(
         "pcluster.config.pcluster_config.PclusterConfig.get_master_avail_zone", return_value="mocked_avail_zone"
     )
@@ -156,5 +156,5 @@ def test_efs_section_to_cfn(mocker, section_dict, expected_cfn_params):
 )
 def test_efs_params(mocker, pcluster_config_reader, settings_label, expected_cfn_params):
     """Unit tests for parsing EFS related options."""
-    mocker.patch("pcluster.config.params_types.get_efs_mount_target_id", return_value="mount_target_id")
+    mocker.patch("pcluster.config.param_types.get_efs_mount_target_id", return_value="mount_target_id")
     utils.assert_section_params(mocker, pcluster_config_reader, settings_label, expected_cfn_params)

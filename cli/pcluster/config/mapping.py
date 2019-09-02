@@ -12,7 +12,7 @@ from future.moves.collections import OrderedDict
 
 from enum import Enum
 
-from pcluster.config.params_types import (
+from pcluster.config.param_types import (
     BoolParam,
     ClusterSection,
     DesiredSizeParam,

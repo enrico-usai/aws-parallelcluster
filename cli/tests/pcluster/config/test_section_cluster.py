@@ -530,7 +530,7 @@ def test_cluster_section_to_file(section_map, section_dict, expected_config_pars
     "section_dict, expected_cfn_params", [(DefaultDict["cluster"].value, DefaultCfnParams["cluster"].value)]
 )
 def test_cluster_section_to_cfn(mocker, section_dict, expected_cfn_params):
-    mocker.patch("pcluster.config.params_types.get_efs_mount_target_id", return_value="valid_mount_target_id")
+    mocker.patch("pcluster.config.param_types.get_efs_mount_target_id", return_value="valid_mount_target_id")
     mocker.patch(
         "pcluster.config.pcluster_config.PclusterConfig.get_master_avail_zone", return_value="mocked_avail_zone"
     )
@@ -698,7 +698,7 @@ def test_cluster_section_to_cfn(mocker, section_dict, expected_cfn_params):
 )
 def test_cluster_params(mocker, pcluster_config_reader, settings_label, expected_cfn_params):
     """Unit tests for parsing Cluster related options."""
-    mocker.patch("pcluster.config.params_types.get_efs_mount_target_id", return_value="mount_target_id")
+    mocker.patch("pcluster.config.param_types.get_efs_mount_target_id", return_value="mount_target_id")
     mocker.patch(
         "pcluster.config.validators.get_supported_features",
         return_value={"instances": ["t2.large"], "baseos": ["ubuntu1404"], "schedulers": ["slurm"]},
