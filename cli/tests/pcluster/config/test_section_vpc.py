@@ -73,7 +73,7 @@ def test_vpc_section_from_cfn(cfn_params_dict, expected_section_dict):
         ({"vpc default": {"vpc_id": "wrong_value"}}, None, "has an invalid value"),
         ({"vpc default": {"ssh_from": "wrong_value"}}, None, "has an invalid value"),
         # invalid key
-        ({"vpc default": {"invalid_key": "fake_value"}}, None, "'invalid_key' are not allowed in the .* section"),
+        ({"vpc default": {"invalid_key": "fake_value"}}, None, "'invalid_key' is not allowed in the .* section"),
         (
             {"vpc default": {"invalid_key": "fake_value", "invalid_key2": "fake_value"}},
             None,

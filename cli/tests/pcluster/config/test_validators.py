@@ -59,7 +59,7 @@ def test_ec2_vpc_id_validator(boto3_stubber):
     )
     boto3_stubber("ec2", mocked_requests)
 
-    # TODO mock and test an invalid vpc-id
+    # TODO mock and test invalid vpc-id
     for vpc_id, expected_message in [("vpc-12345678", None)]:
         config_parser_dict = {"cluster default": {"vpc_settings": "default"}, "vpc default": {"vpc_id": vpc_id}}
         utils.assert_param_validator(config_parser_dict, expected_message)

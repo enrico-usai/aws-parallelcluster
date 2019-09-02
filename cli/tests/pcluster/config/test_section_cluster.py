@@ -458,7 +458,7 @@ def test_cluster_section_from_200_cfn(cfn_params_dict, expected_section_dict):
         # invalid value
         ({"cluster default": {"base_os": "wrong_value"}}, None, "has an invalid value"),
         # invalid key
-        ({"cluster default": {"invalid_key": "fake_value"}}, None, "'invalid_key' are not allowed in the .* section"),
+        ({"cluster default": {"invalid_key": "fake_value"}}, None, "'invalid_key' is not allowed in the .* section"),
         (
             {"cluster default": {"invalid_key": "fake_value", "invalid_key2": "fake_value"}},
             None,

@@ -64,7 +64,7 @@ def test_fsx_section_from_cfn(cfn_params_dict, expected_section_dict):
         # invalid value
         ({"fsx default": {"storage_capacity": "wrong_value"}}, None, "must be an Integer"),
         # invalid key
-        ({"fsx default": {"invalid_key": "fake_value"}}, None, "'invalid_key' are not allowed in the .* section"),
+        ({"fsx default": {"invalid_key": "fake_value"}}, None, "'invalid_key' is not allowed in the .* section"),
     ],
 )
 def test_fsx_section_from_file(config_parser_dict, expected_dict_params, expected_message):

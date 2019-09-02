@@ -66,7 +66,7 @@ def test_raid_section_from_cfn(cfn_params_dict, expected_section_dict):
         ({"raid default": {"raid_type": "wrong_value"}}, None, "must be an Integer"),
         ({"raid default": {"volume_type": "wrong_value"}}, None, "invalid value"),
         # invalid key
-        ({"raid default": {"invalid_key": "fake_value"}}, None, "'invalid_key' are not allowed in the .* section"),
+        ({"raid default": {"invalid_key": "fake_value"}}, None, "'invalid_key' is not allowed in the .* section"),
     ],
 )
 def test_raid_section_from_file(config_parser_dict, expected_dict_params, expected_message):

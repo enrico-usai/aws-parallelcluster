@@ -9,6 +9,7 @@
 # OR CONDITIONS OF ANY KIND, express or implied. See the License for the specific language governing permissions and
 # limitations under the License.
 import os
+import re
 import urllib.error
 import urllib.request
 from urllib.parse import urlparse
@@ -17,6 +18,10 @@ import boto3
 from botocore.exceptions import ClientError
 
 from pcluster.utils import get_efs_mount_target_id, get_instance_vcpus, get_supported_features
+
+
+def _invalid_param_message(param_key, param_value, message):
+    return "The value '{0}' used for the parameter '{1}' is not valid.\n{2}".format(param_value, param_key, message)
 
 
 def cluster_validator(section_key, section_label, pcluster_config):
@@ -56,15 +61,6 @@ def cluster_validator(section_key, section_label, pcluster_config):
     return errors, warnings
 
 
-def not_empty_validator(param_key, param_value, pcluster_config):
-    errors = []
-    warnings = []
-
-    if param_value is None or param_value == "":
-        errors.append("'{0}' parameter must be specified".format(param_key))
-    return errors, warnings
-
-
 def ec2_key_pair_validator(param_key, param_value, pcluster_config):
     errors = []
     warnings = []
@@ -72,7 +68,7 @@ def ec2_key_pair_validator(param_key, param_value, pcluster_config):
         ec2 = boto3.client("ec2")
         ec2.describe_key_pairs(KeyNames=[param_value])
     except ClientError as e:
-        errors.append(e.response.get("Error").get("Message"))
+        errors.append(_invalid_param_message(param_key, param_value, e.response.get("Error").get("Message")))
 
     return errors, warnings
 
@@ -100,7 +96,7 @@ def iam_role_validator(param_key, param_value, pcluster_config):
                         )
                     )
     except ClientError as e:
-        errors.append(e.response.get("Error").get("Message"))
+        errors.append(_invalid_param_message(param_key, param_value, e.response.get("Error").get("Message")))
 
     return errors, warnings
 
@@ -112,7 +108,7 @@ def ec2_ami_validator(param_key, param_value, pcluster_config):
         ec2 = boto3.client("ec2")
         ec2.describe_images(ImageIds=[param_value])
     except ClientError as e:
-        errors.append(e.response.get("Error").get("Message"))
+        errors.append(_invalid_param_message(param_key, param_value, e.response.get("Error").get("Message")))
 
     return errors, warnings
 
@@ -126,7 +122,7 @@ def ec2_ebs_snapshot_validator(param_key, param_value, pcluster_config):
         if test.get("State") != "completed":
             warnings.append("Snapshot {0} is in state '{1}' not 'completed'".format(param_value, test.get("State")))
     except ClientError as e:
-        errors.append(e.response.get("Error").get("Message"))
+        errors.append(_invalid_param_message(param_key, param_value, e.response.get("Error").get("Message")))
 
     return errors, warnings
 
@@ -143,7 +139,7 @@ def ec2_volume_validator(param_key, param_value, pcluster_config):
         if e.response.get("Error").get("Message").endswith("parameter volumes is invalid. Expected: 'vol-...'."):
             errors.append("Volume {0} does not exist".format(param_value))
         else:
-            errors.append(e.response.get("Error").get("Message"))
+            errors.append(_invalid_param_message(param_key, param_value, e.response.get("Error").get("Message")))
 
     return errors, warnings
 
@@ -188,7 +184,7 @@ def compute_instance_type_validator(param_key, param_value, pcluster_config):
                             )
                         )
         except ClientError as e:
-            errors.append(e.response.get("Error").get("Message"))
+            errors.append(_invalid_param_message(param_key, param_value, e.response.get("Error").get("Message")))
 
     return errors, warnings
 
@@ -222,7 +218,7 @@ def placement_group_validator(param_key, param_value, pcluster_config):
             ec2 = boto3.client("ec2")
             ec2.describe_placement_groups(GroupNames=[param_value])
         except ClientError as e:
-            errors.append(e.response.get("Error").get("Message"))
+            errors.append(_invalid_param_message(param_key, param_value, e.response.get("Error").get("Message")))
 
     return errors, warnings
 
@@ -232,7 +228,16 @@ def url_validator(param_key, param_value, pcluster_config):
     warnings = []
 
     if urlparse(param_value).scheme == "s3":
-        pass
+        try:
+            s3 = boto3.client("s3")
+            m = re.match(r"s3://(\w*)/(.*)", param_value)
+            bucket, key = m.group(1), m.group(2)
+            s3.head_object(Bucket=bucket, Key=key)
+        except ClientError:
+            warnings.append(
+                "The S3 object '{0}' used for the parameter '{1}' does not exist "
+                "or you do not have access to it.".format(param_value, param_key)
+            )
     else:
         try:
             urllib.request.urlopen(param_value)
@@ -270,7 +275,7 @@ def ec2_vpc_id_validator(param_key, param_value, pcluster_config):
             errors.append("DNS Hostnames not enabled in the VPC %s" % param_value)
 
     except ClientError as e:
-        errors.append(e.response.get("Error").get("Message"))
+        errors.append(_invalid_param_message(param_key, param_value, e.response.get("Error").get("Message")))
 
     return errors, warnings
 
@@ -281,7 +286,7 @@ def ec2_subnet_id_validator(param_key, param_value, pcluster_config):
     try:
         boto3.client("ec2").describe_subnets(SubnetIds=[param_value])
     except ClientError as e:
-        errors.append(e.response.get("Error").get("Message"))
+        errors.append(_invalid_param_message(param_key, param_value, e.response.get("Error").get("Message")))
 
     return errors, warnings
 
@@ -292,7 +297,7 @@ def ec2_security_group_validator(param_key, param_value, pcluster_config):
     try:
         boto3.client("ec2").describe_security_groups(GroupIds=[param_value])
     except ClientError as e:
-        errors.append(e.response.get("Error").get("Message"))
+        errors.append(_invalid_param_message(param_key, param_value, e.response.get("Error").get("Message")))
 
     return errors, warnings
 
@@ -338,7 +343,7 @@ def efs_id_validator(param_key, param_value, pcluster_config):
                     % (mount_target_id, master_avail_zone, param_value)
                 )
     except ClientError as e:
-        errors.append(e.response.get("Error").get("Message"))
+        errors.append(_invalid_param_message(param_key, param_value, e.response.get("Error").get("Message")))
 
     return errors, warnings
 
@@ -425,7 +430,7 @@ def fsx_id_validator(param_key, param_value, pcluster_config):
                 "inbound and outbound TCP traffic through port 988." % param_value
             )
     except ClientError as e:
-        errors.append(e.response.get("Error").get("Message"))
+        errors.append(_invalid_param_message(param_key, param_value, e.response.get("Error").get("Message")))
 
     return errors, warnings
 
@@ -633,6 +638,6 @@ def efa_validator(param_key, param_value, pcluster_config):
                     )
                 )
         except ClientError as e:
-            errors.append(e.response.get("Error").get("Message"))
+            errors.append(_invalid_param_message(param_key, param_value, e.response.get("Error").get("Message")))
 
     return errors, warnings

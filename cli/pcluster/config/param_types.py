@@ -875,7 +875,6 @@ class Section(object):
             for param_key, param_map in self.map.get("params").items():
                 param_type = param_map.get("type", Param)
 
-                ## FIXME we are re-initializing vpc
                 param = self.get_param(param_key)
                 if param:
                     param.validate(fail_on_error)
