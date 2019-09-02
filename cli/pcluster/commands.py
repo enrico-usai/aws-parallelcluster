@@ -42,7 +42,7 @@ else:
 LOGGER = logging.getLogger("pcluster.cli")
 
 
-def create_bucket_with_batch_resources(stack_name, resources_dir, region):
+def _create_bucket_with_batch_resources(stack_name, resources_dir, region):
     random_string = "".join(random.choice(string.ascii_lowercase + string.digits) for _ in range(16))
     s3_bucket_name = "-".join([stack_name.lower(), random_string])
 
@@ -89,7 +89,7 @@ def create(args):  # noqa: C901 FIXME!!!
         # If scheduler is awsbatch create bucket with resources
         if cfn_params["Scheduler"] == "awsbatch":
             batch_resources = pkg_resources.resource_filename(__name__, "resources/batch")
-            batch_temporary_bucket = create_bucket_with_batch_resources(
+            batch_temporary_bucket = _create_bucket_with_batch_resources(
                 stack_name=stack_name, resources_dir=batch_resources, region=pcluster_config.region
             )
             cfn_params["ResourcesS3Bucket"] = batch_temporary_bucket
@@ -178,7 +178,7 @@ def _print_stack_outputs(stack):
         "BatchJobDefinitionMnpArn",
         "BatchUserRole",
     ]
-    if is_ganglia_enabled(stack.get("Parameters")):
+    if _is_ganglia_enabled(stack.get("Parameters")):
         whitelisted_outputs.extend(["GangliaPrivateURL", "GangliaPublicURL"])
 
     for output in stack.get("Outputs", []):
@@ -187,7 +187,7 @@ def _print_stack_outputs(stack):
             LOGGER.info("%s: %s", output_key, output.get("OutputValue"))
 
 
-def is_ganglia_enabled(parameters):
+def _is_ganglia_enabled(parameters):
     try:
         extra_json = filter(lambda x: x.get("ParameterKey") == "ExtraJson", parameters)[0].get("ParameterValue")
         extra_json = json.loads(extra_json).get("cfncluster")
@@ -213,7 +213,7 @@ def update(args):  # noqa: C901 FIXME!!!
         asg = boto3.client("autoscaling")
 
         if not args.reset_desired:
-            asg_name = get_asg_name(stack_name, pcluster_config)
+            asg_name = _get_asg_name(stack_name, pcluster_config)
             desired_capacity = (
                 asg.describe_auto_scaling_groups(AutoScalingGroupNames=[asg_name])
                 .get("AutoScalingGroups")[0]
@@ -287,8 +287,8 @@ def start(args):
         max_vcpus = cluster_section.get_param_value("max_vcpus")
         desired_vcpus = cluster_section.get_param_value("desired_vcpus")
         min_vcpus = cluster_section.get_param_value("min_vcpus")
-        ce_name = get_batch_ce(stack_name)
-        start_batch_ce(ce_name=ce_name, min_vcpus=min_vcpus, desired_vcpus=desired_vcpus, max_vcpus=max_vcpus)
+        ce_name = _get_batch_ce(stack_name)
+        _start_batch_ce(ce_name=ce_name, min_vcpus=min_vcpus, desired_vcpus=desired_vcpus, max_vcpus=max_vcpus)
     else:
         LOGGER.info("Starting compute fleet : %s", args.cluster_name)
 
@@ -302,8 +302,8 @@ def start(args):
         desired_queue_size = min_desired_size
         min_queue_size = min_desired_size
 
-        asg_name = get_asg_name(stack_name=stack_name)
-        set_asg_limits(asg_name=asg_name, min=min_queue_size, max=max_queue_size, desired=desired_queue_size)
+        asg_name = _get_asg_name(stack_name=stack_name)
+        _set_asg_limits(asg_name=asg_name, min=min_queue_size, max=max_queue_size, desired=desired_queue_size)
 
 
 def stop(args):
@@ -314,16 +314,16 @@ def stop(args):
 
     if cluster_section.get_param_value("scheduler") == "awsbatch":
         LOGGER.info("Disabling AWS Batch compute environment : %s", args.cluster_name)
-        ce_name = get_batch_ce(stack_name)
-        stop_batch_ce(ce_name=ce_name)
+        ce_name = _get_batch_ce(stack_name)
+        _stop_batch_ce(ce_name=ce_name)
     else:
         LOGGER.info("Stopping compute fleet : %s", args.cluster_name)
         # Set Resource limits
-        asg_name = get_asg_name(stack_name=stack_name)
-        set_asg_limits(asg_name=asg_name, min=0, max=0, desired=0)
+        asg_name = _get_asg_name(stack_name=stack_name)
+        _set_asg_limits(asg_name=asg_name, min=0, max=0, desired=0)
 
 
-def get_batch_ce(stack_name):
+def _get_batch_ce(stack_name):
     """
     Get name of the AWS Batch Compute Environment.
 
@@ -340,7 +340,7 @@ def get_batch_ce(stack_name):
         sys.exit(1)
 
 
-def get_version(stack):
+def _get_version(stack):
     """
     Get the version of the stack if tagged.
 
@@ -350,7 +350,7 @@ def get_version(stack):
     return next((tag.get("Value") for tag in stack.get("Tags") if tag.get("Key") == "Version"), "")
 
 
-def colorize(stack_status, args):
+def _colorize(stack_status, args):
     """
     Color the output, COMPLETE = green, FAILED = red, IN_PROGRESS = yellow.
 
@@ -377,11 +377,11 @@ def list_stacks(args):
         result = []
         for stack in stacks:
             if stack.get("ParentId") is None and stack.get("StackName").startswith(utils.PCLUSTER_STACK_PREFIX):
-                pcluster_version = get_version(stack)
+                pcluster_version = _get_version(stack)
                 result.append(
                     [
                         stack.get("StackName")[len(utils.PCLUSTER_STACK_PREFIX) :],  # noqa: E203
-                        colorize(stack.get("StackStatus"), args),
+                        _colorize(stack.get("StackStatus"), args),
                         pcluster_version,
                     ]
                 )
@@ -443,7 +443,7 @@ def _poll_master_server_state(stack_name):
     return state
 
 
-def get_ec2_instances(stack):
+def _get_ec2_instances(stack):
     cfn = boto3.client("cloudformation")
     try:
         resources = cfn.describe_stack_resources(StackName=stack).get("StackResources")
@@ -461,7 +461,7 @@ def get_ec2_instances(stack):
     return instances
 
 
-def get_asg_name(stack_name):
+def _get_asg_name(stack_name):
     cfn = boto3.client("cloudformation")
     try:
         resources = cfn.describe_stack_resources(StackName=stack_name).get("StackResources")
@@ -475,16 +475,16 @@ def get_asg_name(stack_name):
         sys.exit(1)
 
 
-def set_asg_limits(asg_name, min, max, desired):
+def _set_asg_limits(asg_name, min, max, desired):
     asg = boto3.client("autoscaling")
     asg.update_auto_scaling_group(
         AutoScalingGroupName=asg_name, MinSize=int(min), MaxSize=int(max), DesiredCapacity=int(desired)
     )
 
 
-def get_asg_instances(stack):
+def _get_asg_instances(stack):
     asg = boto3.client("autoscaling")
-    asg_name = get_asg_name(stack)
+    asg_name = _get_asg_name(stack)
     asg = asg.describe_auto_scaling_groups(AutoScalingGroupNames=[asg_name]).get("AutoScalingGroups")[0]
     name = [tag.get("Value") for tag in asg.get("Tags") if tag.get("Key") == "aws:cloudformation:logical-id"][0]
 
@@ -495,7 +495,7 @@ def get_asg_instances(stack):
     return temp_instances
 
 
-def start_batch_ce(ce_name, min_vcpus, desired_vcpus, max_vcpus):
+def _start_batch_ce(ce_name, min_vcpus, desired_vcpus, max_vcpus):
     batch = boto3.client("batch")
     try:
         batch.update_compute_environment(
@@ -512,7 +512,7 @@ def start_batch_ce(ce_name, min_vcpus, desired_vcpus, max_vcpus):
         sys.exit(1)
 
 
-def stop_batch_ce(ce_name):
+def _stop_batch_ce(ce_name):
     batch = boto3.client("batch")
 
     batch.update_compute_environment(computeEnvironment=ce_name, state="DISABLED")
@@ -524,10 +524,10 @@ def instances(args):
     cluster_section = pcluster_config.get_section("cluster")
 
     instances = []
-    instances.extend(get_ec2_instances(stack_name))
+    instances.extend(_get_ec2_instances(stack_name))
 
     if cluster_section.get_param_value("scheduler") != "awsbatch":
-        instances.extend(get_asg_instances(stack_name))
+        instances.extend(_get_asg_instances(stack_name))
 
     for instance in instances:
         LOGGER.info("%s         %s" % (instance[0], instance[1]))
@@ -563,11 +563,11 @@ def _get_master_server_ip(stack_name):
 
 def _get_param_value(params, key_name):
     """
-    Get parameter value from Cloudformation Stack Parameters.
+    Get parameter value from CloudFormation Stack Parameters.
 
-    :param outputs: Cloudformation Stack Parameters
-    :param key_name: Parameter Key
-    :return: ParameterValue if that parameter exists, otherwise None
+    :param outputs: CloudFormation Stack Parameters
+    :param key_name: ParameterKey
+    :return: ParameterValue if the parameter exists, None otherwise
     """
     return next((i.get("ParameterValue") for i in params if i.get("ParameterKey") == key_name), None)
 
@@ -819,7 +819,7 @@ def _dispose_packer_instance(results):
         sys.exit(1)
 
 
-def run_packer(packer_command, packer_env):
+def _run_packer(packer_command, packer_env):
     erase_line = "\x1b[2K"
     _command = shlex.split(packer_command)
     results = {}
@@ -873,7 +873,7 @@ def run_packer(packer_command, packer_env):
             _dispose_packer_instance(results)
 
 
-def print_create_ami_results(results):
+def _print_create_ami_results(results):
     if results.get("PACKER_CREATED_AMI"):
         LOGGER.info(
             "\nCustom AMI %s created with name %s", results["PACKER_CREATED_AMI"], results["PACKER_CREATED_AMI_NAME"]
@@ -945,12 +945,12 @@ def create_ami(args):
             + " --custom"
         )
 
-        results = run_packer(packer_command, packer_env)
+        results = _run_packer(packer_command, packer_env)
     except KeyboardInterrupt:
         LOGGER.info("\nExiting...")
         sys.exit(0)
     finally:
-        print_create_ami_results(results)
+        _print_create_ami_results(results)
         if "tmp_dir" in locals() and tmp_dir:
             rmtree(tmp_dir)
 
