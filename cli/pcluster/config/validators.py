@@ -49,9 +49,6 @@ def cluster_validator(section_key, section_label, pcluster_config):
         desired_size = section.get_param_value("initial_queue_size")
         max_size = section.get_param_value("max_queue_size")
 
-        # if section.get_param_value_value("initial_queue_size") < min_size:
-        #    errors.append("initial_queue_size must be greater than or equal to min vcpus")
-
         if desired_size > max_size:
             errors.append("initial_queue_size must be fewer than or equal to max_queue_size")
 
@@ -65,8 +62,7 @@ def ec2_key_pair_validator(param_key, param_value, pcluster_config):
     errors = []
     warnings = []
     try:
-        ec2 = boto3.client("ec2")
-        ec2.describe_key_pairs(KeyNames=[param_value])
+        boto3.client("ec2").describe_key_pairs(KeyNames=[param_value])
     except ClientError as e:
         errors.append(_invalid_param_message(param_key, param_value, e.response.get("Error").get("Message")))
 
