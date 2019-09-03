@@ -567,7 +567,7 @@ class SettingsParam(Param):
             self._init_from_map()
 
     def _init_from_cfn(self, cfn_params, cfn_value=None):
-        # TODO Use the label if available
+        # TODO Use the label when will be available
         self.value = self.map.get("default", None)
         section = self.related_section_type(
             self.related_section_map, self.pcluster_config, section_label=self.value, cfn_params=cfn_params
@@ -655,7 +655,7 @@ class EBSSettingsParam(SettingsParam):
         if num_of_ebs > 1:
             for index in range(num_of_ebs):
                 configured_params = False
-                # TODO fixme the label if available
+                # TODO Use the label when will be available
                 label = "{0}{1}".format(self.related_section_key, str(index + 1))
                 labels.append(label)
 
@@ -829,7 +829,7 @@ class Section(object):
             raise SectionNotFoundError
 
     def _init_params_from_cfn(self, cfn_params):
-        # TODO get the label if saved in cfn
+        # TODO Use the label when will be available
         cfn_converter = self.map.get("cfn", None)
         if cfn_converter:
             # It is a section converted to a single CFN parameter

@@ -328,7 +328,6 @@ CLUSTER = {
             "type": SharedDirParam,
             "cfn": "SharedDir",
             "default": "/shared",
-            "validator": None,  # TODO
         },
         # Cluster configuration
         "placement_group": {
@@ -367,7 +366,7 @@ CLUSTER = {
         "initial_queue_size": {
             "type": DesiredSizeParam,
             "default": 0,
-            "cfn": "DesiredSize",  # FIXME verify the update case
+            "cfn": "DesiredSize",  # TODO verify the update case
         },
         "max_queue_size": {
             "type": MaxSizeParam,
