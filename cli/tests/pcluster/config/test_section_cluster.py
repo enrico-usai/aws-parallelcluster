@@ -653,11 +653,11 @@ def test_cluster_section_to_cfn(mocker, section_dict, expected_cfn_params):
             ),
         ),
         (
-            "ebs1",
+            "ebs",
             utils.merge_dicts(
                 DefaultCfnParams["cluster"].value,
                 {
-                    "CLITemplate": "ebs1",
+                    "CLITemplate": "ebs",
                     "AvailabilityZone": "mocked_avail_zone",
                     "VPCId": "vpc-12345678",
                     "MasterSubnetId": "subnet-12345678",
@@ -673,11 +673,11 @@ def test_cluster_section_to_cfn(mocker, section_dict, expected_cfn_params):
             ),
         ),
         (
-            "ebs2",
+            "ebs-multiple",
             utils.merge_dicts(
                 DefaultCfnParams["cluster"].value,
                 {
-                    "CLITemplate": "ebs2",
+                    "CLITemplate": "ebs-multiple",
                     "AvailabilityZone": "mocked_avail_zone",
                     "VPCId": "vpc-12345678",
                     "MasterSubnetId": "subnet-12345678",
@@ -691,6 +691,99 @@ def test_cluster_section_to_cfn(mocker, section_dict, expected_cfn_params):
                     "EBSVolumeId": "vol-12345678,NONE,NONE,NONE,NONE",
                 },
             ),
+        ),
+        (
+                "all-settings",
+                utils.merge_dicts(
+                    DefaultCfnParams["cluster"].value,
+                    {
+                        "CLITemplate": "all-settings",
+                        "AvailabilityZone": "mocked_avail_zone",
+                        # scaling
+                        "ScaleDownIdleTime": "15",
+                        # vpc
+                        "VPCId": "vpc-12345678",
+                        "MasterSubnetId": "subnet-12345678",
+                        # ebs
+                        "NumberOfEBSVol": "1",
+                        "SharedDir": "ebs1,NONE,NONE,NONE,NONE",
+                        "VolumeType": "io1,gp2,gp2,gp2,gp2",
+                        "VolumeSize": "40,20,20,20,20",
+                        "VolumeIOPS": "200,100,100,100,100",
+                        "EBSEncryption": "true,false,false,false,false",
+                        "EBSKMSKeyId": "kms_key,NONE,NONE,NONE,NONE",
+                        "EBSVolumeId": "vol-12345678,NONE,NONE,NONE,NONE",
+                        # efs
+                        "EFSOptions": "efs,NONE,generalPurpose,NONE,NONE,false,bursting,Valid",
+                        # raid
+                        "RAIDOptions": "raid,NONE,NONE,gp2,20,100,false,NONE",
+                        # fsx
+                        "FSXOptions": "fsx,NONE,NONE,NONE,NONE,NONE,NONE,NONE",
+                    },
+                ),
+        ),
+        (
+                "random-order",
+                utils.merge_dicts(
+                    DefaultCfnParams["cluster"].value,
+                    {
+                        "CLITemplate": "random-order",
+                        "AvailabilityZone": "mocked_avail_zone",
+                        "VPCId": "vpc-12345678",
+                        "MasterSubnetId": "subnet-12345678",
+                        "KeyName": "key",
+                        "BaseOS": "ubuntu1404",
+                        "Scheduler": "slurm",
+                        "SharedDir": "/test",
+                        "PlacementGroup": "NONE",
+                        "Placement": "cluster",
+                        "MasterInstanceType": "t2.large",
+                        "MasterRootVolumeSize": "30",
+                        "ComputeInstanceType": "t2.large",
+                        "ComputeRootVolumeSize": "30",
+                        "DesiredSize": "1",
+                        "MaxSize": "2",
+                        "MinSize": "1",
+                        "ClusterType": "spot",
+                        "SpotPrice": "5",
+                        "ProxyServer": "proxy",
+                        "EC2IAMRoleName": "role",
+                        "S3ReadResource": "s3://url",
+                        "S3ReadWriteResource": "s3://url",
+                        "EFA": "compute",
+                        "EphemeralDir": "/test2",
+                        "EncryptedEphemeral": "true",
+                        "CustomAMI": "ami-12345678",
+                        "PreInstallScript": "preinstall",
+                        "PreInstallArgs": '"one two"',
+                        "PostInstallScript": "postinstall",
+                        "PostInstallArgs": '"one two"',
+                        "ExtraJson": "{'cluster': {'cfn_scheduler_slots': 'cores'}}",
+                        "AdditionalCfnTemplate": "https://test",
+                        "CustomChefCookbook": "https://test",
+                        "CustomAWSBatchTemplateURL": "https://test",
+                        # scaling
+                        "ScaleDownIdleTime": "15",
+                        # vpc
+                        "VPCId": "vpc-12345678",
+                        "MasterSubnetId": "subnet-12345678",
+                        # ebs
+                        "NumberOfEBSVol": "1",
+                        "SharedDir": "ebs1,NONE,NONE,NONE,NONE",
+                        "VolumeType": "io1,gp2,gp2,gp2,gp2",
+                        "VolumeSize": "40,20,20,20,20",
+                        "VolumeIOPS": "200,100,100,100,100",
+                        "EBSEncryption": "true,false,false,false,false",
+                        "EBSKMSKeyId": "kms_key,NONE,NONE,NONE,NONE",
+                        "EBSVolumeId": "vol-12345678,NONE,NONE,NONE,NONE",
+                        # efs
+                        "EFSOptions": "efs,NONE,generalPurpose,NONE,NONE,false,bursting,Valid",
+                        # raid
+                        "RAIDOptions": "raid,NONE,NONE,gp2,20,100,false,NONE",
+                        # fsx
+                        "FSXOptions": "fsx,NONE,NONE,NONE,NONE,NONE,NONE,NONE",
+                    },
+                ),
         ),
     ],
 )
