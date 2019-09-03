@@ -100,7 +100,7 @@ def efs_id_validator(param_key, param_value, pcluster_config):
                     % (mount_target_id, master_avail_zone, param_value)
                 )
     except ClientError as e:
-        errors.append(_invalid_param_message(param_key, param_value, e.response.get("Error").get("Message")))
+        errors.append(e.response.get("Error").get("Message"))
 
     return errors, warnings
 
@@ -184,7 +184,7 @@ def fsx_id_validator(param_key, param_value, pcluster_config):
                 "inbound and outbound TCP traffic through port 988." % param_value
             )
     except ClientError as e:
-        errors.append(_invalid_param_message(param_key, param_value, e.response.get("Error").get("Message")))
+        errors.append(e.response.get("Error").get("Message"))
 
     return errors, warnings
 
@@ -194,8 +194,7 @@ def fsx_storage_capacity_validator(param_key, param_value, pcluster_config):
     warnings = []
 
     if int(param_value) % 3600 != 0 or int(param_value) < 0:
-        message = "Capacity for FSx lustre filesystem, minimum of 3,600 GB, increments of 3,600 GB"
-        errors.append(_invalid_param_message(param_key, param_value, message))
+        errors.append("Capacity for FSx lustre filesystem, minimum of 3,600 GB, increments of 3,600 GB")
 
     return errors, warnings
 
@@ -290,7 +289,7 @@ def ec2_key_pair_validator(param_key, param_value, pcluster_config):
     try:
         boto3.client("ec2").describe_key_pairs(KeyNames=[param_value])
     except ClientError as e:
-        errors.append(_invalid_param_message(param_key, param_value, e.response.get("Error").get("Message")))
+        errors.append(e.response.get("Error").get("Message"))
 
     return errors, warnings
 
@@ -318,7 +317,7 @@ def ec2_iam_role_validator(param_key, param_value, pcluster_config):
                         )
                     )
     except ClientError as e:
-        errors.append(_invalid_param_message(param_key, param_value, e.response.get("Error").get("Message")))
+        errors.append(e.response.get("Error").get("Message"))
 
     return errors, warnings
 
@@ -398,7 +397,7 @@ def ec2_vpc_id_validator(param_key, param_value, pcluster_config):
             errors.append("DNS Hostnames not enabled in the VPC %s" % param_value)
 
     except ClientError as e:
-        errors.append(_invalid_param_message(param_key, param_value, e.response.get("Error").get("Message")))
+        errors.append(e.response.get("Error").get("Message"))
 
     return errors, warnings
 
@@ -409,7 +408,7 @@ def ec2_subnet_id_validator(param_key, param_value, pcluster_config):
     try:
         boto3.client("ec2").describe_subnets(SubnetIds=[param_value])
     except ClientError as e:
-        errors.append(_invalid_param_message(param_key, param_value, e.response.get("Error").get("Message")))
+        errors.append(e.response.get("Error").get("Message"))
 
     return errors, warnings
 
@@ -420,7 +419,7 @@ def ec2_security_group_validator(param_key, param_value, pcluster_config):
     try:
         boto3.client("ec2").describe_security_groups(GroupIds=[param_value])
     except ClientError as e:
-        errors.append(_invalid_param_message(param_key, param_value, e.response.get("Error").get("Message")))
+        errors.append(e.response.get("Error").get("Message"))
 
     return errors, warnings
 
@@ -431,7 +430,7 @@ def ec2_ami_validator(param_key, param_value, pcluster_config):
     try:
         boto3.client("ec2").describe_images(ImageIds=[param_value])
     except ClientError as e:
-        errors.append(_invalid_param_message(param_key, param_value, e.response.get("Error").get("Message")))
+        errors.append(e.response.get("Error").get("Message"))
 
     return errors, warnings
 
@@ -446,7 +445,7 @@ def ec2_placement_group_validator(param_key, param_value, pcluster_config):
         try:
             boto3.client("ec2").describe_placement_groups(GroupNames=[param_value])
         except ClientError as e:
-            errors.append(_invalid_param_message(param_key, param_value, e.response.get("Error").get("Message")))
+            errors.append(e.response.get("Error").get("Message"))
 
     return errors, warnings
 
@@ -459,15 +458,11 @@ def url_validator(param_key, param_value, pcluster_config):
         try:
             m = re.match(r"s3://(.*?)/(.*)", param_value)
             if not m or len(m.groups()) < 2:
-                errors.append(_invalid_param_message(param_key, param_value, "S3 url is invalid."))
+                errors.append("S3 url is invalid.")
             bucket, key = m.group(1), m.group(2)
             boto3.client("s3").head_object(Bucket=bucket, Key=key)
         except ClientError:
-            warnings.append(
-                _invalid_param_message(
-                    param_key, param_value, "The S3 object does not exist or you do not have access to it."
-                )
-            )
+            warnings.append("The S3 object does not exist or you do not have access to it.")
     else:
         try:
             urllib.request.urlopen(param_value)
@@ -491,7 +486,7 @@ def ec2_ebs_snapshot_validator(param_key, param_value, pcluster_config):
         if test.get("State") != "completed":
             warnings.append("Snapshot {0} is in state '{1}' not 'completed'".format(param_value, test.get("State")))
     except ClientError as e:
-        errors.append(_invalid_param_message(param_key, param_value, e.response.get("Error").get("Message")))
+        errors.append(e.response.get("Error").get("Message"))
 
     return errors, warnings
 
@@ -507,7 +502,7 @@ def ec2_volume_validator(param_key, param_value, pcluster_config):
         if e.response.get("Error").get("Message").endswith("parameter volumes is invalid. Expected: 'vol-...'."):
             errors.append("Volume {0} does not exist".format(param_value))
         else:
-            errors.append(_invalid_param_message(param_key, param_value, e.response.get("Error").get("Message")))
+            errors.append(e.response.get("Error").get("Message"))
 
     return errors, warnings
 
@@ -538,8 +533,7 @@ def raid_volume_iops_validator(param_key, param_value, pcluster_config):
     raid_iops = float(param_value)
     raid_vol_size = float(pcluster_config.get_section("raid").get_param_value("volume_size"))
     if raid_iops > raid_vol_size * 50:
-        message = "IOPS to volume size ratio of {0} is too high; maximum is 50.".format(raid_iops / raid_vol_size)
-        errors.append(_invalid_param_message(param_key, param_value, message))
+         errors.append("IOPS to volume size ratio of {0} is too high; maximum is 50.".format(raid_iops / raid_vol_size))
 
     return errors, warnings
 
@@ -636,10 +630,6 @@ def compute_instance_type_validator(param_key, param_value, pcluster_config):
                             )
                         )
         except ClientError as e:
-            errors.append(_invalid_param_message(param_key, param_value, e.response.get("Error").get("Message")))
+            errors.append(e.response.get("Error").get("Message"))
 
     return errors, warnings
-
-
-def _invalid_param_message(param_key, param_value, message):
-    return "The value '{0}' used for the parameter '{1}' is not valid.\n{2}".format(param_value, param_key, message)
