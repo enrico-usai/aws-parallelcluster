@@ -117,9 +117,9 @@ class Param(object):
         validation_func = self.map.get("validator", None)
 
         if not validation_func:
-            LOGGER.debug("Configuration parameter '{0}' has no validator".format(self.key))  # TODO remove
-        elif not self.value:
-            LOGGER.debug("Configuration parameter '{0}' has not a value".format(self.key))  # TODO remove
+            LOGGER.debug("Configuration parameter '{0}' has no validator".format(self.key))
+        elif self.value is None:
+            LOGGER.debug("Configuration parameter '{0}' has not a value".format(self.key))
         else:
             errors, warnings = validation_func(self.key, self.value, self.pcluster_config)
             if errors:

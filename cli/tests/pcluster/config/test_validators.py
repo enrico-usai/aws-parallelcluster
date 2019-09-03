@@ -405,3 +405,241 @@ def test_ec2_security_group_validator(mocker, boto3_stubber):
         "vpc default": {"vpc_security_group_id": "sg-12345678"},
     }
     utils.assert_param_validator(mocker, config_parser_dict)
+
+
+@pytest.mark.parametrize(
+    "section_dict, expected_message",
+    [
+        (
+            {"throughput_mode": "bursting", "provisioned_throughput": 1024},
+            "When specifying 'provisioned_throughput', the 'throughput_mode' must be set to 'provisioned'",
+        ),
+        (
+            {"throughput_mode": "provisioned", "provisioned_throughput": 1024}, None,
+        ),
+    ],
+)
+def test_efs_validator(mocker, section_dict, expected_message):
+    config_parser_dict = {
+        "cluster default": {"efs_settings": "default"},
+        "efs default": section_dict,
+    }
+    utils.assert_param_validator(mocker, config_parser_dict, expected_message)
+
+
+@pytest.mark.parametrize(
+    "section_dict, expected_message",
+    [
+        ({"volume_iops": 1, "volume_size": 1}, None),
+        ({"volume_iops": 51, "volume_size": 1}, "IOPS to volume size ratio of .* is too hig"),
+        ({"volume_iops": 1, "volume_size": 20}, None),
+        ({"volume_iops": 1001, "volume_size": 20}, "IOPS to volume size ratio of .* is too hig"),
+    ],
+)
+def test_raid_volume_iops_validator(mocker, section_dict, expected_message):
+    config_parser_dict = {
+        "cluster default": {"raid_settings": "default"},
+        "raid default": section_dict,
+    }
+    utils.assert_param_validator(mocker, config_parser_dict, expected_message)
+
+
+@pytest.mark.parametrize(
+    "section_dict, expected_message",
+    [
+        ({"imported_file_chunk_size": 1024, "import_path": "test"}, None,),
+        (
+            {"imported_file_chunk_size": 1024},
+            "When specifying 'imported_file_chunk_size', the 'import_path' option must be specified",
+        ),
+        ({"export_path": "test", "import_path": "test"}, None,),
+        (
+            {"export_path": "test"},
+            "When specifying 'export_path', the 'import_path' option must be specified",
+        ),
+    ],
+)
+def test_fsx_validator(mocker, section_dict, expected_message):
+    config_parser_dict = {
+        "cluster default": {"fsx_settings": "default"},
+        "fsx default": section_dict,
+    }
+    utils.assert_param_validator(mocker, config_parser_dict, expected_message)
+
+
+@pytest.mark.parametrize(
+    "section_dict, expected_message",
+    [
+        ({"storage_capacity": 1}, "Capacity for FSx lustre filesystem, minimum of 3,600 GB, increments of 3,600 GB"),
+        ({"storage_capacity": 3600}, None),
+        ({"storage_capacity": 3601}, "Capacity for FSx lustre filesystem, minimum of 3,600 GB, increments of 3,600 GB"),
+        ({"storage_capacity": 7200}, None),
+    ],
+)
+def test_fsx_storage_capacity_validator(mocker, section_dict, expected_message):
+    config_parser_dict = {
+        "cluster default": {"fsx_settings": "default"},
+        "fsx default": section_dict,
+    }
+    utils.assert_param_validator(mocker, config_parser_dict, expected_message)
+
+
+@pytest.mark.parametrize(
+    "section_dict, expected_message",
+    [
+        (
+            {"imported_file_chunk_size": 0, "import_path": "test-import"},
+            "has a minimum size of 1 MiB, and max size of 512,000 MiB",
+        ),
+        ({"imported_file_chunk_size": 1, "import_path": "test-import"}, None),
+        ({"imported_file_chunk_size": 10, "import_path": "test-import"}, None),
+        ({"imported_file_chunk_size": 512000, "import_path": "test-import"}, None),
+        (
+            {"imported_file_chunk_size": 512001, "import_path": "test-import"},
+            "has a minimum size of 1 MiB, and max size of 512,000 MiB",
+        ),
+    ],
+)
+def test_fsx_imported_file_chunk_size_validator(mocker, section_dict, expected_message):
+    config_parser_dict = {
+        "cluster default": {"fsx_settings": "default"},
+        "fsx default": section_dict,
+    }
+    utils.assert_param_validator(mocker, config_parser_dict, expected_message)
+
+
+@pytest.mark.parametrize(
+    "section_dict, expected_message",
+    [
+        ({"enable_efa": "NONE"}, "invalid value"),
+        ({"enable_efa": "compute"}, "is required to set the 'compute_instance_type'"),
+        ({"enable_efa": "compute", "compute_instance_type": "t2.large"}, "is required to set the 'placement_group'"),
+        (
+            {"enable_efa": "compute", "compute_instance_type": "t2.large", "base_os": "centos6"},
+            "it is required to set the 'base_os'",
+        ),
+        (
+            {
+                "enable_efa": "compute",
+                "compute_instance_type": "t2.large",
+                "base_os": "centos6",
+                "scheduler": "awsbatch",
+            },
+            "it is required to set the 'scheduler'",
+        ),
+        (
+                {
+                    "enable_efa": "compute",
+                    "compute_instance_type": "t2.large",
+                    "base_os": "centos7",
+                    "scheduler": "slurm",
+                    "placement_group": "DYNAMIC",
+                },
+                None,
+        ),
+    ],
+)
+def test_efa_validator(mocker, section_dict, expected_message):
+    mocker.patch("pcluster.config.validators.get_supported_features", return_value={"instances": ["t2.large"]})
+
+    config_parser_dict = {
+        "cluster default": section_dict,
+    }
+    utils.assert_param_validator(mocker, config_parser_dict, expected_message)
+
+
+@pytest.mark.parametrize(
+    "ip_permissions, ip_permissions_egress, expected_message",
+    [
+        ([], [], "must allow all traffic in and out from itself"),
+        (
+            [
+                {
+                    "IpProtocol": "-1",
+                    "UserIdGroupPairs": [
+                        {
+                            "UserId": "123456789012",
+                            "GroupId": "sg-12345678"
+                        }
+                    ]
+                }
+            ],
+            [],
+            "must allow all traffic in and out from itself",
+        ),
+        (
+            [
+                {
+                    "IpProtocol": "-1",
+                    "UserIdGroupPairs": [
+                        {
+                            "UserId": "123456789012",
+                            "GroupId": "sg-12345678"
+                        }
+                    ]
+                }
+            ],
+            [
+                {
+                    "IpProtocol": "-1",
+                    "UserIdGroupPairs": [
+                        {
+                            "UserId": "123456789012",
+                            "GroupId": "sg-12345678"
+                        }
+                    ]
+                }
+            ],
+            None,
+        ),
+        (
+            [
+                {
+                    "PrefixListIds": [],
+                    "FromPort": 22,
+                    "IpRanges": [
+                        {
+                            "CidrIp": "203.0.113.0/24"
+                        }
+                    ],
+                    "ToPort": 22,
+                    "IpProtocol": "tcp",
+                    "UserIdGroupPairs": []
+                }
+            ],
+            [],
+            "must allow all traffic in and out from itself",
+        ),
+    ],
+)
+def test_efa_validator_with_vpc_security_group(
+    boto3_stubber, mocker, ip_permissions, ip_permissions_egress, expected_message
+):
+    mocker.patch("pcluster.config.validators.get_supported_features", return_value={"instances": ["t2.micro"]})
+
+    describe_security_groups_response = {
+        "SecurityGroups": [
+            {
+                "IpPermissionsEgress": ip_permissions_egress,
+                "Description": "My security group",
+                "IpPermissions": ip_permissions,
+                "GroupName": "MySecurityGroup",
+                "OwnerId": "123456789012",
+                "GroupId": "sg-12345678",
+            }
+        ]
+    }
+    mocked_requests = [
+        MockedBoto3Request(
+            method="describe_security_groups",
+            response=describe_security_groups_response,
+            expected_params={"GroupIds": ["sg-12345678"]},
+        )
+    ] * 2  # it is called two times, for vpc_security_group_id validation and to validate efa
+    boto3_stubber("ec2", mocked_requests)
+
+    config_parser_dict = {
+        "cluster default": {"enable_efa": "compute", "placement_group": "DYNAMIC", "vpc_settings": "default"},
+        "vpc default": {"vpc_security_group_id": "sg-12345678"}
+    }
+    utils.assert_param_validator(mocker, config_parser_dict, expected_message)

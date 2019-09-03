@@ -365,7 +365,8 @@ def raid_volume_iops_validator(param_key, param_value, pcluster_config):
     raid_iops = float(param_value)
     raid_vol_size = float(pcluster_config.get_section("raid").get_param_value("volume_size"))
     if raid_iops > raid_vol_size * 50:
-        errors.append("IOPS to volume size ratio of %s is too high; maximum is 50." % (raid_iops / raid_vol_size))
+        message = "IOPS to volume size ratio of {0} is too high; maximum is 50.".format(raid_iops / raid_vol_size)
+        errors.append(_invalid_param_message(param_key, param_value, message))
 
     return errors, warnings
 
@@ -396,8 +397,7 @@ def fsx_id_validator(param_key, param_value, pcluster_config):
         ec2 = boto3.client("ec2")
 
         # Check to see if there is any existing mt on the fs
-        fsx = boto3.client("fsx")
-        fs = fsx.describe_file_systems(FileSystemIds=[param_value]).get("FileSystems")[0]
+        fs = boto3.client("fsx").describe_file_systems(FileSystemIds=[param_value]).get("FileSystems")[0]
 
         subnet_id = pcluster_config.get_section("vpc").get_param_value("master_subnet_id")
         vpc_id = ec2.describe_subnets(SubnetIds=[subnet_id]).get("Subnets")[0].get("VpcId")
@@ -460,7 +460,8 @@ def fsx_storage_capacity_validator(param_key, param_value, pcluster_config):
     warnings = []
 
     if int(param_value) % 3600 != 0 or int(param_value) < 0:
-        errors.append("Capacity for FSx lustre filesystem, minimum of 3,600 GB, increments of 3,600 GB")
+        message = "Capacity for FSx lustre filesystem, minimum of 3,600 GB, increments of 3,600 GB"
+        errors.append(_invalid_param_message(param_key, param_value, message))
 
     return errors, warnings
 
@@ -629,6 +630,6 @@ def efa_validator(param_key, param_value, pcluster_config):
                     )
                 )
         except ClientError as e:
-            errors.append(_invalid_param_message(param_key, param_value, e.response.get("Error").get("Message")))
+            errors.append(e.response.get("Error").get("Message"))
 
     return errors, warnings
