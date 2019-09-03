@@ -15,10 +15,15 @@ class TestArgs(object):
         failed_with_message(awsbstat.main, "Error: cluster parameter is required\n", argv=[])
 
 
+@pytest.fixture()
+def boto3_stubber_path():
+    return "awsbatch.common.boto3"
+
+
 @pytest.mark.usefixtures("awsbatchcliconfig_mock")
 @pytest.mark.usefixtures("convert_to_date_mock")
 class TestOutput(object):
-    def test_no_jobs_default_status(self, capsys, awsbatch_boto3_stubber, test_datadir):
+    def test_no_jobs_default_status(self, capsys, boto3_stubber, test_datadir):
         empty_response = {"jobSummaryList": []}
         mocked_requests = []
         for status in DEFAULT_JOB_STATUS:
@@ -33,13 +38,13 @@ class TestOutput(object):
                     },
                 )
             )
-        awsbatch_boto3_stubber("batch", mocked_requests)
+        boto3_stubber("batch", mocked_requests)
 
         awsbstat.main(["-c", "cluster"])
 
         assert capsys.readouterr().out == read_text(test_datadir / "expected_output.txt")
 
-    def test_no_jobs_all_status(self, capsys, awsbatch_boto3_stubber, test_datadir):
+    def test_no_jobs_all_status(self, capsys, boto3_stubber, test_datadir):
         empty_response = {"jobSummaryList": []}
         mocked_requests = []
         for status in ALL_JOB_STATUS:
@@ -54,15 +59,15 @@ class TestOutput(object):
                     },
                 )
             )
-        awsbatch_boto3_stubber("batch", mocked_requests)
+        boto3_stubber("batch", mocked_requests)
 
         awsbstat.main(["-c", "cluster", "-s", "ALL"])
 
         assert capsys.readouterr().out == read_text(test_datadir / "expected_output.txt")
 
-    def test_succeeded_status(self, capsys, awsbatch_boto3_stubber, test_datadir, shared_datadir):
+    def test_succeeded_status(self, capsys, boto3_stubber, test_datadir, shared_datadir):
         response = json.loads(read_text(shared_datadir / "aws_api_responses/batch_list-jobs_SUCCEEDED.json"))
-        awsbatch_boto3_stubber(
+        boto3_stubber(
             "batch",
             MockedBoto3Request(
                 method="list_jobs",
@@ -79,7 +84,7 @@ class TestOutput(object):
 
         assert capsys.readouterr().out == read_text(test_datadir / "expected_output.txt")
 
-    def test_all_status(self, capsys, awsbatch_boto3_stubber, test_datadir, shared_datadir):
+    def test_all_status(self, capsys, boto3_stubber, test_datadir, shared_datadir):
         mocked_requests = []
         for status in ALL_JOB_STATUS:
             response = json.loads(
@@ -96,15 +101,15 @@ class TestOutput(object):
                     },
                 )
             )
-        awsbatch_boto3_stubber("batch", mocked_requests)
+        boto3_stubber("batch", mocked_requests)
 
         awsbstat.main(["-c", "cluster", "-s", "ALL"])
 
         assert capsys.readouterr().out == read_text(test_datadir / "expected_output.txt")
 
-    def test_single_job_detailed(self, capsys, awsbatch_boto3_stubber, test_datadir, shared_datadir):
+    def test_single_job_detailed(self, capsys, boto3_stubber, test_datadir, shared_datadir):
         response = json.loads(read_text(shared_datadir / "aws_api_responses/batch_describe-jobs_single_job.json"))
-        awsbatch_boto3_stubber(
+        boto3_stubber(
             "batch",
             MockedBoto3Request(
                 method="describe_jobs",
@@ -125,14 +130,14 @@ class TestOutput(object):
         ],
         ids=["single_array", "single_array_detailed"],
     )
-    def test_single_array_job(self, args, expected, capsys, awsbatch_boto3_stubber, test_datadir, shared_datadir):
+    def test_single_array_job(self, args, expected, capsys, boto3_stubber, test_datadir, shared_datadir):
         response_parent = json.loads(
             read_text(shared_datadir / "aws_api_responses/batch_describe-jobs_single_array_job.json")
         )
         response_children = json.loads(
             read_text(shared_datadir / "aws_api_responses/batch_describe-jobs_single_array_job_children.json")
         )
-        awsbatch_boto3_stubber(
+        boto3_stubber(
             "batch",
             [
                 MockedBoto3Request(
@@ -162,14 +167,14 @@ class TestOutput(object):
         ],
         ids=["single_mnp", "single_mnp_detailed"],
     )
-    def test_single_mnp_job(self, args, expected, capsys, awsbatch_boto3_stubber, test_datadir, shared_datadir):
+    def test_single_mnp_job(self, args, expected, capsys, boto3_stubber, test_datadir, shared_datadir):
         response_parent = json.loads(
             read_text(shared_datadir / "aws_api_responses/batch_describe-jobs_single_mnp_job.json")
         )
         response_children = json.loads(
             read_text(shared_datadir / "aws_api_responses/batch_describe-jobs_single_mnp_job_children.json")
         )
-        awsbatch_boto3_stubber(
+        boto3_stubber(
             "batch",
             [
                 MockedBoto3Request(
@@ -191,7 +196,7 @@ class TestOutput(object):
 
         assert capsys.readouterr().out == read_text(test_datadir / expected)
 
-    def test_all_status_detailed(self, capsys, awsbatch_boto3_stubber, test_datadir, shared_datadir):
+    def test_all_status_detailed(self, capsys, boto3_stubber, test_datadir, shared_datadir):
         mocked_requests = []
         jobs_ids = []
         describe_jobs_response = {"jobs": []}
@@ -222,7 +227,7 @@ class TestOutput(object):
                 method="describe_jobs", response=describe_jobs_response, expected_params={"jobs": jobs_ids}
             )
         )
-        awsbatch_boto3_stubber("batch", mocked_requests)
+        boto3_stubber("batch", mocked_requests)
 
         awsbstat.main(["-c", "cluster", "-s", "ALL", "-d"])
 
@@ -244,7 +249,7 @@ class TestOutput(object):
         assert output.count("jobId") == 15
         assert output == read_text(test_datadir / "expected_output.txt")
 
-    def test_expanded_children(self, capsys, awsbatch_boto3_stubber, test_datadir, shared_datadir):
+    def test_expanded_children(self, capsys, boto3_stubber, test_datadir, shared_datadir):
         mocked_requests = []
         # Mock all list-jobs requests
         for status in ALL_JOB_STATUS:
@@ -308,7 +313,7 @@ class TestOutput(object):
                 },
             )
         )
-        awsbatch_boto3_stubber("batch", mocked_requests)
+        boto3_stubber("batch", mocked_requests)
 
         awsbstat.main(["-c", "cluster", "-s", "ALL", "-e"])
 
@@ -341,7 +346,7 @@ class TestOutput(object):
         ],
         ids=["tabular", "detailed"],
     )
-    def test_default_ordering_by_id(self, args, expected, capsys, awsbatch_boto3_stubber, test_datadir, shared_datadir):
+    def test_default_ordering_by_id(self, args, expected, capsys, boto3_stubber, test_datadir, shared_datadir):
         parent_jobs_response = {"jobs": []}
         for file in [
             "batch_describe-jobs_single_mnp_job.json",
@@ -361,7 +366,7 @@ class TestOutput(object):
                 json.loads(read_text(shared_datadir / "aws_api_responses/{0}".format(file)))["jobs"]
             )
 
-        awsbatch_boto3_stubber(
+        boto3_stubber(
             "batch",
             [
                 MockedBoto3Request(
@@ -417,8 +422,8 @@ class TestOutput(object):
         ],
         ids=["tabular", "detailed"],
     )
-    def test_children_by_ids(self, args, expected, capsys, awsbatch_boto3_stubber, test_datadir, shared_datadir):
-        awsbatch_boto3_stubber(
+    def test_children_by_ids(self, args, expected, capsys, boto3_stubber, test_datadir, shared_datadir):
+        boto3_stubber(
             "batch",
             MockedBoto3Request(
                 method="describe_jobs",

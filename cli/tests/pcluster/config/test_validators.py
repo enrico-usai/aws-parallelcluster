@@ -16,6 +16,11 @@ import tests.pcluster.config.utils as utils
 from tests.common import MockedBoto3Request
 
 
+@pytest.fixture()
+def boto3_stubber_path():
+    return "pcluster.config.validators.boto3"
+
+
 @pytest.mark.parametrize(
     "section_dict, expected_message",
     [
