@@ -36,10 +36,10 @@ from tests.pcluster.config.utils import get_param_map
         (CLUSTER, "extra_json", None, None),
         (CLUSTER, "extra_json", {}, {}),
         (
-                CLUSTER,
-                "extra_json",
-                {"cluster": {"cfn_scheduler_slots": "cores"}},
-                "{'cluster': {'cfn_scheduler_slots': 'cores'}}",
+            CLUSTER,
+            "extra_json",
+            {"cluster": {"cfn_scheduler_slots": "cores"}},
+            "{'cluster': {'cfn_scheduler_slots': 'cores'}}",
         ),
     ],
 )

@@ -19,89 +19,69 @@ from tests.pcluster.config.defaults import DefaultCfnParams, DefaultDict
     "cfn_params_dict, expected_section_dict",
     [
         ({}, DefaultDict["cluster"].value),
-        (
-                DefaultCfnParams["cluster"].value,
-                DefaultDict["cluster"].value,
-        ),
+        (DefaultCfnParams["cluster"].value, DefaultDict["cluster"].value),
         # awsbatch defaults
         (
-                utils.merge_dicts(
-                    DefaultCfnParams["cluster"].value,
-                    {
-                        "Scheduler": "awsbatch",
-                    }
-                ),
-                utils.merge_dicts(
-                    DefaultDict["cluster"].value,
-                    {
-                        "scheduler": "awsbatch",
-                        "min_vcpus": 0,
-                        "desired_vcpus": 0,
-                        "max_vcpus": 10,
-                        "spot_bid_percentage": 0.0,
-                        # verify also not awsbatch values
-                        "initial_queue_size": 0,
-                        "max_queue_size": 10,
-                        "maintain_initial_size": False,
-                        "spot_price": 0,
-                    },
-                ),
+            utils.merge_dicts(DefaultCfnParams["cluster"].value, {"Scheduler": "awsbatch"}),
+            utils.merge_dicts(
+                DefaultDict["cluster"].value,
+                {
+                    "scheduler": "awsbatch",
+                    "min_vcpus": 0,
+                    "desired_vcpus": 0,
+                    "max_vcpus": 10,
+                    "spot_bid_percentage": 0.0,
+                    # verify also not awsbatch values
+                    "initial_queue_size": 0,
+                    "max_queue_size": 10,
+                    "maintain_initial_size": False,
+                    "spot_price": 0,
+                },
+            ),
         ),
         # awsbatch custom
         (
-                utils.merge_dicts(
-                    DefaultCfnParams["cluster"].value,
-                    {
-                        "Scheduler": "awsbatch",
-                        "MinSize": "2",
-                        "DesiredSize": "4",
-                        "MaxSize": "8",
-                        "SpotPrice": "0.5",
-                    }
-                ),
-                utils.merge_dicts(
-                    DefaultDict["cluster"].value,
-                    {
-                        "scheduler": "awsbatch",
-                        "min_vcpus": 2,
-                        "desired_vcpus": 4,
-                        "max_vcpus": 8,
-                        "spot_bid_percentage": 0.5,
-                        # verify also not awsbatch values
-                        "initial_queue_size": 0,
-                        "max_queue_size": 10,
-                        "maintain_initial_size": False,
-                        "spot_price": 0,
-                    },
-                ),
+            utils.merge_dicts(
+                DefaultCfnParams["cluster"].value,
+                {"Scheduler": "awsbatch", "MinSize": "2", "DesiredSize": "4", "MaxSize": "8", "SpotPrice": "0.5"},
+            ),
+            utils.merge_dicts(
+                DefaultDict["cluster"].value,
+                {
+                    "scheduler": "awsbatch",
+                    "min_vcpus": 2,
+                    "desired_vcpus": 4,
+                    "max_vcpus": 8,
+                    "spot_bid_percentage": 0.5,
+                    # verify also not awsbatch values
+                    "initial_queue_size": 0,
+                    "max_queue_size": 10,
+                    "maintain_initial_size": False,
+                    "spot_price": 0,
+                },
+            ),
         ),
         # traditional scheduler custom
         (
-                utils.merge_dicts(
-                    DefaultCfnParams["cluster"].value,
-                    {
-                        "Scheduler": "slurm",
-                        "MinSize": "2",
-                        "DesiredSize": "2",
-                        "MaxSize": "8",
-                        "SpotPrice": "10",
-                    }
-                ),
-                utils.merge_dicts(
-                    DefaultDict["cluster"].value,
-                    {
-                        "scheduler": "slurm",
-                        "initial_queue_size": 2,
-                        "max_queue_size": 8,
-                        "maintain_initial_size": True,
-                        "spot_price": 10,
-                        # verify also awsbatch values
-                        "min_vcpus": 0,
-                        "desired_vcpus": 4,
-                        "max_vcpus": 10,
-                        "spot_bid_percentage": 0.0,
-                    },
-                ),
+            utils.merge_dicts(
+                DefaultCfnParams["cluster"].value,
+                {"Scheduler": "slurm", "MinSize": "2", "DesiredSize": "2", "MaxSize": "8", "SpotPrice": "10"},
+            ),
+            utils.merge_dicts(
+                DefaultDict["cluster"].value,
+                {
+                    "scheduler": "slurm",
+                    "initial_queue_size": 2,
+                    "max_queue_size": 8,
+                    "maintain_initial_size": True,
+                    "spot_price": 10,
+                    # verify also awsbatch values
+                    "min_vcpus": 0,
+                    "desired_vcpus": 4,
+                    "max_vcpus": 10,
+                    "spot_bid_percentage": 0.0,
+                },
+            ),
         ),
         # TODO test all cluster parameters
     ],

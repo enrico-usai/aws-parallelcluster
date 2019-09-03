@@ -8,6 +8,8 @@
 # or in the "LICENSE.txt" file accompanying this file. This file is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES
 # OR CONDITIONS OF ANY KIND, express or implied. See the License for the specific language governing permissions and
 # limitations under the License.
+from future.moves.collections import OrderedDict
+
 import errno
 import inspect
 import logging
@@ -17,7 +19,6 @@ import stat
 import boto3
 import configparser
 
-from future.moves.collections import OrderedDict
 from pcluster.config.mapping import ALIASES, AWS, CLUSTER, GLOBAL, get_section_type
 from pcluster.utils import fail, get_stack_name
 
@@ -285,4 +286,3 @@ class PclusterConfig(object):
     def get_master_availability_zone(self):
         """Get the Availability zone of the Master Subnet."""
         return self.get_section("vpc").get_param_value("master_availability_zone")
-

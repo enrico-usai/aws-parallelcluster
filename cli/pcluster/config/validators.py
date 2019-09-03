@@ -74,8 +74,8 @@ def efs_id_validator(param_key, param_value, pcluster_config):
             # Get list of security group IDs of the mount target
             sg_ids = (
                 boto3.client("efs")
-                    .describe_mount_target_security_groups(MountTargetId=mount_target_id)
-                    .get("SecurityGroups")
+                .describe_mount_target_security_groups(MountTargetId=mount_target_id)
+                .get("SecurityGroups")
             )
             for sg in boto3.client("ec2").describe_security_groups(GroupIds=sg_ids).get("SecurityGroups"):
                 # Check all inbound rules
@@ -465,7 +465,7 @@ def url_validator(param_key, param_value, pcluster_config):
         except ClientError:
             warnings.append(
                 _invalid_param_message(
-                    param_key, param_value, "The S3 object does not exist or you do not have access to it.",
+                    param_key, param_value, "The S3 object does not exist or you do not have access to it."
                 )
             )
     else:

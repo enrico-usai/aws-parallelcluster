@@ -42,10 +42,10 @@ from tests.pcluster.config.utils import get_param_map
         (CLUSTER, "extra_json", "NONE", {}),
         (CLUSTER, "extra_json", '{"test": "test1"}', {"test": "test1"}),
         (
-                CLUSTER,
-                "extra_json",
-                '{ "cluster" : { "cfn_scheduler_slots" : "cores" } }',
-                {"cluster": {"cfn_scheduler_slots": "cores"}},
+            CLUSTER,
+            "extra_json",
+            '{ "cluster" : { "cfn_scheduler_slots" : "cores" } }',
+            {"cluster": {"cfn_scheduler_slots": "cores"}},
         ),
         # SharedDirParam
         (CLUSTER, "shared_dir", "", "/shared"),
@@ -104,10 +104,10 @@ def test_param_from_cfn_value(section_map, param_key, cfn_value, expected_value)
         (CLUSTER, "extra_json", {"ExtraJson": "NONE"}, {}),
         (CLUSTER, "extra_json", {"ExtraJson": '{"test": "test1"}'}, {"test": "test1"}),
         (
-                CLUSTER,
-                "extra_json",
-                {"ExtraJson": '{ "cluster" : { "cfn_scheduler_slots" : "cores" } }'},
-                {"cluster": {"cfn_scheduler_slots": "cores"}},
+            CLUSTER,
+            "extra_json",
+            {"ExtraJson": '{ "cluster" : { "cfn_scheduler_slots" : "cores" } }'},
+            {"cluster": {"cfn_scheduler_slots": "cores"}},
         ),
     ],
 )

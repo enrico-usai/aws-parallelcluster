@@ -134,11 +134,8 @@ def test_efs_section_to_cfn(mocker, section_dict, expected_cfn_params):
             utils.merge_dicts(
                 DefaultCfnParams["cluster"].value,
                 DefaultCfnParams["efs"].value,
-                {
-                    "MasterSubnetId": "subnet-12345678",
-                    "AvailabilityZone": "mocked_avail_zone",
-                }
-            )
+                {"MasterSubnetId": "subnet-12345678", "AvailabilityZone": "mocked_avail_zone"},
+            ),
         ),
         (
             "test2",
@@ -147,7 +144,7 @@ def test_efs_section_to_cfn(mocker, section_dict, expected_cfn_params):
                 {
                     "MasterSubnetId": "subnet-12345678",
                     "AvailabilityZone": "mocked_avail_zone",
-                    "EFSOptions": "efs,NONE,generalPurpose,NONE,NONE,false,bursting,Valid"
+                    "EFSOptions": "efs,NONE,generalPurpose,NONE,NONE,false,bursting,Valid",
                 },
             ),
         ),
@@ -158,7 +155,7 @@ def test_efs_section_to_cfn(mocker, section_dict, expected_cfn_params):
                 {
                     "MasterSubnetId": "subnet-12345678",
                     "AvailabilityZone": "mocked_avail_zone",
-                    "EFSOptions": "efs,fs-12345,maxIO,key1,1020.0,false,provisioned,Valid"
+                    "EFSOptions": "efs,fs-12345,maxIO,key1,1020.0,false,provisioned,Valid",
                 },
             ),
         ),
@@ -169,7 +166,7 @@ def test_efs_section_to_cfn(mocker, section_dict, expected_cfn_params):
                 {
                     "MasterSubnetId": "subnet-12345678",
                     "AvailabilityZone": "mocked_avail_zone",
-                    "EFSOptions": "/efs,NONE,generalPurpose,NONE,NONE,true,bursting,Valid"
+                    "EFSOptions": "/efs,NONE,generalPurpose,NONE,NONE,true,bursting,Valid",
                 },
             ),
         ),

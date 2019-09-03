@@ -22,26 +22,26 @@ from tests.common import MockedBoto3Request
         # traditional scheduler
         ({"scheduler": "sge", "initial_queue_size": 1, "max_queue_size": 2, "maintain_initial_size": True}, None),
         (
-                {"scheduler": "sge", "initial_queue_size": 3, "max_queue_size": 2, "maintain_initial_size": True},
-                "initial_queue_size must be fewer than or equal to max_queue_size",
+            {"scheduler": "sge", "initial_queue_size": 3, "max_queue_size": 2, "maintain_initial_size": True},
+            "initial_queue_size must be fewer than or equal to max_queue_size",
         ),
         (
-                {"scheduler": "sge", "initial_queue_size": 3, "max_queue_size": 2, "maintain_initial_size": False},
-                "initial_queue_size must be fewer than or equal to max_queue_size",
+            {"scheduler": "sge", "initial_queue_size": 3, "max_queue_size": 2, "maintain_initial_size": False},
+            "initial_queue_size must be fewer than or equal to max_queue_size",
         ),
         # awsbatch
         ({"scheduler": "awsbatch", "min_vcpus": 1, "desired_vcpus": 2, "max_vcpus": 3}, None),
         (
-                {"scheduler": "awsbatch", "min_vcpus": 3, "desired_vcpus": 2, "max_vcpus": 3},
-                "desired_vcpus must be greater than or equal to min_vcpus",
+            {"scheduler": "awsbatch", "min_vcpus": 3, "desired_vcpus": 2, "max_vcpus": 3},
+            "desired_vcpus must be greater than or equal to min_vcpus",
         ),
         (
-                {"scheduler": "awsbatch", "min_vcpus": 1, "desired_vcpus": 4, "max_vcpus": 3},
-                "desired_vcpus must be fewer than or equal to max_vcpus",
+            {"scheduler": "awsbatch", "min_vcpus": 1, "desired_vcpus": 4, "max_vcpus": 3},
+            "desired_vcpus must be fewer than or equal to max_vcpus",
         ),
         (
-                {"scheduler": "awsbatch", "min_vcpus": 4, "desired_vcpus": 4, "max_vcpus": 3},
-                "max_vcpus must be greater than or equal to min_vcpus",
+            {"scheduler": "awsbatch", "min_vcpus": 4, "desired_vcpus": 4, "max_vcpus": 3},
+            "max_vcpus must be greater than or equal to min_vcpus",
         ),
     ],
 )
@@ -57,10 +57,7 @@ def test_cluster_validator(mocker, section_dict, expected_message):
 def test_ec2_key_pair_validator(mocker, boto3_stubber):
     describe_key_pairs_response = {
         "KeyPairs": [
-            {
-                "KeyFingerprint": "12:bf:7c:56:6c:dd:4f:8c:24:45:75:f1:1b:16:54:89:82:09:a4:26",
-                "KeyName": "key1",
-            }
+            {"KeyFingerprint": "12:bf:7c:56:6c:dd:4f:8c:24:45:75:f1:1b:16:54:89:82:09:a4:26", "KeyName": "key1"}
         ]
     }
     mocked_requests = [
@@ -92,8 +89,8 @@ def test_ec2_ami_validator(mocker, boto3_stubber):
                             "DeleteOnTermination": True,
                             "SnapshotId": "snap-1234567890abcdef0",
                             "VolumeSize": 8,
-                            "VolumeType": "standard"
-                        }
+                            "VolumeType": "standard",
+                        },
                     }
                 ],
                 "Architecture": "x86_64",
@@ -103,7 +100,7 @@ def test_ec2_ami_validator(mocker, boto3_stubber):
                 "RootDeviceName": "/dev/sda1",
                 "Public": False,
                 "ImageType": "machine",
-                "Description": "An AMI for my server"
+                "Description": "An AMI for my server",
             }
         ]
     }
@@ -131,7 +128,7 @@ def test_ec2_ebs_snapshot_validator(mocker, boto3_stubber):
                 "StartTime": "2014-02-28T21:28:32.000Z",
                 "Progress": "100%",
                 "OwnerId": "012345678910",
-                "SnapshotId": "snap-1234567890abcdef0"
+                "SnapshotId": "snap-1234567890abcdef0",
             }
         ]
     }
@@ -164,7 +161,7 @@ def test_ec2_volume_validator(mocker, boto3_stubber):
                         "VolumeId": "vol-12345678",
                         "State": "attached",
                         "DeleteOnTermination": True,
-                        "Device": "/dev/sda1"
+                        "Device": "/dev/sda1",
                     }
                 ],
                 "Encrypted": False,
@@ -173,7 +170,7 @@ def test_ec2_volume_validator(mocker, boto3_stubber):
                 "State": "in-use",
                 "SnapshotId": "snap-1234567890abcdef0",
                 "CreateTime": "2013-12-18T22:35:00.084Z",
-                "Size": 8
+                "Size": 8,
             }
         ]
     }
@@ -222,13 +219,7 @@ def test_scheduler_validator(mocker, region, expected_message):
 
 def test_placement_group_validator(mocker, boto3_stubber):
     describe_placement_groups_response = {
-        "PlacementGroups": [
-            {
-                "GroupName": "my-cluster",
-                "State": "available",
-                "Strategy": "cluster"
-            },
-        ]
+        "PlacementGroups": [{"GroupName": "my-cluster", "State": "available", "Strategy": "cluster"}]
     }
     mocked_requests = [
         MockedBoto3Request(
@@ -251,15 +242,13 @@ def test_url_validator(mocker, boto3_stubber):
         "LastModified": "Thu, 16 Apr 2015 18:19:14 GMT",
         "ContentLength": 77,
         "VersionId": "null",
-        "ETag": "\"30a6ec7e1a9ad79c203d05a589c8b400\"",
-        "Metadata": {}
+        "ETag": '"30a6ec7e1a9ad79c203d05a589c8b400"',
+        "Metadata": {},
     }
     mocked_requests = [
         MockedBoto3Request(
-            method="head_object",
-            response=head_object_response,
-            expected_params={"Bucket": "test", "Key": "test.json"},
-        ),
+            method="head_object", response=head_object_response, expected_params={"Bucket": "test", "Key": "test.json"}
+        )
     ]
     boto3_stubber("s3", mocked_requests)
 
@@ -337,13 +326,8 @@ def test_ec2_subnet_id_validator(mocker, boto3_stubber):
                 "OwnerId": "111122223333",
                 "AssignIpv6AddressOnCreation": False,
                 "Ipv6CidrBlockAssociationSet": [],
-                "Tags": [
-                    {
-                        "Key": "Name",
-                        "Value": "MySubnet"
-                    }
-                ],
-                "SubnetArn": "arn:aws:ec2:us-east-2:111122223333:subnet/subnet-12345678"
+                "Tags": [{"Key": "Name", "Value": "MySubnet"}],
+                "SubnetArn": "arn:aws:ec2:us-east-2:111122223333:subnet/subnet-12345678",
             }
         ]
     }
@@ -374,14 +358,10 @@ def test_ec2_security_group_validator(mocker, boto3_stubber):
                     {
                         "PrefixListIds": [],
                         "FromPort": 22,
-                        "IpRanges": [
-                            {
-                                "CidrIp": "203.0.113.0/24"
-                            }
-                        ],
+                        "IpRanges": [{"CidrIp": "203.0.113.0/24"}],
                         "ToPort": 22,
                         "IpProtocol": "tcp",
-                        "UserIdGroupPairs": []
+                        "UserIdGroupPairs": [],
                     }
                 ],
                 "GroupName": "MySecurityGroup",
@@ -414,16 +394,11 @@ def test_ec2_security_group_validator(mocker, boto3_stubber):
             {"throughput_mode": "bursting", "provisioned_throughput": 1024},
             "When specifying 'provisioned_throughput', the 'throughput_mode' must be set to 'provisioned'",
         ),
-        (
-            {"throughput_mode": "provisioned", "provisioned_throughput": 1024}, None,
-        ),
+        ({"throughput_mode": "provisioned", "provisioned_throughput": 1024}, None),
     ],
 )
 def test_efs_validator(mocker, section_dict, expected_message):
-    config_parser_dict = {
-        "cluster default": {"efs_settings": "default"},
-        "efs default": section_dict,
-    }
+    config_parser_dict = {"cluster default": {"efs_settings": "default"}, "efs default": section_dict}
     utils.assert_param_validator(mocker, config_parser_dict, expected_message)
 
 
@@ -437,33 +412,24 @@ def test_efs_validator(mocker, section_dict, expected_message):
     ],
 )
 def test_raid_volume_iops_validator(mocker, section_dict, expected_message):
-    config_parser_dict = {
-        "cluster default": {"raid_settings": "default"},
-        "raid default": section_dict,
-    }
+    config_parser_dict = {"cluster default": {"raid_settings": "default"}, "raid default": section_dict}
     utils.assert_param_validator(mocker, config_parser_dict, expected_message)
 
 
 @pytest.mark.parametrize(
     "section_dict, expected_message",
     [
-        ({"imported_file_chunk_size": 1024, "import_path": "test"}, None,),
+        ({"imported_file_chunk_size": 1024, "import_path": "test"}, None),
         (
             {"imported_file_chunk_size": 1024},
             "When specifying 'imported_file_chunk_size', the 'import_path' option must be specified",
         ),
-        ({"export_path": "test", "import_path": "test"}, None,),
-        (
-            {"export_path": "test"},
-            "When specifying 'export_path', the 'import_path' option must be specified",
-        ),
+        ({"export_path": "test", "import_path": "test"}, None),
+        ({"export_path": "test"}, "When specifying 'export_path', the 'import_path' option must be specified"),
     ],
 )
 def test_fsx_validator(mocker, section_dict, expected_message):
-    config_parser_dict = {
-        "cluster default": {"fsx_settings": "default"},
-        "fsx default": section_dict,
-    }
+    config_parser_dict = {"cluster default": {"fsx_settings": "default"}, "fsx default": section_dict}
     utils.assert_param_validator(mocker, config_parser_dict, expected_message)
 
 
@@ -477,10 +443,7 @@ def test_fsx_validator(mocker, section_dict, expected_message):
     ],
 )
 def test_fsx_storage_capacity_validator(mocker, section_dict, expected_message):
-    config_parser_dict = {
-        "cluster default": {"fsx_settings": "default"},
-        "fsx default": section_dict,
-    }
+    config_parser_dict = {"cluster default": {"fsx_settings": "default"}, "fsx default": section_dict}
     utils.assert_param_validator(mocker, config_parser_dict, expected_message)
 
 
@@ -501,10 +464,7 @@ def test_fsx_storage_capacity_validator(mocker, section_dict, expected_message):
     ],
 )
 def test_fsx_imported_file_chunk_size_validator(mocker, section_dict, expected_message):
-    config_parser_dict = {
-        "cluster default": {"fsx_settings": "default"},
-        "fsx default": section_dict,
-    }
+    config_parser_dict = {"cluster default": {"fsx_settings": "default"}, "fsx default": section_dict}
     utils.assert_param_validator(mocker, config_parser_dict, expected_message)
 
 
@@ -528,23 +488,21 @@ def test_fsx_imported_file_chunk_size_validator(mocker, section_dict, expected_m
             "it is required to set the 'scheduler'",
         ),
         (
-                {
-                    "enable_efa": "compute",
-                    "compute_instance_type": "t2.large",
-                    "base_os": "centos7",
-                    "scheduler": "slurm",
-                    "placement_group": "DYNAMIC",
-                },
-                None,
+            {
+                "enable_efa": "compute",
+                "compute_instance_type": "t2.large",
+                "base_os": "centos7",
+                "scheduler": "slurm",
+                "placement_group": "DYNAMIC",
+            },
+            None,
         ),
     ],
 )
 def test_efa_validator(mocker, section_dict, expected_message):
     mocker.patch("pcluster.config.validators.get_supported_features", return_value={"instances": ["t2.large"]})
 
-    config_parser_dict = {
-        "cluster default": section_dict,
-    }
+    config_parser_dict = {"cluster default": section_dict}
     utils.assert_param_validator(mocker, config_parser_dict, expected_message)
 
 
@@ -553,43 +511,13 @@ def test_efa_validator(mocker, section_dict, expected_message):
     [
         ([], [], "must allow all traffic in and out from itself"),
         (
-            [
-                {
-                    "IpProtocol": "-1",
-                    "UserIdGroupPairs": [
-                        {
-                            "UserId": "123456789012",
-                            "GroupId": "sg-12345678"
-                        }
-                    ]
-                }
-            ],
+            [{"IpProtocol": "-1", "UserIdGroupPairs": [{"UserId": "123456789012", "GroupId": "sg-12345678"}]}],
             [],
             "must allow all traffic in and out from itself",
         ),
         (
-            [
-                {
-                    "IpProtocol": "-1",
-                    "UserIdGroupPairs": [
-                        {
-                            "UserId": "123456789012",
-                            "GroupId": "sg-12345678"
-                        }
-                    ]
-                }
-            ],
-            [
-                {
-                    "IpProtocol": "-1",
-                    "UserIdGroupPairs": [
-                        {
-                            "UserId": "123456789012",
-                            "GroupId": "sg-12345678"
-                        }
-                    ]
-                }
-            ],
+            [{"IpProtocol": "-1", "UserIdGroupPairs": [{"UserId": "123456789012", "GroupId": "sg-12345678"}]}],
+            [{"IpProtocol": "-1", "UserIdGroupPairs": [{"UserId": "123456789012", "GroupId": "sg-12345678"}]}],
             None,
         ),
         (
@@ -597,14 +525,10 @@ def test_efa_validator(mocker, section_dict, expected_message):
                 {
                     "PrefixListIds": [],
                     "FromPort": 22,
-                    "IpRanges": [
-                        {
-                            "CidrIp": "203.0.113.0/24"
-                        }
-                    ],
+                    "IpRanges": [{"CidrIp": "203.0.113.0/24"}],
                     "ToPort": 22,
                     "IpProtocol": "tcp",
-                    "UserIdGroupPairs": []
+                    "UserIdGroupPairs": [],
                 }
             ],
             [],
@@ -640,6 +564,6 @@ def test_efa_validator_with_vpc_security_group(
 
     config_parser_dict = {
         "cluster default": {"enable_efa": "compute", "placement_group": "DYNAMIC", "vpc_settings": "default"},
-        "vpc default": {"vpc_security_group_id": "sg-12345678"}
+        "vpc default": {"vpc_security_group_id": "sg-12345678"},
     }
     utils.assert_param_validator(mocker, config_parser_dict, expected_message)

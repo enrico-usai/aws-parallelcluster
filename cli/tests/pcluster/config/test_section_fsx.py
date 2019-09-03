@@ -128,11 +128,8 @@ def test_fsx_param_from_file(param_key, param_value, expected_value, expected_me
             utils.merge_dicts(
                 DefaultCfnParams["cluster"].value,
                 DefaultCfnParams["fsx"].value,
-                {
-                    "MasterSubnetId": "subnet-12345678",
-                    "AvailabilityZone": "mocked_avail_zone",
-                }
-            )
+                {"MasterSubnetId": "subnet-12345678", "AvailabilityZone": "mocked_avail_zone"},
+            ),
         ),
         (
             "test2",
@@ -141,7 +138,7 @@ def test_fsx_param_from_file(param_key, param_value, expected_value, expected_me
                 {
                     "MasterSubnetId": "subnet-12345678",
                     "AvailabilityZone": "mocked_avail_zone",
-                    "FSXOptions": "fsx,NONE,NONE,NONE,NONE,NONE,NONE,NONE"
+                    "FSXOptions": "fsx,NONE,NONE,NONE,NONE,NONE,NONE,NONE",
                 },
             ),
         ),
@@ -152,7 +149,7 @@ def test_fsx_param_from_file(param_key, param_value, expected_value, expected_me
                 {
                     "MasterSubnetId": "subnet-12345678",
                     "AvailabilityZone": "mocked_avail_zone",
-                    "FSXOptions": "fsx,fs-1234578,10,key1,1020,test-export,test-import,10"
+                    "FSXOptions": "fsx,fs-1234578,10,key1,1020,test-export,test-import,10",
                 },
             ),
         ),
@@ -166,4 +163,3 @@ def test_fsx_params(mocker, pcluster_config_reader, settings_label, expected_cfn
     mocker.patch("pcluster.config.param_types.get_efs_mount_target_id", return_value="mount_target_id")
     mocker.patch("pcluster.config.param_types.get_avail_zone", return_value="mocked_avail_zone")
     utils.assert_section_params(mocker, pcluster_config_reader, settings_label, expected_cfn_params)
-

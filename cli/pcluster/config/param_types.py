@@ -8,12 +8,13 @@
 # or in the "LICENSE.txt" file accompanying this file. This file is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES
 # OR CONDITIONS OF ANY KIND, express or implied. See the License for the specific language governing permissions and
 # limitations under the License.
+from future.moves.collections import OrderedDict
+
 import json
 import logging
 import re
-from configparser import DuplicateSectionError, NoOptionError, NoSectionError
 
-from future.moves.collections import OrderedDict
+from configparser import DuplicateSectionError, NoOptionError, NoSectionError
 
 from pcluster.utils import error, get_avail_zone, get_cfn_param, get_efs_mount_target_id, warn
 
