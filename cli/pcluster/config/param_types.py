@@ -10,12 +10,12 @@
 # limitations under the License.
 from future.moves.collections import OrderedDict
 
-import yaml
 import logging
 import re
 
 from configparser import DuplicateSectionError, NoOptionError, NoSectionError
 
+import yaml
 from pcluster.utils import error, get_avail_zone, get_cfn_param, get_efs_mount_target_id, warn
 
 LOGGER = logging.getLogger(__name__)

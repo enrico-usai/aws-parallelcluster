@@ -33,12 +33,12 @@ class PclusterConfig(object):
     """
 
     def __init__(
-            self,
-            config_file=None,
-            file_sections=[AWS],
-            cluster_label=None,  # args.cluster_template
-            fail_on_file_absence=False,
-            cluster_name=None,
+        self,
+        config_file=None,
+        file_sections=[AWS],
+        cluster_label=None,  # args.cluster_template
+        fail_on_file_absence=False,
+        cluster_name=None,
     ):
         """
         The initialization can start from file, from a CFN Stack or from the internal mapping.
@@ -226,7 +226,7 @@ class PclusterConfig(object):
         return self.get_section("cluster").to_cfn()
 
     def __init_sections_from_file(
-            self, file_sections, cluster_label=None, config_parser=None, fail_on_file_absence=False
+        self, file_sections, cluster_label=None, config_parser=None, fail_on_file_absence=False
     ):
         for section_map in [ALIASES, GLOBAL]:
             if section_map in file_sections:
