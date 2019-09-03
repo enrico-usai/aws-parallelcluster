@@ -729,12 +729,10 @@ def test_cluster_section_to_cfn(mocker, section_dict, expected_cfn_params):
                     {
                         "CLITemplate": "random-order",
                         "AvailabilityZone": "mocked_avail_zone",
-                        "VPCId": "vpc-12345678",
-                        "MasterSubnetId": "subnet-12345678",
                         "KeyName": "key",
                         "BaseOS": "ubuntu1404",
                         "Scheduler": "slurm",
-                        "SharedDir": "/test",
+                        #"SharedDir": "/test",  # we have ebs volumes, see below
                         "PlacementGroup": "NONE",
                         "Placement": "cluster",
                         "MasterInstanceType": "t2.large",

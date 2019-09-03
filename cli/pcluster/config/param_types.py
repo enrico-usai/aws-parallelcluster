@@ -10,7 +10,7 @@
 # limitations under the License.
 from future.moves.collections import OrderedDict
 
-import json
+import yaml
 import logging
 import re
 
@@ -280,11 +280,12 @@ class JsonParam(Param):  # FIXME verify extra json in python 2.7
     def get_value_from_string(self, string_value):
         param_value = self.get_default_value()
         try:
-            # do not convert empty string
-            if string_value and isinstance(string_value, str):
+            # Do not convert empty string and use format and yaml.load in place of json.loads
+            # for Python 2.7 compatibility because it returns unicode chars
+            if string_value and isinstance("{0}".format(string_value), str):
                 string_value = string_value.strip()
                 if string_value != "NONE":
-                    param_value = json.loads(string_value)
+                    param_value = yaml.safe_load(string_value)
         except (TypeError, ValueError) as e:
             error("Error parsing JSON parameter '{0}'. {1}".format(self.key), e)
 

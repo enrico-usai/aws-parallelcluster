@@ -267,7 +267,7 @@ class PclusterConfig(object):
     def __init_sections_from_cfn(self, cluster_name):
         stack_name = get_stack_name(cluster_name)
 
-        cfn_client = boto3.client("cloudformation", region_name=self.region)
+        cfn_client = boto3.client("cloudformation")
         stack = cfn_client.describe_stacks(StackName=stack_name).get("Stacks")[0]
 
         section_type = get_section_type(CLUSTER)
