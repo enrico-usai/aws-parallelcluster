@@ -357,13 +357,7 @@ def _get_pcluster_user_policy(partition, region, account_id):
             "*",
         ),
         (
-            [
-                "dynamodb:PutItem",
-                "dynamodb:Query",
-                "dynamodb:GetItem",
-                "dynamodb:DeleteItem",
-                "dynamodb:DescribeTable",
-            ],
+            ["dynamodb:PutItem", "dynamodb:Query", "dynamodb:GetItem", "dynamodb:DeleteItem", "dynamodb:DescribeTable"],
             "arn:%s:dynamodb:%s:%s:table/parallelcluster-*" % (partition, region, account_id),
         ),
         (

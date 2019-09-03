@@ -14,7 +14,7 @@ import logging
 
 from future import standard_library
 
-from pcluster.config.mapping import AWS, GLOBAL, CLUSTER, ALIASES
+from pcluster.config.mapping import ALIASES, AWS, CLUSTER, GLOBAL
 from pcluster.config.pcluster_config import PclusterConfig
 from pcluster.configure.networking import (
     NetworkConfiguration,
@@ -123,9 +123,7 @@ def configure(args):
     )
 
     scheduler = prompt_iterable(
-        "Scheduler",
-        get_supported_schedulers(),
-        default_value=cluster_section.get_param_value("scheduler"),
+        "Scheduler", get_supported_schedulers(), default_value=cluster_section.get_param_value("scheduler")
     )
     scheduler_handler = SchedulerHandler(cluster_section, scheduler)
 
@@ -146,11 +144,7 @@ def configure(args):
     vpc_parameters = _create_vpc_parameters(
         vpc_section, aws_region_name, scheduler, scheduler_handler.max_cluster_size, automate_vpc_creation=automate_vpc
     )
-    cluster_parameters = {
-        "key_name": key_name,
-        "scheduler": scheduler,
-        "master_instance_type": master_instance_type,
-    }
+    cluster_parameters = {"key_name": key_name, "scheduler": scheduler, "master_instance_type": master_instance_type}
     cluster_parameters.update(scheduler_handler.get_scheduler_parameters())
 
     # We remove parameters that may still be present from the past configuration but can conflict with the current.
@@ -279,9 +273,7 @@ class SchedulerHandler:
         """Ask for compute_instance_type, if necessary."""
         if not self.is_aws_batch:
             self.compute_instance_type = prompt(
-                "Compute instance type",
-                lambda x: x in _list_instances(),
-                default_value=self.compute_instance_type,
+                "Compute instance type", lambda x: x in _list_instances(), default_value=self.compute_instance_type
             )
 
     def prompt_cluster_size(self):
