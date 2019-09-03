@@ -785,7 +785,7 @@ def test_cluster_section_to_cfn(mocker, section_dict, expected_cfn_params):
         ),
     ],
 )
-def test_cluster_params(mocker, pcluster_config_reader, settings_label, expected_cfn_params):
+def test_cluster_from_file_to_cfn(mocker, pcluster_config_reader, settings_label, expected_cfn_params):
     """Unit tests for parsing Cluster related options."""
     mocker.patch("pcluster.config.param_types.get_efs_mount_target_id", return_value="mount_target_id")
     mocker.patch("pcluster.config.param_types.get_avail_zone", return_value="mocked_avail_zone")

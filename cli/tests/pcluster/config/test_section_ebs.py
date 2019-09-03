@@ -191,6 +191,6 @@ def test_ebs_param_from_file(param_key, param_value, expected_value, expected_me
         ),
     ],
 )
-def test_ebs_params(mocker, pcluster_config_reader, settings_label, expected_cfn_params):
+def test_ebs_from_file_to_cfn(mocker, pcluster_config_reader, settings_label, expected_cfn_params):
     """Unit tests for parsing EBS related options."""
     utils.assert_section_params(mocker, pcluster_config_reader, settings_label, expected_cfn_params)
