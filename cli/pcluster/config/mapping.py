@@ -408,8 +408,8 @@ CLUSTER = {
         "spot_bid_percentage": {
             "type": SpotBidPercentageParam,
             "default": 0.0,
-            "cfn": "SpotPrice", #TODO test
-            "allowed_values": r"^(1[0-9]{2}(\.0)?|[1-9][0-9]|[1-9])(\.[0-9])?$",  # 0.0 <= value <= 100.0
+            "cfn": "SpotPrice",
+            "allowed_values": r"^(100(\.0)?|([1-9][0-9]|[1-9])(\.[0-9]*)?|[0-9]\.[0-9]+)$",  # 0.0 <= value <= 100.0
         },
         # Access and networking
         "proxy_server": {
