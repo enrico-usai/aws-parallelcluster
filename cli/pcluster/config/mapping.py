@@ -13,6 +13,7 @@ from future.moves.collections import OrderedDict
 from enum import Enum
 
 from pcluster.config.param_types import (
+    AvailabilityZoneParam,
     BoolParam,
     ClusterSection,
     DesiredSizeParam,
@@ -140,6 +141,11 @@ VPC = {
             "allowed_values": CommonRegex.SECURITY_GROUP_ID.value,
             "validator": ec2_security_group_validator,
         },
+        "master_availability_zone": {
+            # NOTE: this is not exposed as a configuration parameter
+            "type": AvailabilityZoneParam,
+            "cfn": "AvailabilityZone",
+        }
     },
 }
 

@@ -531,9 +531,7 @@ def test_cluster_section_to_file(section_map, section_dict, expected_config_pars
 )
 def test_cluster_section_to_cfn(mocker, section_dict, expected_cfn_params):
     mocker.patch("pcluster.config.param_types.get_efs_mount_target_id", return_value="valid_mount_target_id")
-    mocker.patch(
-        "pcluster.config.pcluster_config.PclusterConfig.get_master_avail_zone", return_value="mocked_avail_zone"
-    )
+    mocker.patch("pcluster.config.param_types.get_avail_zone", return_value="mocked_avail_zone")
     utils.assert_section_to_cfn(CLUSTER, section_dict, expected_cfn_params)
 
 
@@ -547,6 +545,7 @@ def test_cluster_section_to_cfn(mocker, section_dict, expected_cfn_params):
                 DefaultCfnParams["cluster"].value,
                 {
                     "CLITemplate": "custom1",
+                    "AvailabilityZone": "mocked_avail_zone",
                     "VPCId": "vpc-12345678",
                     "MasterSubnetId": "subnet-12345678",
                     "KeyName": "key",
@@ -591,6 +590,9 @@ def test_cluster_section_to_cfn(mocker, section_dict, expected_cfn_params):
                 DefaultCfnParams["cluster"].value,
                 {
                     "CLITemplate": "batch",
+                    "AvailabilityZone": "mocked_avail_zone",
+                    "VPCId": "vpc-12345678",
+                    "MasterSubnetId": "subnet-12345678",
                     "Scheduler": "awsbatch",
                     "DesiredSize": "4",
                     "MaxSize": "10",
@@ -605,6 +607,9 @@ def test_cluster_section_to_cfn(mocker, section_dict, expected_cfn_params):
                 DefaultCfnParams["cluster"].value,
                 {
                     "CLITemplate": "batch-custom1",
+                    "AvailabilityZone": "mocked_avail_zone",
+                    "VPCId": "vpc-12345678",
+                    "MasterSubnetId": "subnet-12345678",
                     "Scheduler": "awsbatch",
                     "DesiredSize": "3",
                     "MaxSize": "4",
@@ -620,6 +625,9 @@ def test_cluster_section_to_cfn(mocker, section_dict, expected_cfn_params):
                 DefaultCfnParams["cluster"].value,
                 {
                     "CLITemplate": "wrong_mix_traditional",
+                    "AvailabilityZone": "mocked_avail_zone",
+                    "VPCId": "vpc-12345678",
+                    "MasterSubnetId": "subnet-12345678",
                     "Scheduler": "slurm",
                     "DesiredSize": "1",
                     "MaxSize": "2",
@@ -635,6 +643,9 @@ def test_cluster_section_to_cfn(mocker, section_dict, expected_cfn_params):
                 DefaultCfnParams["cluster"].value,
                 {
                     "CLITemplate": "wrong_mix_batch",
+                    "AvailabilityZone": "mocked_avail_zone",
+                    "VPCId": "vpc-12345678",
+                    "MasterSubnetId": "subnet-12345678",
                     "Scheduler": "awsbatch",
                     "DesiredSize": "3",
                     "MaxSize": "4",
@@ -650,6 +661,7 @@ def test_cluster_section_to_cfn(mocker, section_dict, expected_cfn_params):
                 DefaultCfnParams["cluster"].value,
                 {
                     "CLITemplate": "efs",
+                    "AvailabilityZone": "mocked_avail_zone",
                     "VPCId": "vpc-12345678",
                     "MasterSubnetId": "subnet-12345678",
                     "EFSOptions": "efs,NONE,generalPurpose,NONE,NONE,false,bursting,Valid",
@@ -662,6 +674,7 @@ def test_cluster_section_to_cfn(mocker, section_dict, expected_cfn_params):
                 DefaultCfnParams["cluster"].value,
                 {
                     "CLITemplate": "ebs1",
+                    "AvailabilityZone": "mocked_avail_zone",
                     "VPCId": "vpc-12345678",
                     "MasterSubnetId": "subnet-12345678",
                     "NumberOfEBSVol": "1",
@@ -681,6 +694,7 @@ def test_cluster_section_to_cfn(mocker, section_dict, expected_cfn_params):
                 DefaultCfnParams["cluster"].value,
                 {
                     "CLITemplate": "ebs2",
+                    "AvailabilityZone": "mocked_avail_zone",
                     "VPCId": "vpc-12345678",
                     "MasterSubnetId": "subnet-12345678",
                     "NumberOfEBSVol": "2",
@@ -699,6 +713,7 @@ def test_cluster_section_to_cfn(mocker, section_dict, expected_cfn_params):
 def test_cluster_params(mocker, pcluster_config_reader, settings_label, expected_cfn_params):
     """Unit tests for parsing Cluster related options."""
     mocker.patch("pcluster.config.param_types.get_efs_mount_target_id", return_value="mount_target_id")
+    mocker.patch("pcluster.config.param_types.get_avail_zone", return_value="mocked_avail_zone")
     mocker.patch(
         "pcluster.config.validators.get_supported_features",
         return_value={"instances": ["t2.large"], "baseos": ["ubuntu1404"], "schedulers": ["slurm"]},

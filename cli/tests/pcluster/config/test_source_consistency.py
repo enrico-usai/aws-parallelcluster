@@ -41,13 +41,13 @@ def test_example_config_consistency(mocker):
     # get config file from example
     # mock validation to avoid boto3 calls required at validation stage
     mocker.patch.object(PclusterConfig, "_PclusterConfig__validate")
+    mocker.patch("pcluster.config.param_types.get_avail_zone", return_value="mocked_avail_zone")
     pcluster_config = PclusterConfig(
         config_file=utils.get_pcluster_config_example(),
         file_sections=[AWS, GLOBAL, CLUSTER, ALIASES],
         fail_on_file_absence=True,
     )
 
-    pcluster_config.get_master_avail_zone = mocker.MagicMock(return_value="mocked_avail_zone")
     cfn_params = pcluster_config.to_cfn()
 
     assert_that(len(cfn_params)).is_equal_to(CFN_CONFIG_NUM_OF_PARAMS)

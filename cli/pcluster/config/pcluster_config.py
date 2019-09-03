@@ -282,14 +282,7 @@ class PclusterConfig(object):
             for section_label, section in sections.items():
                 section.validate(fail_on_error=fail_on_error)
 
-    def get_master_avail_zone(self):
-        """
-        Get the Availability zone of the Master Subnet, by searching in pcluster_config dictionary
+    def get_master_availability_zone(self):
+        """Get the Availability zone of the Master Subnet."""
+        return self.get_section("vpc").get_param_value("master_availability_zone")
 
-        :return: master avail zone
-        """
-        master_subnet_id = self.get_section("vpc").get_param_value("master_subnet_id")
-        master_avail_zone = (
-            boto3.client("ec2").describe_subnets(SubnetIds=[master_subnet_id]).get("Subnets")[0].get("AvailabilityZone")
-        )
-        return master_avail_zone

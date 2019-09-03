@@ -101,8 +101,7 @@ def ec2_ami_validator(param_key, param_value, pcluster_config):
     errors = []
     warnings = []
     try:
-        ec2 = boto3.client("ec2")
-        ec2.describe_images(ImageIds=[param_value])
+        boto3.client("ec2").describe_images(ImageIds=[param_value])
     except ClientError as e:
         errors.append(_invalid_param_message(param_key, param_value, e.response.get("Error").get("Message")))
 
@@ -113,8 +112,7 @@ def ec2_ebs_snapshot_validator(param_key, param_value, pcluster_config):
     errors = []
     warnings = []
     try:
-        ec2 = boto3.client("ec2")
-        test = ec2.describe_snapshots(SnapshotIds=[param_value]).get("Snapshots")[0]
+        test = boto3.client("ec2").describe_snapshots(SnapshotIds=[param_value]).get("Snapshots")[0]
         if test.get("State") != "completed":
             warnings.append("Snapshot {0} is in state '{1}' not 'completed'".format(param_value, test.get("State")))
     except ClientError as e:
@@ -127,8 +125,7 @@ def ec2_volume_validator(param_key, param_value, pcluster_config):
     errors = []
     warnings = []
     try:
-        ec2 = boto3.client("ec2")
-        test = ec2.describe_volumes(VolumeIds=[param_value]).get("Volumes")[0]
+        test = boto3.client("ec2").describe_volumes(VolumeIds=[param_value]).get("Volumes")[0]
         if test.get("State") != "available":
             warnings.append("Volume {0} is in state '{1}' not 'available'".format(param_value, test.get("State")))
     except ClientError as e:
@@ -189,7 +186,7 @@ def scheduler_validator(param_key, param_value, pcluster_config):
     errors = []
     warnings = []
 
-    if param_value is "awsbatch":
+    if param_value == "awsbatch":
         if pcluster_config.region in [
             "ap-northeast-3",
             "eu-north-1",
@@ -211,8 +208,7 @@ def placement_group_validator(param_key, param_value, pcluster_config):
         pass
     else:
         try:
-            ec2 = boto3.client("ec2")
-            ec2.describe_placement_groups(GroupNames=[param_value])
+            boto3.client("ec2").describe_placement_groups(GroupNames=[param_value])
         except ClientError as e:
             errors.append(_invalid_param_message(param_key, param_value, e.response.get("Error").get("Message")))
 
@@ -225,10 +221,9 @@ def url_validator(param_key, param_value, pcluster_config):
 
     if urlparse(param_value).scheme == "s3":
         try:
-            s3 = boto3.client("s3")
             m = re.match(r"s3://(\w*)/(.*)", param_value)
             bucket, key = m.group(1), m.group(2)
-            s3.head_object(Bucket=bucket, Key=key)
+            boto3.client("s3").head_object(Bucket=bucket, Key=key)
         except ClientError:
             warnings.append(
                 "The S3 object '{0}' used for the parameter '{1}' does not exist "
@@ -303,7 +298,7 @@ def efs_id_validator(param_key, param_value, pcluster_config):
     warnings = []
     try:
         # Get master availability zone
-        master_avail_zone = pcluster_config.get_master_avail_zone()
+        master_avail_zone = pcluster_config.get_master_availability_zone()
         mount_target_id = get_efs_mount_target_id(efs_fs_id=param_value, avail_zone=master_avail_zone)
         # If there is an existing mt in the az, need to check the inbound and outbound rules of the security groups
         if mount_target_id:

@@ -71,9 +71,11 @@ def assert_param_from_file(section_map, param_key, param_value, expected_value, 
         assert_that(param.value, description="{0} assert fail".format(param.key)).is_equal_to(expected_value)
 
 
-def assert_param_validator(config_parser_dict, expected_message):
+def assert_param_validator(mocker, config_parser_dict, expected_message=None):
     config_parser = configparser.ConfigParser()
     config_parser.read_dict(config_parser_dict)
+
+    mocker.patch("pcluster.config.param_types.get_avail_zone", return_value="mocked_avail_zone")
 
     if expected_message:
         with pytest.raises(SystemExit, match=expected_message):
@@ -202,7 +204,6 @@ def assert_section_params(mocker, pcluster_config_reader, settings_label, expect
             fail_on_file_absence=True,
         )
 
-        pcluster_config.get_master_avail_zone = mocker.MagicMock(return_value="mocked_avail_zone")
         cfn_params = pcluster_config.to_cfn()
 
         assert_that(len(cfn_params)).is_equal_to(CFN_CONFIG_NUM_OF_PARAMS)

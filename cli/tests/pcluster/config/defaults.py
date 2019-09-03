@@ -31,6 +31,7 @@ DEFAULT_VPC_DICT = {
     "compute_subnet_cidr": None,
     "use_public_ips": True,
     "vpc_security_group_id": None,
+    "master_availability_zone": None,
 }
 
 DEFAULT_EBS_DICT = {
@@ -156,6 +157,7 @@ DEFAULT_VPC_CFN_PARAMS = {
     "ComputeSubnetCidr": "NONE",
     "UsePublicIps": "true",
     "VPCSecurityGroupId": "NONE",
+    "AvailabilityZone": "NONE",
 }
 
 DEFAULT_EBS_CFN_PARAMS = {
@@ -178,7 +180,6 @@ DEFAULT_FSX_CFN_PARAMS = {"FSXOptions": "NONE,NONE,NONE,NONE,NONE,NONE,NONE,NONE
 DEFAULT_CLUSTER_CFN_PARAMS = {
     "KeyName": "NONE",
     "BaseOS": "alinux",
-    "AvailabilityZone": "mocked_avail_zone",
     "CLITemplate": "default",
     "Scheduler": "sge",
     "SharedDir": "/shared",
@@ -222,6 +223,7 @@ DEFAULT_CLUSTER_CFN_PARAMS = {
     "ComputeSubnetCidr": "NONE",
     "UsePublicIps": "true",
     "VPCSecurityGroupId": "NONE",
+    "AvailabilityZone": "NONE",
     # ebs
     # "SharedDir": "NONE,NONE,NONE,NONE,NONE",  # not existing with single ebs volume
     "EBSSnapshotId": "NONE,NONE,NONE,NONE,NONE",

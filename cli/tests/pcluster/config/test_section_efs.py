@@ -121,7 +121,7 @@ def test_efs_param_from_file(param_key, param_value, expected_value, expected_me
 def test_efs_section_to_cfn(mocker, section_dict, expected_cfn_params):
     mocker.patch("pcluster.config.param_types.get_efs_mount_target_id", return_value="valid_mount_target_id")
     mocker.patch(
-        "pcluster.config.pcluster_config.PclusterConfig.get_master_avail_zone", return_value="mocked_avail_zone"
+        "pcluster.config.pcluster_config.PclusterConfig.get_master_availability_zone", return_value="mocked_avail_zone"
     )
     utils.assert_section_to_cfn(EFS, section_dict, expected_cfn_params)
 
@@ -129,26 +129,48 @@ def test_efs_section_to_cfn(mocker, section_dict, expected_cfn_params):
 @pytest.mark.parametrize(
     "settings_label, expected_cfn_params",
     [
-        ("test1", utils.merge_dicts(DefaultCfnParams["cluster"].value, DefaultCfnParams["efs"].value)),
+        (
+            "test1",
+            utils.merge_dicts(
+                DefaultCfnParams["cluster"].value,
+                DefaultCfnParams["efs"].value,
+                {
+                    "MasterSubnetId": "subnet-12345678",
+                    "AvailabilityZone": "mocked_avail_zone",
+                }
+            )
+        ),
         (
             "test2",
             utils.merge_dicts(
                 DefaultCfnParams["cluster"].value,
-                {"EFSOptions": "efs,NONE,generalPurpose,NONE,NONE,false,bursting,Valid"},
+                {
+                    "MasterSubnetId": "subnet-12345678",
+                    "AvailabilityZone": "mocked_avail_zone",
+                    "EFSOptions": "efs,NONE,generalPurpose,NONE,NONE,false,bursting,Valid"
+                },
             ),
         ),
         (
             "test3",
             utils.merge_dicts(
                 DefaultCfnParams["cluster"].value,
-                {"EFSOptions": "efs,fs-12345,maxIO,key1,1020.0,false,provisioned,Valid"},
+                {
+                    "MasterSubnetId": "subnet-12345678",
+                    "AvailabilityZone": "mocked_avail_zone",
+                    "EFSOptions": "efs,fs-12345,maxIO,key1,1020.0,false,provisioned,Valid"
+                },
             ),
         ),
         (
             "test4",
             utils.merge_dicts(
                 DefaultCfnParams["cluster"].value,
-                {"EFSOptions": "/efs,NONE,generalPurpose,NONE,NONE,true,bursting,Valid"},
+                {
+                    "MasterSubnetId": "subnet-12345678",
+                    "AvailabilityZone": "mocked_avail_zone",
+                    "EFSOptions": "/efs,NONE,generalPurpose,NONE,NONE,true,bursting,Valid"
+                },
             ),
         ),
         ("test1,test2", SystemExit()),
@@ -157,4 +179,5 @@ def test_efs_section_to_cfn(mocker, section_dict, expected_cfn_params):
 def test_efs_params(mocker, pcluster_config_reader, settings_label, expected_cfn_params):
     """Unit tests for parsing EFS related options."""
     mocker.patch("pcluster.config.param_types.get_efs_mount_target_id", return_value="mount_target_id")
+    mocker.patch("pcluster.config.param_types.get_avail_zone", return_value="mocked_avail_zone")
     utils.assert_section_params(mocker, pcluster_config_reader, settings_label, expected_cfn_params)

@@ -229,19 +229,6 @@ def update(args):  # noqa: C901 FIXME!!!
             if parameter.get("ParameterKey") == "ResourcesS3Bucket":
                 cfn_params["ResourcesS3Bucket"] = parameter.get("ParameterValue")
 
-    # Get the MasterSubnetId and use it to determine AvailabilityZone
-    if "MasterSubnetId" in cfn_params:
-        master_subnet_id = cfn_params["MasterSubnetId"]
-        try:
-            ec2 = boto3.client("ec2")
-            availability_zone = (
-                ec2.describe_subnets(SubnetIds=[master_subnet_id]).get("Subnets")[0].get("AvailabilityZone")
-            )
-        except ClientError as e:
-            LOGGER.critical(e.response.get("Error").get("Message"))
-            sys.exit(1)
-        cfn_params["AvailabilityZone"] = availability_zone
-
     try:
         LOGGER.debug(cfn_params)
         if args.extra_parameters:

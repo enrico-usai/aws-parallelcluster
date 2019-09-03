@@ -11,11 +11,11 @@
 import json
 import logging
 import re
-
 from configparser import DuplicateSectionError, NoOptionError, NoSectionError
 
-from pcluster.utils import error, get_cfn_param, get_efs_mount_target_id, warn
 from future.moves.collections import OrderedDict
+
+from pcluster.utils import error, get_avail_zone, get_cfn_param, get_efs_mount_target_id, warn
 
 LOGGER = logging.getLogger(__name__)
 
@@ -499,6 +499,19 @@ class MinSizeParam(IntParam):
             cfn_params.update({self.map.get("cfn"): str(cfn_value)})
 
         return cfn_params
+
+
+class AvailabilityZoneParam(Param):
+    def _init_from_file(self, config_parser):
+        """Get the Availability zone of the cluster from the Master Subnet."""
+        section_name = _get_file_section_name(self.section_key, self.section_label)
+        master_subnet_id = config_parser.get(section_name, "master_subnet_id")
+        self.value = get_avail_zone(master_subnet_id)
+        self._check_allowed_values()
+
+    def to_file(self, config_parser):
+        # master_availability_zone is an internal parameter but not exposed to the configuration file.
+        pass
 
 
 # ---------------------- SettingsParam ---------------------- #
@@ -996,7 +1009,7 @@ class EFSSection(Section):
             cfn_items = ["NONE"] * len(self.map.get("params"))
         else:
             # add another CFN param that will identify if create or no a Mount Target for the given EFS FS Id
-            master_avail_zone = self.pcluster_config.get_master_avail_zone()
+            master_avail_zone = self.pcluster_config.get_master_availability_zone()
             mount_target_id = get_efs_mount_target_id(
                 efs_fs_id=self.get_param_value("efs_fs_id"), avail_zone=master_avail_zone
             )
@@ -1015,7 +1028,6 @@ class ClusterSection(Section):
     def to_cfn(self):
         cfn_params = super(ClusterSection, self).to_cfn()
         cfn_params.update({"CLITemplate": self.label})
-        cfn_params.update({"AvailabilityZone": self.pcluster_config.get_master_avail_zone()})
         return cfn_params
 
 
