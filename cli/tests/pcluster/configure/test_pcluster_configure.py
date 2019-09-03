@@ -86,7 +86,7 @@ def _mock_get_subnets_in_vpc(mocker):
 def _mock_vpc_factory(mocker, is_a_valid_vpc):
     vpc_factory = NETWORKING + "VpcFactory"
     mock = mocker.patch(vpc_factory, autospec=True)
-    mock.return_value.create.return_value = "vpc-0"
+    mock.return_value.create.return_value = "vpc-12345678"
     mock.return_value.check.return_value = is_a_valid_vpc
 
 
@@ -264,7 +264,7 @@ def test_subnet_automation_no_awsbatch_no_errors_empty_vpc(mocker, capsys, test_
     config, error, output = get_file_path(test_datadir)
 
     mock_handler = MockHandler(mocker)
-    mock_handler.add_subnet_automation(public_subnet_id="subnet-pu", private_subnet_id="subnet-pr")
+    mock_handler.add_subnet_automation(public_subnet_id="subnet-12345678", private_subnet_id="subnet-23456789")
     input_composer = ComposeInput(aws_region_name="eu-west-1", scheduler="sge")
     input_composer.add_first_flow(
         op_sys="centos6",
@@ -286,7 +286,7 @@ def test_subnet_automation_no_awsbatch_no_errors(mocker, capsys, test_datadir):
     config, error, output = get_file_path(test_datadir)
 
     mock_handler = MockHandler(mocker)
-    mock_handler.add_subnet_automation(public_subnet_id="subnet-pu", private_subnet_id="subnet-pr")
+    mock_handler.add_subnet_automation(public_subnet_id="subnet-12345678", private_subnet_id="subnet-23456789")
     input_composer = ComposeInput(aws_region_name="eu-west-1", scheduler="sge")
     input_composer.add_first_flow(
         op_sys="centos6",
@@ -309,7 +309,7 @@ def test_subnet_automation_no_awsbatch_no_errors_with_config_file(mocker, capsys
     old_config_file = str(test_datadir / "original_config_file")
 
     mock_handler = MockHandler(mocker)
-    mock_handler.add_subnet_automation(public_subnet_id="subnet-pu", private_subnet_id="subnet-pr")
+    mock_handler.add_subnet_automation(public_subnet_id="subnet-12345678", private_subnet_id="subnet-23456789")
     input_composer = ComposeInput(aws_region_name="eu-west-1", scheduler="sge")
     input_composer.add_first_flow(
         op_sys="centos6",
@@ -334,7 +334,7 @@ def test_vpc_automation_no_awsbatch_no_errors(mocker, capsys, test_datadir):
     config, error, output = get_file_path(test_datadir)
 
     mock_handler = MockHandler(mocker)
-    mock_handler.add_subnet_automation(public_subnet_id="subnet-pu", private_subnet_id="subnet-pr")
+    mock_handler.add_subnet_automation(public_subnet_id="subnet-12345678", private_subnet_id="subnet-23456789")
     input_composer = ComposeInput(aws_region_name="eu-west-1", scheduler="sge")
     input_composer.add_first_flow(
         op_sys="centos6",
@@ -354,7 +354,7 @@ def test_vpc_automation_yes_awsbatch_no_errors(mocker, capsys, test_datadir):
     config, error, output = get_file_path(test_datadir)
 
     mock_handler = MockHandler(mocker)
-    mock_handler.add_subnet_automation(public_subnet_id="subnet-pu", private_subnet_id="subnet-pr")
+    mock_handler.add_subnet_automation(public_subnet_id="subnet-12345678", private_subnet_id="subnet-23456789")
     input_composer = ComposeInput(aws_region_name="eu-west-1", scheduler="awsbatch")
     input_composer.add_first_flow(
         op_sys=None, min_size="13", max_size="14", master_instance="t2.nano", compute_instance=None, key="key1"
@@ -371,7 +371,7 @@ def test_vpc_automation_invalid_vpc_block(mocker, capsys, test_datadir):
 
         mock_handler = MockHandler(mocker)
         mock_handler.add_subnet_automation(
-            public_subnet_id="subnet-pu", private_subnet_id="subnet-pr", is_a_valid_vpc=False
+            public_subnet_id="subnet-12345678", private_subnet_id="subnet-23456789", is_a_valid_vpc=False
         )
         input_composer = ComposeInput(aws_region_name="eu-west-1", scheduler="awsbatch")
         input_composer.add_first_flow(
@@ -387,7 +387,7 @@ def test_subnet_automation_yes_awsbatch_invalid_vpc(mocker, capsys, test_datadir
 
     mock_handler = MockHandler(mocker)
     mock_handler.add_subnet_automation(
-        public_subnet_id="subnet-pu", private_subnet_id="subnet-pr", is_a_valid_vpc=False
+        public_subnet_id="subnet-12345678", private_subnet_id="subnet-23456789", is_a_valid_vpc=False
     )
     input_composer = ComposeInput(aws_region_name="eu-west-1", scheduler="awsbatch")
     input_composer.add_first_flow(
@@ -403,7 +403,7 @@ def test_vpc_automation_no_vpc_in_region(mocker, capsys, test_datadir):
     config, error, output = get_file_path(test_datadir)
 
     mock_handler = MockHandler(mocker, empty_region=True)
-    mock_handler.add_subnet_automation(public_subnet_id="subnet-pu", private_subnet_id="subnet-pr")
+    mock_handler.add_subnet_automation(public_subnet_id="subnet-12345678", private_subnet_id="subnet-23456789")
     input_composer = ComposeInput(aws_region_name="eu-west-1", scheduler="slurm")
     input_composer.add_first_flow(
         op_sys="centos6",
@@ -423,7 +423,7 @@ def test_vpc_automation_no_vpc_in_region_public(mocker, capsys, test_datadir):
     config, error, output = get_file_path(test_datadir)
 
     mock_handler = MockHandler(mocker, empty_region=True)
-    mock_handler.add_subnet_automation(public_subnet_id="subnet-pu")
+    mock_handler.add_subnet_automation(public_subnet_id="subnet-12345678")
     input_composer = ComposeInput(aws_region_name="eu-west-1", scheduler="slurm")
     input_composer.add_first_flow(
         op_sys="centos6",
