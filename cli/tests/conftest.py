@@ -208,7 +208,8 @@ def pcluster_config_reader(test_datadir):
         file_loader = FileSystemLoader(str(test_datadir))
         env = Environment(loader=file_loader)
         rendered_template = env.get_template(config_file).render(**kwargs)
-        config_file_path.write_text(rendered_template)
+        with open(config_file_path, "w") as f:
+            f.write(rendered_template)
         return config_file_path
 
     return _config_renderer
