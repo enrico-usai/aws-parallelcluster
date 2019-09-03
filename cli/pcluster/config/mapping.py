@@ -36,7 +36,9 @@ from pcluster.config.validators import (
     compute_instance_type_validator,
     ec2_ami_validator,
     ec2_ebs_snapshot_validator,
+    ec2_iam_role_validator,
     ec2_key_pair_validator,
+    ec2_placement_group_validator,
     ec2_security_group_validator,
     ec2_subnet_id_validator,
     ec2_volume_validator,
@@ -48,8 +50,6 @@ from pcluster.config.validators import (
     fsx_imported_file_chunk_size_validator,
     fsx_storage_capacity_validator,
     fsx_validator,
-    iam_role_validator,
-    placement_group_validator,
     raid_volume_iops_validator,
     scheduler_validator,
     url_validator,
@@ -333,7 +333,7 @@ CLUSTER = {
         # Cluster configuration
         "placement_group": {
             "cfn": "PlacementGroup",
-            "validator": placement_group_validator,
+            "validator": ec2_placement_group_validator,
         },
         "placement": {
             "default": "compute",
@@ -408,7 +408,8 @@ CLUSTER = {
         "spot_bid_percentage": {
             "type": SpotBidPercentageParam,
             "default": 0.0,
-            "cfn": "SpotPrice",
+            "cfn": "SpotPrice", #TODO test
+            "allowed_values": r"^(1[0-9]{2}(\.0)?|[1-9][0-9]|[1-9])(\.[0-9])?$",  # 0.0 <= value <= 100.0
         },
         # Access and networking
         "proxy_server": {
@@ -416,7 +417,7 @@ CLUSTER = {
         },
         "ec2_iam_role": {
             "cfn": "EC2IAMRoleName",
-            "validator": iam_role_validator,
+            "validator": ec2_iam_role_validator,
         },
         "s3_read_resource": {
             "cfn": "S3ReadResource",

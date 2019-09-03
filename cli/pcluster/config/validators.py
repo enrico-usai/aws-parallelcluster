@@ -69,13 +69,13 @@ def ec2_key_pair_validator(param_key, param_value, pcluster_config):
     return errors, warnings
 
 
-def iam_role_validator(param_key, param_value, pcluster_config):
+def ec2_iam_role_validator(param_key, param_value, pcluster_config):
     errors = []
     warnings = []
     try:
         iam = boto3.client("iam")
         arn = iam.get_role(RoleName=param_value).get("Role").get("Arn")
-        account_id = boto3.client("sts").get_caller_identity().get("Account")
+        account_id = boto3.client("sts", endpoint_url=_get_sts_endpoint()).get_caller_identity().get("Account")
 
         iam_policy = _get_pcluster_user_policy(_get_partition(), _get_region(), account_id)
 
@@ -200,7 +200,7 @@ def scheduler_validator(param_key, param_value, pcluster_config):
     return errors, warnings
 
 
-def placement_group_validator(param_key, param_value, pcluster_config):
+def ec2_placement_group_validator(param_key, param_value, pcluster_config):
     errors = []
     warnings = []
 
@@ -497,6 +497,12 @@ def _check_sg_rules_for_port(rule, port_to_check):
         return True
 
     return False
+
+
+def _get_sts_endpoint():
+    """Get regionalized STS endpoint."""
+    region = _get_region()
+    return "https://sts.{0}.{1}".format(region, "amazonaws.com.cn" if region.startswith("cn-") else "amazonaws.com")
 
 
 def _get_partition():
