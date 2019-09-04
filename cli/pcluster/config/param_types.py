@@ -286,8 +286,8 @@ class JsonParam(Param):  # FIXME verify extra json in python 2.7
                 string_value = string_value.strip()
                 if string_value != "NONE":
                     param_value = yaml.safe_load(string_value)
-        except (TypeError, ValueError) as e:
-            error("Error parsing JSON parameter '{0}'. {1}".format(self.key), e)
+        except (TypeError, ValueError, Exception) as e:
+            error("Error parsing JSON parameter '{0}'. {1}".format(self.key, e))
 
         return param_value
 

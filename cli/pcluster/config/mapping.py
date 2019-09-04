@@ -203,6 +203,7 @@ EFS = {
         [
             ("shared_dir", {}),
             ("efs_fs_id", {
+                "allowed_values": r"^fs-[0-9a-z]{8}$|^fs-[0-9a-z]{17}|NONE$",
                 "validator": efs_id_validator,
             }),
             ("performance_mode", {
@@ -281,6 +282,7 @@ FSX = {
         [
             ("shared_dir", {}),
             ("fsx_fs_id", {
+                "allowed_values": r"^fs-[0-9a-z]{17}|NONE$",
                 "validator": fsx_id_validator,
             }),
             ("storage_capacity", {
@@ -292,9 +294,9 @@ FSX = {
                 "type": IntParam,
                 "validator": fsx_imported_file_chunk_size_validator
             }),
-            ("export_path", {}),
-            ("import_path", {}),
-            ("weekly_maintenance_start_time", {}),
+            ("export_path", {}),  # TODO add regex
+            ("import_path", {}),  # TODO add regex
+            ("weekly_maintenance_start_time", {}),  # TODO add regex
         ]
     )
 }
@@ -311,6 +313,7 @@ CLUSTER = {
             "validator": ec2_key_pair_validator,
         },
         "template_url": {
+            # TODO add regex
             "validator": url_validator,
         },
         "base_os": {
@@ -341,9 +344,8 @@ CLUSTER = {
         },
         # Master
         "master_instance_type": {
-            "default": "t2.micro",
+            "default": "t2.micro",  # TODO add regex or validator
             "cfn": "MasterInstanceType",
-            "validator": None,
         },
         "master_root_volume_size": {
             "type": IntParam,
@@ -416,13 +418,13 @@ CLUSTER = {
         },
         "ec2_iam_role": {
             "cfn": "EC2IAMRoleName",
-            "validator": ec2_iam_role_validator,
+            "validator": ec2_iam_role_validator,  # TODO add regex
         },
         "s3_read_resource": {
-            "cfn": "S3ReadResource",
+            "cfn": "S3ReadResource",  # TODO add validator
         },
         "s3_read_write_resource": {
-            "cfn": "S3ReadWriteResource",
+            "cfn": "S3ReadWriteResource",  # TODO add validator
         },
         # Customization
         "enable_efa": {
@@ -446,6 +448,7 @@ CLUSTER = {
         },
         "pre_install": {
             "cfn": "PreInstallScript",
+            # TODO add regex
             "validator": url_validator,
         },
         "pre_install_args": {
@@ -453,6 +456,7 @@ CLUSTER = {
         },
         "post_install": {
             "cfn": "PostInstallScript",
+            # TODO add regex
             "validator": url_validator,
         },
         "post_install_args": {
@@ -464,6 +468,7 @@ CLUSTER = {
         },
         "additional_cfn_template": {
             "cfn": "AdditionalCfnTemplate",
+            # TODO add regex
             "validator": url_validator,
         },
         "tags": {
@@ -471,10 +476,12 @@ CLUSTER = {
         },
         "custom_chef_cookbook": {
             "cfn": "CustomChefCookbook",
+            # TODO add regex
             "validator": url_validator,
         },
         "custom_awsbatch_template_url": {
             "cfn": "CustomAWSBatchTemplateURL",
+            # TODO add regex
             "validator": url_validator,
         },
         # Settings

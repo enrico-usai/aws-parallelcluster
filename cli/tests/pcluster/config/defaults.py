@@ -127,6 +127,9 @@ DEFAULT_PCLUSTER_DICT = {"cluster": DEFAULT_CLUSTER_DICT}
 
 
 class DefaultDict(Enum):
+    aws = DEFAULT_AWS_DICT
+    global_ = DEFAULT_GLOBAL_DICT
+    aliases = DEFAULT_ALIASES_DICT
     cluster = DEFAULT_CLUSTER_DICT
     scaling = DEFAULT_SCALING_DICT
     vpc = DEFAULT_VPC_DICT

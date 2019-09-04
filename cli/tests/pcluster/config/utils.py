@@ -43,7 +43,7 @@ def get_pcluster_config_example():
 
 def assert_param_from_file(mocker, section_map, param_key, param_value, expected_value, expected_message):
     section_label = section_map.get("label")
-    section_name = "{0} {1}".format(section_map.get("key"), section_label)
+    section_name = "{0}{1}".format(section_map.get("key"), " {0}".format(section_label) if section_label else "")
     config_parser = configparser.ConfigParser()
     config_parser.add_section(section_name)
 
@@ -114,7 +114,7 @@ def assert_section_from_cfn(mocker, section_map, cfn_params_dict, expected_secti
 
 def get_mocked_pcluster_config(mocker):
     mocker.patch.object(PclusterConfig, "_PclusterConfig__validate")
-    return PclusterConfig(config_file="wrong-file")
+    return PclusterConfig(config_file="wrong-file", file_sections=[AWS, GLOBAL, ALIASES, CLUSTER])
 
 
 def assert_section_from_file(mocker, section_map, config_parser_dict, expected_dict_params, expected_message):
