@@ -403,14 +403,14 @@ CLUSTER = {
         },
         "spot_price": {
             "type": SpotPriceParam,
-            "default": 0,
+            "default": 0.0,
             "cfn": "SpotPrice",
         },
         "spot_bid_percentage": {
             "type": SpotBidPercentageParam,
-            "default": 0.0,
+            "default": 0,
             "cfn": "SpotPrice",
-            "allowed_values": r"^(100(\.0)?|([1-9][0-9]|[1-9])(\.[0-9]*)?|[0-9]\.[0-9]+)$",  # 0.0 <= value <= 100.0
+            "allowed_values": r"^(100|[1-9][0-9]|[0-9])$",  # 0 <= value <= 100
         },
         # Access and networking
         "proxy_server": {

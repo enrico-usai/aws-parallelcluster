@@ -51,20 +51,21 @@ from tests.pcluster.config.utils import get_mocked_pcluster_config, get_param_ma
         (CLUSTER, "shared_dir", "NONE", "/shared"),
         (CLUSTER, "shared_dir", "fake_value", "fake_value"),
         (CLUSTER, "shared_dir", "test", "test"),
-        # SpotPriceParam --> IntParam
-        (CLUSTER, "spot_price", "", 0),
-        (CLUSTER, "spot_price", "NONE", 0),
-        (CLUSTER, "spot_price", "wrong_value", 0),
+        # SpotPriceParam --> FloatParam
+        (CLUSTER, "spot_price", "", 0.0),
+        (CLUSTER, "spot_price", "NONE", 0.0),
+        (CLUSTER, "spot_price", "wrong_value", 0.0),
         (CLUSTER, "spot_price", "10", 10),
         (CLUSTER, "spot_price", "3", 3),
-        # SpotBidPercentageParam --> FloatParam
-        (CLUSTER, "spot_bid_percentage", "", 0.0),
-        (CLUSTER, "spot_bid_percentage", "NONE", 0.0),
-        (CLUSTER, "spot_bid_percentage", "wrong_value", 0.0),
-        (CLUSTER, "spot_bid_percentage", "0.0009", 0.0009),
-        (CLUSTER, "spot_bid_percentage", "0.0", 0.0),
+        (CLUSTER, "spot_price", "0.0009", 0.0009),
+        (CLUSTER, "spot_price", "0.0", 0.0),
+        # SpotBidPercentageParam --> IntParam
+        (CLUSTER, "spot_bid_percentage", "", 0),
+        (CLUSTER, "spot_bid_percentage", "NONE", 0),
+        (CLUSTER, "spot_bid_percentage", "wrong_value", 0),
+        (CLUSTER, "spot_bid_percentage", "0.0", 0),
+        (CLUSTER, "spot_bid_percentage", "10.0", 0),
         (CLUSTER, "spot_bid_percentage", "10", 10),
-        (CLUSTER, "spot_bid_percentage", "3", 3),
     ],
 )
 def test_param_from_cfn_value(mocker, section_map, param_key, cfn_value, expected_value):

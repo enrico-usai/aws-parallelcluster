@@ -30,12 +30,12 @@ from tests.pcluster.config.utils import get_mocked_pcluster_config, get_param_ma
         (SCALING, "scaledown_idletime", 10, "10"),
         (SCALING, "scaledown_idletime", 10, "10"),
         (SCALING, "scaledown_idletime", 3, "3"),
-        # SpotBidPercentageParam --> FloatParam
-        (CLUSTER, "spot_bid_percentage", None, "0.0"),
-        (CLUSTER, "spot_bid_percentage", 0.0009, "0.0009"),
-        (CLUSTER, "spot_bid_percentage", 0.0, "0.0"),
-        (CLUSTER, "spot_bid_percentage", 10, "10"),
-        (CLUSTER, "spot_bid_percentage", 3, "3"),
+        # SpotPriceParam --> FloatParam
+        (CLUSTER, "spot_price", None, "0.0"),
+        (CLUSTER, "spot_price", 0.0009, "0.0009"),
+        (CLUSTER, "spot_price", 0.0, "0.0"),
+        (CLUSTER, "spot_price", 10, "10"),
+        (CLUSTER, "spot_price", 3, "3"),
         # SharedDirParam
         (CLUSTER, "shared_dir", "test", "test"),
         (CLUSTER, "shared_dir", None, "/shared"),

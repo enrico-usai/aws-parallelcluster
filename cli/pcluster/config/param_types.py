@@ -325,16 +325,14 @@ class SharedDirParam(Param):
         # else: there are ebs volumes, let the EBSSettings parse the SharedDir CFN parameter.
 
 
-class SpotPriceParam(IntParam):
+class SpotPriceParam(FloatParam):
     def _init_from_cfn(self, cfn_params, cfn_value=None):
         cfn_converter = self.map.get("cfn", None)
         if cfn_converter and cfn_params:
             if get_cfn_param(cfn_params, "Scheduler") == "awsbatch":
                 self._init_from_map()
             else:
-                # we have the same CFN input parameters for both spot_price and spot_bid_percentage
-                # so the CFN input could be a float
-                self.value = int(float(get_cfn_param(cfn_params, cfn_converter)))
+                self.value = float(get_cfn_param(cfn_params, cfn_converter))
         elif cfn_value:
             self.value = self.get_value_from_string(cfn_value)
         else:
@@ -351,12 +349,14 @@ class SpotPriceParam(IntParam):
         return cfn_params
 
 
-class SpotBidPercentageParam(FloatParam):
+class SpotBidPercentageParam(IntParam):
     def _init_from_cfn(self, cfn_params, cfn_value=None):
         cfn_converter = self.map.get("cfn", None)
         if cfn_converter and cfn_params:
             if get_cfn_param(cfn_params, "Scheduler") == "awsbatch":
-                self.value = float(get_cfn_param(cfn_params, cfn_converter))
+                # we have the same CFN input parameters for both spot_price and spot_bid_percentage
+                # so the CFN input could be a float
+                self.value = int(float(get_cfn_param(cfn_params, cfn_converter)))
             else:
                 self._init_from_map()
         elif cfn_value:
