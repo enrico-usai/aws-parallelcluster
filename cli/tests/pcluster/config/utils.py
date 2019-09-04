@@ -122,7 +122,10 @@ def assert_section_from_file(mocker, section_map, config_parser_dict, expected_d
     config_parser.read_dict(config_parser_dict)
 
     # update expected dictionary
-    default_dict = DefaultDict[section_map.get("key")].value
+    default_dict_key = section_map.get("key")
+    if default_dict_key == "global":
+        default_dict_key += "_"
+    default_dict = DefaultDict[default_dict_key].value
     expected_dict = default_dict.copy()
     if isinstance(expected_dict_params, dict):
         expected_dict.update(expected_dict_params)

@@ -40,12 +40,11 @@ def test_aliases_section_from_file(mocker, config_parser_dict, expected_dict_par
         ({}, {"aliases": {}}, None),
         # default values
         ({"ssh": "ssh {CFN_USER}@{MASTER_IP} {ARGS}"}, {}, "No section.*"),
-        # other values
+        # other values --> aliases section is never written to the file
         ({"ssh": "ssh {CFN_USER}@{MASTER_IP} -i /path/path2/test.pem {ARGS}"}, {}, "No section.*"),
     ],
 )
 def test_aliases_section_to_file(mocker, section_dict, expected_config_parser_dict, expected_message):
-    """Verify that scaling section is never written to the file"""
     utils.assert_section_to_file(mocker, ALIASES, section_dict, expected_config_parser_dict, expected_message)
 
 

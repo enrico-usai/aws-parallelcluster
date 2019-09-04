@@ -69,7 +69,7 @@ AWS = {
         "aws_access_key_id": {},
         "aws_secret_access_key": {},
         "aws_region_name": {
-            "default": "us-east-1",
+            "default": "us-east-1",  # TODO add regex
         },
     }
 }
@@ -520,8 +520,8 @@ GLOBAL = {
     "params": {
         "cluster_template": {
             # "type": SettingsParam,
+            # "referred_section": CLUSTER,
             "default": "default",
-            "referred_section": CLUSTER,
         },
         "update_check": {
             "type": BoolParam,
