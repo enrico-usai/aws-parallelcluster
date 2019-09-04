@@ -221,7 +221,8 @@ def update(args):  # noqa: C901 FIXME!!!
         if not args.reset_desired:
             asg_name = _get_asg_name(stack_name, pcluster_config)
             desired_capacity = (
-                boto3.client("autoscaling").describe_auto_scaling_groups(AutoScalingGroupNames=[asg_name])
+                boto3.client("autoscaling")
+                .describe_auto_scaling_groups(AutoScalingGroupNames=[asg_name])
                 .get("AutoScalingGroups")[0]
                 .get("DesiredCapacity")
             )
@@ -363,9 +364,8 @@ def list_stacks(args):
     # Parse configuration file to read the AWS section
     _ = PclusterConfig(config_file=args.config_file)
 
-    cfn = boto3.client("cloudformation")
     try:
-        stacks = cfn.describe_stacks().get("Stacks")
+        stacks = boto3.client("cloudformation").describe_stacks().get("Stacks")
         result = []
         for stack in stacks:
             if stack.get("ParentId") is None and stack.get("StackName").startswith(utils.PCLUSTER_STACK_PREFIX):

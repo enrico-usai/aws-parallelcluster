@@ -297,13 +297,17 @@ class PclusterConfig(object):
     def __check_account_capacity(self):  # noqa: C901
         """Try to launch the requested number of instances to verify Account limits."""
         cluster_section = self.get_section("cluster")
+        vpc_section = self.get_section("vpc")
 
         if (
-            cluster_section.get_param_value("scheduler") == "awsbatch"
+            not cluster_section
+            or cluster_section.get_param_value("scheduler") == "awsbatch"
             or cluster_section.get_param_value("cluster_type") == "spot"
+            or not vpc_section
         ):
             return
 
+        # get max size
         if cluster_section.get_param_value("scheduler") == "awsbatch":
             instance_type = cluster_section.get_param_value("compute_instance_type")
             max_vcpus = cluster_section.get_param_value("max_vcpus")
@@ -311,15 +315,12 @@ class PclusterConfig(object):
             max_size = -(-max_vcpus // vcpus)
         else:
             max_size = cluster_section.get_param_value("max_queue_size")
-
         if max_size < 0:
             warn("Unable to check AWS account capacity. Skipping limits validation")
             return
 
         try:
             # Check for insufficient Account capacity
-            vpc_section = self.get_section("vpc")
-
             subnet_id = vpc_section.get_param_value("compute_subnet_id")
             if not subnet_id:
                 subnet_id = vpc_section.get_param_value("master_subnet_id")
