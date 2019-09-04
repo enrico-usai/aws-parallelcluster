@@ -1,4 +1,5 @@
 import json
+import os
 
 import pytest
 
@@ -17,6 +18,7 @@ class TestArgs(object):
 
 @pytest.fixture()
 def boto3_stubber_path():
+    os.environ["AWS_DEFAULT_REGION"] = "us-east-1"
     return "awsbatch.common.boto3"
 
 

@@ -83,8 +83,8 @@ def boto3_stubber(request, mocker, boto3_stubber_path):
     mocked_clients = {}
 
     mocked_client_factory = mocker.patch(boto3_stubber_path, autospec=True)
-    # use **kwargs to skip parameters passed to the boto3.client other than the service
-    # e.g. boto3.client("ec2", region_name=region, ...) --> ec2 will be x, the service to search in mocked clients.
+    # use **kwargs to skip parameters passed to the boto3.client other than the "servic"e
+    # e.g. boto3.client("ec2", region_name=region, ...) --> x = ec2
     mocked_client_factory.client.side_effect = lambda x, **kwargs: mocked_clients[x]
 
     def _boto3_stubber(service, mocked_requests):
