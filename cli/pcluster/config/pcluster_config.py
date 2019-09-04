@@ -21,7 +21,7 @@ import configparser
 from botocore.exceptions import ClientError
 
 from pcluster.config.mapping import ALIASES, AWS, CLUSTER, GLOBAL, get_section_type
-from pcluster.utils import fail, get_instance_vcpus, get_stack_name, warn
+from pcluster.utils import fail, get_instance_vcpus, get_latest_alinux_ami_id, get_stack_name, warn
 
 LOGGER = logging.getLogger(__name__)
 
@@ -307,9 +307,9 @@ class PclusterConfig(object):
         ):
             return
 
+        instance_type = cluster_section.get_param_value("compute_instance_type")
         # get max size
         if cluster_section.get_param_value("scheduler") == "awsbatch":
-            instance_type = cluster_section.get_param_value("compute_instance_type")
             max_vcpus = cluster_section.get_param_value("max_vcpus")
             vcpus = get_instance_vcpus(self.region, instance_type)
             max_size = -(-max_vcpus // vcpus)
@@ -325,14 +325,13 @@ class PclusterConfig(object):
             if not subnet_id:
                 subnet_id = vpc_section.get_param_value("master_subnet_id")
 
-            test_ami_id = self.__get_latest_alinux_ami_id()
             placement_group = cluster_section.get_param_value("placement_group")
 
             boto3.client("ec2").run_instances(
                 InstanceType=instance_type,
                 MinCount=max_size,
                 MaxCount=max_size,
-                ImageId=test_ami_id,
+                ImageId=get_latest_alinux_ami_id(),
                 SubnetId=subnet_id,
                 Placement={"GroupName": placement_group} if placement_group not in [None, "NONE", "DYNAMIC"] else {},
                 DryRun=True,

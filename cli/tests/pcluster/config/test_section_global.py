@@ -21,11 +21,7 @@ from pcluster.config.mapping import GLOBAL
         ({"global": {}}, {}, None),
         # right value
         (
-            {
-                "global": {
-                    "cluster_template": "test", "update_check": "false", "sanity_check": "false"
-                }
-            },
+            {"global": {"cluster_template": "test", "update_check": "false", "sanity_check": "false"}},
             {"cluster_template": "test", "update_check": False, "sanity_check": False},
             None,
         ),

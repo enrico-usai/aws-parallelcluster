@@ -329,3 +329,17 @@ def get_efs_mount_target_id(efs_fs_id, avail_zone):
 
 def get_avail_zone(subnet_id):
     return boto3.client("ec2").describe_subnets(SubnetIds=[subnet_id]).get("Subnets")[0].get("AvailabilityZone")
+
+
+def get_latest_alinux_ami_id():
+    try:
+        ami_id = (
+            boto3.client("ssm")
+            .get_parameters_by_path(Path="/aws/service/ami-amazon-linux-latest")
+            .get("Parameters")[0]
+            .get("Value")
+        )
+    except ClientError as e:
+        fail("Unable to retrieve latest Amazon Linux AMI id.\n{0}".format(e.response.get("Error").get("Message")))
+
+    return ami_id

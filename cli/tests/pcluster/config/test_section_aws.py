@@ -21,11 +21,7 @@ from pcluster.config.mapping import AWS
         ({"aws": {}}, {}, None),
         # right value
         (
-            {
-                "aws": {
-                    "aws_access_key_id": "test", "aws_secret_access_key": "test2", "aws_region_name": "eu-west-1"
-                }
-            },
+            {"aws": {"aws_access_key_id": "test", "aws_secret_access_key": "test2", "aws_region_name": "eu-west-1"}},
             {"aws_access_key_id": "test", "aws_secret_access_key": "test2", "aws_region_name": "eu-west-1"},
             None,
         ),
