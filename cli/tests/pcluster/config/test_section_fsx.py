@@ -106,7 +106,7 @@ def test_fsx_section_to_cfn(mocker, section_dict, expected_cfn_params):
         ("fsx_fs_id", "wrong_value", None, "has an invalid value"),
         ("fsx_fs_id", "fs-12345", None, "has an invalid value"),
         ("fsx_fs_id", "fs-123456789", None, "has an invalid value"),
-        ("fsx_fs_id", "NONE", None, "has an invalid value"),
+        ("fsx_fs_id", "NONE", "NONE", None),  # Note: NONE is considered valid
         ("fsx_fs_id", "fs-12345678", None, "has an invalid value"),
         ("fsx_fs_id", "fs-12345678901234567", "fs-12345678901234567", None),
         ("storage_capacity", None, None, None),

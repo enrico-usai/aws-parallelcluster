@@ -84,7 +84,7 @@ def test_cluster_section_to_file(mocker, section_dict, expected_config_parser_di
         ("efs_fs_id", "wrong_value", None, "has an invalid value"),
         ("efs_fs_id", "fs-12345", None, "has an invalid value"),
         ("efs_fs_id", "fs-123456789", None, "has an invalid value"),
-        ("efs_fs_id", "NONE", None, "has an invalid value"),
+        ("efs_fs_id", "NONE", "NONE", None),  # Note: NONE is considered valid
         ("efs_fs_id", "fs-12345678", "fs-12345678", None),
         ("efs_fs_id", "fs-12345678901234567", "fs-12345678901234567", None),
         ("performance_mode", None, "generalPurpose", None),
