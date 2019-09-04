@@ -208,7 +208,7 @@ def assert_section_params(mocker, pcluster_config_reader, settings_label, expect
 
         assert_that(len(cfn_params)).is_equal_to(CFN_CONFIG_NUM_OF_PARAMS)
 
-        for param_key, param_value in cfn_params.items():
+        for param_key, _ in cfn_params.items():
             assert_that(cfn_params.get(param_key), description=param_key).is_equal_to(
                 expected_cfn_params.get(param_key)
             )

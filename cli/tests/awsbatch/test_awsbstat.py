@@ -18,6 +18,7 @@ class TestArgs(object):
 
 @pytest.fixture()
 def boto3_stubber_path():
+    # we need to set the region in the environment because the Boto3ClientFactory requires it.
     os.environ["AWS_DEFAULT_REGION"] = "us-east-1"
     return "awsbatch.common.boto3"
 

@@ -696,7 +696,7 @@ class EBSSettingsParam(SettingsParam):
 
         settings_param_created = False
         # create sections
-        for section_label, section in sections:
+        for _, section in sections:
             for param_key, param_map in self.related_section_map.get("params").items():
                 param_value = section.get_param_value(param_key)
 

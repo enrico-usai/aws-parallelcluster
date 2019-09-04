@@ -231,7 +231,7 @@ RAID = {
     "label": "default",
     "type": Section,
     "cfn": "RAIDOptions",
-    "params":  OrderedDict(
+    "params": OrderedDict(
         [
             ("shared_dir", {}),
             ("raid_type", {

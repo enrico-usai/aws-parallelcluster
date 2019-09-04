@@ -68,36 +68,19 @@ def efs_id_validator(param_key, param_value, pcluster_config):
         mount_target_id = get_efs_mount_target_id(efs_fs_id=param_value, avail_zone=master_avail_zone)
         # If there is an existing mt in the az, need to check the inbound and outbound rules of the security groups
         if mount_target_id:
-            nfs_access = False
-            in_access = False
-            out_access = False
             # Get list of security group IDs of the mount target
             sg_ids = (
                 boto3.client("efs")
                 .describe_mount_target_security_groups(MountTargetId=mount_target_id)
                 .get("SecurityGroups")
             )
-            for sg in boto3.client("ec2").describe_security_groups(GroupIds=sg_ids).get("SecurityGroups"):
-                # Check all inbound rules
-                in_rules = sg.get("IpPermissions")
-                for rule in in_rules:
-                    if _check_sg_rules_for_port(rule, 2049):
-                        in_access = True
-                        break
-                out_rules = sg.get("IpPermissionsEgress")
-                for rule in out_rules:
-                    if _check_sg_rules_for_port(rule, 2049):
-                        out_access = True
-                        break
-                if in_access and out_access:
-                    nfs_access = True
-                    break
-            if not nfs_access:
+            if not _check_in_out_access(sg_ids, port=2049):
                 warnings.append(
-                    "There is an existing Mount Target %s in the Availability Zone %s for EFS %s, "
+                    "There is an existing Mount Target {0} in the Availability Zone {1} for EFS {2}, "
                     "but it does not have a security group that allows inbound and outbound rules to support NFS. "
-                    "Please modify the Mount Target's security group, to allow traffic on port 2049."
-                    % (mount_target_id, master_avail_zone, param_value)
+                    "Please modify the Mount Target's security group, to allow traffic on port 2049.".format(
+                        mount_target_id, master_avail_zone, param_value
+                    )
                 )
     except ClientError as e:
         errors.append(e.response.get("Error").get("Message"))
@@ -105,33 +88,38 @@ def efs_id_validator(param_key, param_value, pcluster_config):
     return errors, warnings
 
 
-def _check_nfs_access(ec2, network_interfaces):
-    nfs_access = False
-    for network_interface in network_interfaces:
-        in_access = False
-        out_access = False
-        # Get list of security group IDs
-        sg_ids = [i.get("GroupId") for i in network_interface.get("Groups")]
-        # Check each sg to see if the rules are valid
-        for sg in ec2.describe_security_groups(GroupIds=sg_ids).get("SecurityGroups"):
-            # Check all inbound rules
-            in_rules = sg.get("IpPermissions")
-            for rule in in_rules:
-                if _check_sg_rules_for_port(rule, 988):
-                    in_access = True
-                    break
-            out_rules = sg.get("IpPermissionsEgress")
-            for rule in out_rules:
-                if _check_sg_rules_for_port(rule, 988):
-                    out_access = True
-                    break
-            if in_access and out_access:
-                nfs_access = True
-                break
-        if nfs_access:
-            return True
+def _check_in_out_access(security_groups_ids, port):
+    """
+    Verify given list of security groups to check if they allow in and out access on the given port.
 
-    return nfs_access
+    :param security_groups_ids: list of security groups to verify
+    :param port: port to verify
+    :return true if
+    :raise: ClientError if a given security group doesn't exist
+    """
+    in_out_access = False
+    in_access = False
+    out_access = False
+
+    for sg in boto3.client("ec2").describe_security_groups(GroupIds=security_groups_ids).get("SecurityGroups"):
+
+        # Check all inbound rules
+        for rule in sg.get("IpPermissions"):
+            if _check_sg_rules_for_port(rule, port):
+                in_access = True
+                break
+
+        # Check all outbound rules
+        for rule in sg.get("IpPermissionsEgress"):
+            if _check_sg_rules_for_port(rule, port):
+                out_access = True
+                break
+
+        if in_access and out_access:
+            in_out_access = True
+            break
+
+    return in_out_access
 
 
 def fsx_validator(section_key, section_label, pcluster_config):
@@ -176,8 +164,15 @@ def fsx_id_validator(param_key, param_value, pcluster_config):
         network_interface_responses = ec2.describe_network_interfaces(NetworkInterfaceIds=network_interface_ids).get(
             "NetworkInterfaces"
         )
+        fs_access = False
         network_interfaces = [i for i in network_interface_responses if i.get("VpcId") == vpc_id]
-        if not _check_nfs_access(ec2, network_interfaces):
+        for network_interface in network_interfaces:
+            # Get list of security group IDs
+            sg_ids = [i.get("GroupId") for i in network_interface.get("Groups")]
+            if _check_in_out_access(sg_ids, port=988):
+                fs_access = True
+                break
+        if not fs_access:
             errors.append(
                 "The current security group settings on file system %s does not satisfy "
                 "mounting requirement. The file system must be associated to a security group that allows "
@@ -242,17 +237,21 @@ def efa_validator(param_key, param_value, pcluster_config):
             "to DYNAMIC or to an existing EC2 cluster placement group name".format(param_value)
         )
 
+    _validate_efa_sg(pcluster_config, errors)
+
+    return errors, warnings
+
+
+def _validate_efa_sg(pcluster_config, errors):
     vpc_security_group_id = pcluster_config.get_section("vpc").get_param_value("vpc_security_group_id")
     if vpc_security_group_id:
         try:
-            ec2 = boto3.client("ec2")
-            sg = ec2.describe_security_groups(GroupIds=[vpc_security_group_id]).get("SecurityGroups")[0]
-            in_rules = sg.get("IpPermissions")
-            out_rules = sg.get("IpPermissionsEgress")
-
+            sg = boto3.client("ec2").describe_security_groups(GroupIds=[vpc_security_group_id]).get("SecurityGroups")[0]
             allowed_in = False
             allowed_out = False
-            for rule in in_rules:
+
+            # check inbound rules
+            for rule in sg.get("IpPermissions"):
                 # UserIdGroupPairs is always of length 1, so grabbing 0th object is ok
                 if (
                     rule.get("IpProtocol") == "-1"
@@ -261,7 +260,9 @@ def efa_validator(param_key, param_value, pcluster_config):
                 ):
                     allowed_in = True
                     break
-            for rule in out_rules:
+
+            # check outbound rules
+            for rule in sg.get("IpPermissionsEgress"):
                 if (
                     rule.get("IpProtocol") == "-1"
                     and len(rule.get("UserIdGroupPairs")) > 0
@@ -269,6 +270,7 @@ def efa_validator(param_key, param_value, pcluster_config):
                 ):
                     allowed_out = True
                     break
+
             if not (allowed_in and allowed_out):
                 errors.append(
                     "The VPC Security Group '{0}' set in the vpc_security_group_id parameter "
@@ -279,8 +281,6 @@ def efa_validator(param_key, param_value, pcluster_config):
                 )
         except ClientError as e:
             errors.append(e.response.get("Error").get("Message"))
-
-    return errors, warnings
 
 
 def ec2_key_pair_validator(param_key, param_value, pcluster_config):

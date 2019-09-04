@@ -12,7 +12,7 @@ import configparser
 import pytest
 
 from assertpy import assert_that
-from pcluster.config.mapping import CLUSTER, EBS, EFS, FSX, RAID, SCALING, VPC
+from pcluster.config.mapping import CLUSTER, SCALING
 from pcluster.config.pcluster_config import PclusterConfig
 from tests.pcluster.config.utils import get_param_map
 

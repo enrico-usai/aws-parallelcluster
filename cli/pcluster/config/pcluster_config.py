@@ -35,7 +35,7 @@ class PclusterConfig(object):
     def __init__(
         self,
         config_file=None,
-        file_sections=[AWS],
+        file_sections=None,
         cluster_label=None,  # args.cluster_template
         fail_on_file_absence=False,
         cluster_name=None,
@@ -228,6 +228,9 @@ class PclusterConfig(object):
     def __init_sections_from_file(
         self, file_sections, cluster_label=None, config_parser=None, fail_on_file_absence=False
     ):
+        if not file_sections:
+            file_sections = []
+
         for section_map in [ALIASES, GLOBAL]:
             if section_map in file_sections:
                 self.__init_section_from_file(section_map, config_parser)
@@ -279,8 +282,8 @@ class PclusterConfig(object):
             self.get_section("global").get_param_value("sanity_check") if self.get_section("global") else True
         )
 
-        for section_key, sections in self.sections.items():
-            for section_label, section in sections.items():
+        for _, sections in self.sections.items():
+            for _, section in sections.items():
                 section.validate(fail_on_error=fail_on_error)
 
     def get_master_availability_zone(self):
