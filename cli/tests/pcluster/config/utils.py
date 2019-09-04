@@ -41,13 +41,13 @@ def get_pcluster_config_example():
     return os.path.join(current_dir, "..", "..", "..", "pcluster", "examples", "config")
 
 
-def assert_param_from_file(section_map, param_key, param_value, expected_value, expected_message):
+def assert_param_from_file(mocker, section_map, param_key, param_value, expected_value, expected_message):
     section_label = section_map.get("label")
     section_name = "{0} {1}".format(section_map.get("key"), section_label)
     config_parser = configparser.ConfigParser()
     config_parser.add_section(section_name)
 
-    pcluster_config = PclusterConfig(config_file="wrong-file")
+    pcluster_config = get_mocked_pcluster_config(mocker)
 
     if param_value:
         config_parser.set(section_name, param_key, param_value)
@@ -76,6 +76,7 @@ def assert_param_validator(mocker, config_parser_dict, expected_message=None):
     config_parser.read_dict(config_parser_dict)
 
     mocker.patch("pcluster.config.param_types.get_avail_zone", return_value="mocked_avail_zone")
+    mocker.patch.object(PclusterConfig, "_PclusterConfig__check_account_capacity")
 
     if expected_message:
         with pytest.raises(SystemExit, match=expected_message):
@@ -84,13 +85,13 @@ def assert_param_validator(mocker, config_parser_dict, expected_message=None):
         _ = init_pcluster_config_from_configparser(config_parser)
 
 
-def assert_section_from_cfn(section_map, cfn_params_dict, expected_section_dict):
+def assert_section_from_cfn(mocker, section_map, cfn_params_dict, expected_section_dict):
 
     cfn_params = []
     for cfn_key, cfn_value in cfn_params_dict.items():
         cfn_params.append({"ParameterKey": cfn_key, "ParameterValue": cfn_value})
 
-    pcluster_config = PclusterConfig(config_file="wrong-file")
+    pcluster_config = get_mocked_pcluster_config(mocker)
 
     section_type = section_map.get("type")
     section = section_type(section_map, pcluster_config, cfn_params=cfn_params)
@@ -111,7 +112,12 @@ def assert_section_from_cfn(section_map, cfn_params_dict, expected_section_dict)
     assert_that(section_dict).is_equal_to(expected_dict)
 
 
-def assert_section_from_file(section_map, config_parser_dict, expected_dict_params, expected_message):
+def get_mocked_pcluster_config(mocker):
+    mocker.patch.object(PclusterConfig, "_PclusterConfig__validate")
+    return PclusterConfig(config_file="wrong-file")
+
+
+def assert_section_from_file(mocker, section_map, config_parser_dict, expected_dict_params, expected_message):
     config_parser = configparser.ConfigParser()
     config_parser.read_dict(config_parser_dict)
 
@@ -121,7 +127,7 @@ def assert_section_from_file(section_map, config_parser_dict, expected_dict_para
     if isinstance(expected_dict_params, dict):
         expected_dict.update(expected_dict_params)
 
-    pcluster_config = PclusterConfig(config_file="wrong-file")
+    pcluster_config = get_mocked_pcluster_config(mocker)
 
     section_type = section_map.get("type")
     if expected_message:
@@ -136,11 +142,11 @@ def assert_section_from_file(section_map, config_parser_dict, expected_dict_para
         assert_that(section_dict).is_equal_to(expected_dict)
 
 
-def assert_section_to_file(section_map, section_dict, expected_config_parser_dict, expected_message):
+def assert_section_to_file(mocker, section_map, section_dict, expected_config_parser_dict, expected_message):
     expected_config_parser = configparser.ConfigParser()
     expected_config_parser.read_dict(expected_config_parser_dict)
 
-    pcluster_config = PclusterConfig(config_file="wrong-file")
+    pcluster_config = get_mocked_pcluster_config(mocker)
 
     output_config_parser = configparser.ConfigParser()
     section_type = section_map.get("type")
@@ -170,9 +176,9 @@ def assert_section_to_file(section_map, section_dict, expected_config_parser_dic
                 assert_that(output_config_parser.get(section_key, param_key)).is_equal_to(param_value)
 
 
-def assert_section_to_cfn(section_map, section_dict, expected_cfn_params):
+def assert_section_to_cfn(mocker, section_map, section_dict, expected_cfn_params):
 
-    pcluster_config = PclusterConfig(config_file="wrong-file")
+    pcluster_config = get_mocked_pcluster_config(mocker)
 
     section_type = section_map.get("type")
     section = section_type(section_map, pcluster_config)

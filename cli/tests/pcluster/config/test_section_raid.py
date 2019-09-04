@@ -50,8 +50,8 @@ from tests.pcluster.config.defaults import DefaultCfnParams, DefaultDict
         ),
     ],
 )
-def test_raid_section_from_cfn(cfn_params_dict, expected_section_dict):
-    utils.assert_section_from_cfn(RAID, cfn_params_dict, expected_section_dict)
+def test_raid_section_from_cfn(mocker, cfn_params_dict, expected_section_dict):
+    utils.assert_section_from_cfn(mocker, RAID, cfn_params_dict, expected_section_dict)
 
 
 @pytest.mark.parametrize(
@@ -69,8 +69,8 @@ def test_raid_section_from_cfn(cfn_params_dict, expected_section_dict):
         ({"raid default": {"invalid_key": "fake_value"}}, None, "'invalid_key' is not allowed in the .* section"),
     ],
 )
-def test_raid_section_from_file(config_parser_dict, expected_dict_params, expected_message):
-    utils.assert_section_from_file(RAID, config_parser_dict, expected_dict_params, expected_message)
+def test_raid_section_from_file(mocker, config_parser_dict, expected_dict_params, expected_message):
+    utils.assert_section_from_file(mocker, RAID, config_parser_dict, expected_dict_params, expected_message)
 
 
 @pytest.mark.parametrize(
@@ -86,15 +86,15 @@ def test_raid_section_from_file(config_parser_dict, expected_dict_params, expect
         ({"encrypted": True}, {"raid default": {"encrypted": "true"}}, None),
     ],
 )
-def test_raid_section_to_file(section_dict, expected_config_parser_dict, expected_message):
-    utils.assert_section_to_file(RAID, section_dict, expected_config_parser_dict, expected_message)
+def test_raid_section_to_file(mocker, section_dict, expected_config_parser_dict, expected_message):
+    utils.assert_section_to_file(mocker, RAID, section_dict, expected_config_parser_dict, expected_message)
 
 
 @pytest.mark.parametrize(
     "section_dict, expected_cfn_params", [(DefaultDict["raid"].value, DefaultCfnParams["raid"].value)]
 )
-def test_raid_section_to_cfn(section_dict, expected_cfn_params):
-    utils.assert_section_to_cfn(RAID, section_dict, expected_cfn_params)
+def test_raid_section_to_cfn(mocker, section_dict, expected_cfn_params):
+    utils.assert_section_to_cfn(mocker, RAID, section_dict, expected_cfn_params)
 
 
 @pytest.mark.parametrize(
@@ -111,5 +111,5 @@ def test_raid_section_to_cfn(section_dict, expected_cfn_params):
         # TODO add all parameters
     ],
 )
-def test_raid_param_from_file(param_key, param_value, expected_value, expected_message):
-    utils.assert_param_from_file(RAID, param_key, param_value, expected_value, expected_message)
+def test_raid_param_from_file(mocker, param_key, param_value, expected_value, expected_message):
+    utils.assert_param_from_file(mocker, RAID, param_key, param_value, expected_value, expected_message)

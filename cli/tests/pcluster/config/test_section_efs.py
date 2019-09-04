@@ -46,8 +46,8 @@ from tests.pcluster.config.defaults import DefaultCfnParams, DefaultDict
         ),
     ],
 )
-def test_efs_section_from_cfn(cfn_params_dict, expected_section_dict):
-    utils.assert_section_from_cfn(EFS, cfn_params_dict, expected_section_dict)
+def test_efs_section_from_cfn(mocker, cfn_params_dict, expected_section_dict):
+    utils.assert_section_from_cfn(mocker, EFS, cfn_params_dict, expected_section_dict)
 
 
 @pytest.mark.parametrize(
@@ -66,8 +66,8 @@ def test_efs_section_from_cfn(cfn_params_dict, expected_section_dict):
         ({"encrypted": True}, {"efs default": {"encrypted": "true"}}, None),
     ],
 )
-def test_cluster_section_to_file(section_dict, expected_config_parser_dict, expected_message):
-    utils.assert_section_to_file(EFS, section_dict, expected_config_parser_dict, expected_message)
+def test_cluster_section_to_file(mocker, section_dict, expected_config_parser_dict, expected_message):
+    utils.assert_section_to_file(mocker, EFS, section_dict, expected_config_parser_dict, expected_message)
 
 
 @pytest.mark.parametrize(
@@ -82,8 +82,8 @@ def test_cluster_section_to_file(section_dict, expected_config_parser_dict, expe
         ("provisioned_throughput", "wrong_value", None, "must be a Float"),
     ],
 )
-def test_efs_param_from_file(param_key, param_value, expected_value, expected_message):
-    utils.assert_param_from_file(EFS, param_key, param_value, expected_value, expected_message)
+def test_efs_param_from_file(mocker, param_key, param_value, expected_value, expected_message):
+    utils.assert_param_from_file(mocker, EFS, param_key, param_value, expected_value, expected_message)
 
 
 @pytest.mark.parametrize(
@@ -123,7 +123,7 @@ def test_efs_section_to_cfn(mocker, section_dict, expected_cfn_params):
     mocker.patch(
         "pcluster.config.pcluster_config.PclusterConfig.get_master_availability_zone", return_value="mocked_avail_zone"
     )
-    utils.assert_section_to_cfn(EFS, section_dict, expected_cfn_params)
+    utils.assert_section_to_cfn(mocker, EFS, section_dict, expected_cfn_params)
 
 
 @pytest.mark.parametrize(

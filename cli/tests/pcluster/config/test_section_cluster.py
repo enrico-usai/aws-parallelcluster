@@ -86,9 +86,9 @@ from tests.pcluster.config.defaults import DefaultCfnParams, DefaultDict
         # TODO test all cluster parameters
     ],
 )
-def test_cluster_section_from_241_cfn(cfn_params_dict, expected_section_dict):
+def test_cluster_section_from_241_cfn(mocker, cfn_params_dict, expected_section_dict):
     """Test conversion from 2.4.1 CFN input parameters."""
-    utils.assert_section_from_cfn(CLUSTER, cfn_params_dict, expected_section_dict)
+    utils.assert_section_from_cfn(mocker, CLUSTER, cfn_params_dict, expected_section_dict)
 
 
 @pytest.mark.parametrize(
@@ -170,9 +170,9 @@ def test_cluster_section_from_241_cfn(cfn_params_dict, expected_section_dict):
         )
     ],
 )
-def test_cluster_section_from_240_cfn(cfn_params_dict, expected_section_dict):
+def test_cluster_section_from_240_cfn(mocker, cfn_params_dict, expected_section_dict):
     """Test conversion from 2.4.0 CFN input parameters."""
-    utils.assert_section_from_cfn(CLUSTER, cfn_params_dict, expected_section_dict)
+    utils.assert_section_from_cfn(mocker, CLUSTER, cfn_params_dict, expected_section_dict)
 
 
 @pytest.mark.parametrize(
@@ -256,9 +256,9 @@ def test_cluster_section_from_240_cfn(cfn_params_dict, expected_section_dict):
         )
     ],
 )
-def test_cluster_section_from_231_cfn(cfn_params_dict, expected_section_dict):
+def test_cluster_section_from_231_cfn(mocker, cfn_params_dict, expected_section_dict):
     """Test conversion from 2.3.1 CFN input parameters."""
-    utils.assert_section_from_cfn(CLUSTER, cfn_params_dict, expected_section_dict)
+    utils.assert_section_from_cfn(mocker, CLUSTER, cfn_params_dict, expected_section_dict)
 
 
 @pytest.mark.parametrize(
@@ -339,9 +339,9 @@ def test_cluster_section_from_231_cfn(cfn_params_dict, expected_section_dict):
         )
     ],
 )
-def test_cluster_section_from_210_cfn(cfn_params_dict, expected_section_dict):
+def test_cluster_section_from_210_cfn(mocker, cfn_params_dict, expected_section_dict):
     """Test conversion from 2.1.0 CFN input parameters."""
-    utils.assert_section_from_cfn(CLUSTER, cfn_params_dict, expected_section_dict)
+    utils.assert_section_from_cfn(mocker, CLUSTER, cfn_params_dict, expected_section_dict)
 
 
 @pytest.mark.parametrize(
@@ -422,9 +422,9 @@ def test_cluster_section_from_210_cfn(cfn_params_dict, expected_section_dict):
         )
     ],
 )
-def test_cluster_section_from_200_cfn(cfn_params_dict, expected_section_dict):
+def test_cluster_section_from_200_cfn(mocker, cfn_params_dict, expected_section_dict):
     """Test conversion from 2.0.0 CFN input parameters."""
-    utils.assert_section_from_cfn(CLUSTER, cfn_params_dict, expected_section_dict)
+    utils.assert_section_from_cfn(mocker, CLUSTER, cfn_params_dict, expected_section_dict)
 
 
 @pytest.mark.parametrize(
@@ -446,8 +446,8 @@ def test_cluster_section_from_200_cfn(cfn_params_dict, expected_section_dict):
         ),
     ],
 )
-def test_cluster_section_from_file(config_parser_dict, expected_dict_params, expected_message):
-    utils.assert_section_from_file(CLUSTER, config_parser_dict, expected_dict_params, expected_message)
+def test_cluster_section_from_file(mocker, config_parser_dict, expected_dict_params, expected_message):
+    utils.assert_section_from_file(mocker, CLUSTER, config_parser_dict, expected_dict_params, expected_message)
 
 
 @pytest.mark.parametrize(
@@ -490,8 +490,8 @@ def test_cluster_section_from_file(config_parser_dict, expected_dict_params, exp
         ("ebs_settings", "test1, test2", None, "Section .* not found in the config file"),
     ],
 )
-def test_cluster_param_from_file(param_key, param_value, expected_value, expected_message):
-    utils.assert_param_from_file(CLUSTER, param_key, param_value, expected_value, expected_message)
+def test_cluster_param_from_file(mocker, param_key, param_value, expected_value, expected_message):
+    utils.assert_param_from_file(mocker, CLUSTER, param_key, param_value, expected_value, expected_message)
 
 
 @pytest.mark.parametrize(
@@ -506,8 +506,8 @@ def test_cluster_param_from_file(param_key, param_value, expected_value, expecte
         (CLUSTER, {"base_os": "centos7"}, {"cluster default": {"base_os": "centos7"}}, None),
     ],
 )
-def test_cluster_section_to_file(section_map, section_dict, expected_config_parser_dict, expected_message):
-    utils.assert_section_to_file(CLUSTER, section_dict, expected_config_parser_dict, expected_message)
+def test_cluster_section_to_file(mocker, section_map, section_dict, expected_config_parser_dict, expected_message):
+    utils.assert_section_to_file(mocker, CLUSTER, section_dict, expected_config_parser_dict, expected_message)
 
 
 @pytest.mark.parametrize(
@@ -516,7 +516,7 @@ def test_cluster_section_to_file(section_map, section_dict, expected_config_pars
 def test_cluster_section_to_cfn(mocker, section_dict, expected_cfn_params):
     mocker.patch("pcluster.config.param_types.get_efs_mount_target_id", return_value="valid_mount_target_id")
     mocker.patch("pcluster.config.param_types.get_avail_zone", return_value="mocked_avail_zone")
-    utils.assert_section_to_cfn(CLUSTER, section_dict, expected_cfn_params)
+    utils.assert_section_to_cfn(mocker, CLUSTER, section_dict, expected_cfn_params)
 
 
 @pytest.mark.parametrize(

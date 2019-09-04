@@ -12,8 +12,7 @@ import pytest
 
 from assertpy import assert_that
 from pcluster.config.mapping import CLUSTER, SCALING
-from pcluster.config.pcluster_config import PclusterConfig
-from tests.pcluster.config.utils import get_param_map
+from tests.pcluster.config.utils import get_mocked_pcluster_config, get_param_map
 
 
 @pytest.mark.parametrize(
@@ -68,11 +67,11 @@ from tests.pcluster.config.utils import get_param_map
         (CLUSTER, "spot_bid_percentage", "3", 3),
     ],
 )
-def test_param_from_cfn_value(section_map, param_key, cfn_value, expected_value):
+def test_param_from_cfn_value(mocker, section_map, param_key, cfn_value, expected_value):
     """Test conversion from cfn value of simple parameters, that don't depends from multiple CFN parameters."""
     param_map, param_type = get_param_map(section_map, param_key)
 
-    pcluster_config = PclusterConfig(config_file="wrong-file")
+    pcluster_config = get_mocked_pcluster_config(mocker)
 
     param_value = param_type(
         section_map.get("key"), "default", param_key, param_map, pcluster_config
@@ -111,14 +110,14 @@ def test_param_from_cfn_value(section_map, param_key, cfn_value, expected_value)
         ),
     ],
 )
-def test_param_from_cfn(section_map, param_key, cfn_params_dict, expected_value):
+def test_param_from_cfn(mocker, section_map, param_key, cfn_params_dict, expected_value):
     """Test conversion of simple parameters, that don't depends from multiple CFN parameters."""
     param_map, param_type = get_param_map(section_map, param_key)
     cfn_params = []
     for cfn_key, cfn_value in cfn_params_dict.items():
         cfn_params.append({"ParameterKey": cfn_key, "ParameterValue": cfn_value})
 
-    pcluster_config = PclusterConfig(config_file="wrong-file")
+    pcluster_config = get_mocked_pcluster_config(mocker)
 
     param = param_type(section_map.get("key"), "default", param_key, param_map, pcluster_config, cfn_params=cfn_params)
 

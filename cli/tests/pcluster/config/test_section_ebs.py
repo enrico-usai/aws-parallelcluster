@@ -56,8 +56,8 @@ from tests.pcluster.config.defaults import DefaultCfnParams, DefaultDict
         ),
     ],
 )
-def test_ebs_section_from_cfn(cfn_params_dict, expected_section_dict):
-    utils.assert_section_from_cfn(EBS, cfn_params_dict, expected_section_dict)
+def test_ebs_section_from_cfn(mocker, cfn_params_dict, expected_section_dict):
+    utils.assert_section_from_cfn(mocker, EBS, cfn_params_dict, expected_section_dict)
 
 
 @pytest.mark.parametrize(
@@ -72,8 +72,8 @@ def test_ebs_section_from_cfn(cfn_params_dict, expected_section_dict):
         ({"volume_size": 30}, {"ebs default": {"volume_size": "30"}}, None),
     ],
 )
-def test_ebs_section_to_file(section_dict, expected_config_parser_dict, expected_message):
-    utils.assert_section_to_file(EBS, section_dict, expected_config_parser_dict, expected_message)
+def test_ebs_section_to_file(mocker, section_dict, expected_config_parser_dict, expected_message):
+    utils.assert_section_to_file(mocker, EBS, section_dict, expected_config_parser_dict, expected_message)
 
 
 @pytest.mark.parametrize(
@@ -116,8 +116,8 @@ def test_ebs_section_to_file(section_dict, expected_config_parser_dict, expected
         ),
     ],
 )
-def test_ebs_section_to_cfn(section_dict, expected_cfn_params):
-    utils.assert_section_to_cfn(EBS, section_dict, expected_cfn_params)
+def test_ebs_section_to_cfn(mocker, section_dict, expected_cfn_params):
+    utils.assert_section_to_cfn(mocker, EBS, section_dict, expected_cfn_params)
 
 
 @pytest.mark.parametrize(
@@ -150,8 +150,8 @@ def test_ebs_section_to_cfn(section_dict, expected_cfn_params):
         ("ebs_volume_id", "vol-12345678901234567", "vol-12345678901234567", None),
     ],
 )
-def test_ebs_param_from_file(param_key, param_value, expected_value, expected_message):
-    utils.assert_param_from_file(EBS, param_key, param_value, expected_value, expected_message)
+def test_ebs_param_from_file(mocker, param_key, param_value, expected_value, expected_message):
+    utils.assert_param_from_file(mocker, EBS, param_key, param_value, expected_value, expected_message)
 
 
 @pytest.mark.parametrize(

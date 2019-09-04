@@ -50,8 +50,8 @@ from tests.pcluster.config.defaults import DefaultCfnParams, DefaultDict
         ),
     ],
 )
-def test_fsx_section_from_cfn(cfn_params_dict, expected_section_dict):
-    utils.assert_section_from_cfn(FSX, cfn_params_dict, expected_section_dict)
+def test_fsx_section_from_cfn(mocker, cfn_params_dict, expected_section_dict):
+    utils.assert_section_from_cfn(mocker, FSX, cfn_params_dict, expected_section_dict)
 
 
 @pytest.mark.parametrize(
@@ -67,8 +67,8 @@ def test_fsx_section_from_cfn(cfn_params_dict, expected_section_dict):
         ({"fsx default": {"invalid_key": "fake_value"}}, None, "'invalid_key' is not allowed in the .* section"),
     ],
 )
-def test_fsx_section_from_file(config_parser_dict, expected_dict_params, expected_message):
-    utils.assert_section_from_file(FSX, config_parser_dict, expected_dict_params, expected_message)
+def test_fsx_section_from_file(mocker, config_parser_dict, expected_dict_params, expected_message):
+    utils.assert_section_from_file(mocker, FSX, config_parser_dict, expected_dict_params, expected_message)
 
 
 @pytest.mark.parametrize(
@@ -81,15 +81,15 @@ def test_fsx_section_from_file(config_parser_dict, expected_dict_params, expecte
         ({"fsx_kms_key_id": "test"}, {"fsx default": {"fsx_kms_key_id": "test"}}, None),
     ],
 )
-def test_fsx_section_to_file(section_dict, expected_config_parser_dict, expected_message):
-    utils.assert_section_to_file(FSX, section_dict, expected_config_parser_dict, expected_message)
+def test_fsx_section_to_file(mocker, section_dict, expected_config_parser_dict, expected_message):
+    utils.assert_section_to_file(mocker, FSX, section_dict, expected_config_parser_dict, expected_message)
 
 
 @pytest.mark.parametrize(
     "section_dict, expected_cfn_params", [(DefaultDict["fsx"].value, DefaultCfnParams["fsx"].value)]
 )
-def test_fsx_section_to_cfn(section_dict, expected_cfn_params):
-    utils.assert_section_to_cfn(FSX, section_dict, expected_cfn_params)
+def test_fsx_section_to_cfn(mocker, section_dict, expected_cfn_params):
+    utils.assert_section_to_cfn(mocker, FSX, section_dict, expected_cfn_params)
 
 
 @pytest.mark.parametrize(
@@ -116,8 +116,8 @@ def test_fsx_section_to_cfn(section_dict, expected_cfn_params):
         # TODO add all parameters
     ],
 )
-def test_fsx_param_from_file(param_key, param_value, expected_value, expected_message):
-    utils.assert_param_from_file(FSX, param_key, param_value, expected_value, expected_message)
+def test_fsx_param_from_file(mocker, param_key, param_value, expected_value, expected_message):
+    utils.assert_param_from_file(mocker, FSX, param_key, param_value, expected_value, expected_message)
 
 
 @pytest.mark.parametrize(

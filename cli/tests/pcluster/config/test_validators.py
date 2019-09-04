@@ -172,7 +172,7 @@ def test_ec2_volume_validator(mocker, boto3_stubber):
                 "Encrypted": False,
                 "VolumeType": "gp2",
                 "VolumeId": "vol-049df61146c4d7901",
-                "State": "in-use",
+                "State": "available",  # TODO add test with "in-use"
                 "SnapshotId": "snap-1234567890abcdef0",
                 "CreateTime": "2013-12-18T22:35:00.084Z",
                 "Size": 8,

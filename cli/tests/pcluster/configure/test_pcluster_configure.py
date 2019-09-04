@@ -109,7 +109,6 @@ def _mock_create_network_configuration(mocker, public_subnet_id, private_subnet_
 
 
 def _mock_parallel_cluster_config(mocker):
-    mocker.patch("pcluster.config.pcluster_config.PclusterConfig")
     mocker.patch("pcluster.config.param_types.get_avail_zone", return_value="mocked_avail_zone")
     mocker.patch.object(PclusterConfig, "_PclusterConfig__validate")
 

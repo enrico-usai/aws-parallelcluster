@@ -12,8 +12,7 @@ import pytest
 
 from assertpy import assert_that
 from pcluster.config.mapping import CLUSTER, SCALING
-from pcluster.config.pcluster_config import PclusterConfig
-from tests.pcluster.config.utils import get_param_map
+from tests.pcluster.config.utils import get_mocked_pcluster_config, get_param_map
 
 
 @pytest.mark.parametrize(
@@ -42,8 +41,8 @@ from tests.pcluster.config.utils import get_param_map
         (CLUSTER, "shared_dir", None, "/shared"),
     ],
 )
-def test_param_to_cfn_value(section_map, param_key, param_value, expected_value):
-    pcluster_config = PclusterConfig(config_file="wrong-file")
+def test_param_to_cfn_value(mocker, section_map, param_key, param_value, expected_value):
+    pcluster_config = get_mocked_pcluster_config(mocker)
 
     param_map, param_type = get_param_map(section_map, param_key)
     param = param_type(section_map.get("key"), "default", param_key, param_map, pcluster_config)
@@ -73,8 +72,8 @@ def test_param_to_cfn_value(section_map, param_key, param_value, expected_value)
         # (CLUSTER, "shared_dir", {"ebs": [{"label": "fake_ebs"}], "shared_dir": "unused_value"}, {}),
     ],
 )
-def test_param_to_cfn(section_map, param_key, param_value, expected_cfn_params):
-    pcluster_config = PclusterConfig(config_file="wrong-file")
+def test_param_to_cfn(mocker, section_map, param_key, param_value, expected_cfn_params):
+    pcluster_config = get_mocked_pcluster_config(mocker)
 
     param_map, param_type = get_param_map(section_map, param_key)
     param = param_type(section_map.get("key"), "default", param_key, param_map, pcluster_config)

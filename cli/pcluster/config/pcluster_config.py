@@ -17,10 +17,11 @@ import os
 import stat
 
 import boto3
+from botocore.exceptions import ClientError
 import configparser
 
 from pcluster.config.mapping import ALIASES, AWS, CLUSTER, GLOBAL, get_section_type
-from pcluster.utils import fail, get_stack_name
+from pcluster.utils import fail, get_instance_vcpus, get_stack_name, warn
 
 LOGGER = logging.getLogger(__name__)
 
@@ -286,6 +287,79 @@ class PclusterConfig(object):
             for _, section in sections.items():
                 section.validate(fail_on_error=fail_on_error)
 
+        # check AWS account limits
+        self.__check_account_capacity()
+
     def get_master_availability_zone(self):
         """Get the Availability zone of the Master Subnet."""
         return self.get_section("vpc").get_param_value("master_availability_zone")
+
+    def __check_account_capacity(self):  # noqa: C901
+        """Try to launch the requested number of instances to verify Account limits."""
+        cluster_section = self.get_section("cluster")
+
+        if (
+            cluster_section.get_param_value("scheduler") == "awsbatch"
+            or cluster_section.get_param_value("cluster_type") == "spot"
+        ):
+            return
+
+        if cluster_section.get_param_value("scheduler") == "awsbatch":
+            instance_type = cluster_section.get_param_value("compute_instance_type")
+            max_vcpus = cluster_section.get_param_value("max_vcpus")
+            vcpus = get_instance_vcpus(self.region, instance_type)
+            max_size = -(-max_vcpus // vcpus)
+        else:
+            max_size = cluster_section.get_param_value("max_queue_size")
+
+        if max_size < 0:
+            warn("Unable to check AWS account capacity. Skipping limits validation")
+            return
+
+        try:
+            # Check for insufficient Account capacity
+            vpc_section = self.get_section("vpc")
+
+            subnet_id = vpc_section.get_param_value("compute_subnet_id")
+            if not subnet_id:
+                subnet_id = vpc_section.get_param_value("master_subnet_id")
+
+            test_ami_id = self.__get_latest_alinux_ami_id()
+            placement_group = cluster_section.get_param_value("placement_group")
+
+            boto3.client("ec2").run_instances(
+                InstanceType=instance_type,
+                MinCount=max_size,
+                MaxCount=max_size,
+                ImageId=test_ami_id,
+                SubnetId=subnet_id,
+                Placement={"GroupName": placement_group} if placement_group not in [None, "NONE", "DYNAMIC"] else {},
+                DryRun=True,
+            )
+        except ClientError as e:
+            code = e.response.get("Error").get("Code")
+            message = e.response.get("Error").get("Message")
+            if code == "DryRunOperation":
+                pass
+            elif code == "InstanceLimitExceeded":
+                fail(
+                    "The configured max size parameter {0} exceeds the AWS Account limit "
+                    "in the {1} region.\n{2}".format(max_size, self.region, message)
+                )
+            elif code == "InsufficientInstanceCapacity":
+                fail(
+                    "The configured max size parameter {0} exceeds the On-Demand capacity on AWS.\n{1}".format(
+                        max_size, message
+                    )
+                )
+            elif code == "InsufficientFreeAddressesInSubnet":
+                fail(
+                    "The configured max size parameter {0} exceeds the number of free private IP addresses "
+                    "available in the Compute subnet.\n{1}".format(max_size, message)
+                )
+            elif code == "InvalidParameterCombination":
+                fail(message)
+            else:
+                fail(
+                    "Unable to check AWS Account limits. Please double check your cluster configuration.\n%s" % message
+                )

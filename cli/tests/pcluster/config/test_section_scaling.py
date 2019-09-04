@@ -24,8 +24,8 @@ from tests.pcluster.config.defaults import DefaultCfnParams, DefaultDict
         ({"ScaleDownIdleTime": "20"}, {"scaledown_idletime": 20}),
     ],
 )
-def test_scaling_section_from_cfn(cfn_params_dict, expected_section_dict):
-    utils.assert_section_from_cfn(SCALING, cfn_params_dict, expected_section_dict)
+def test_scaling_section_from_cfn(mocker, cfn_params_dict, expected_section_dict):
+    utils.assert_section_from_cfn(mocker, SCALING, cfn_params_dict, expected_section_dict)
 
 
 @pytest.mark.parametrize(
@@ -41,8 +41,8 @@ def test_scaling_section_from_cfn(cfn_params_dict, expected_section_dict):
         ({"scaling default": {"invalid_key": "fake_value"}}, None, "'invalid_key' is not allowed in the .* section"),
     ],
 )
-def test_scaling_section_from_file(config_parser_dict, expected_dict_params, expected_message):
-    utils.assert_section_from_file(SCALING, config_parser_dict, expected_dict_params, expected_message)
+def test_scaling_section_from_file(mocker, config_parser_dict, expected_dict_params, expected_message):
+    utils.assert_section_from_file(mocker, SCALING, config_parser_dict, expected_dict_params, expected_message)
 
 
 @pytest.mark.parametrize(
@@ -56,8 +56,8 @@ def test_scaling_section_from_file(config_parser_dict, expected_dict_params, exp
         ({"scaledown_idletime": 11}, {"scaling default": {"scaledown_idletime": "11"}}, None),
     ],
 )
-def test_scaling_section_to_file(section_dict, expected_config_parser_dict, expected_message):
-    utils.assert_section_to_file(SCALING, section_dict, expected_config_parser_dict, expected_message)
+def test_scaling_section_to_file(mocker, section_dict, expected_config_parser_dict, expected_message):
+    utils.assert_section_to_file(mocker, SCALING, section_dict, expected_config_parser_dict, expected_message)
 
 
 @pytest.mark.parametrize(
@@ -67,8 +67,8 @@ def test_scaling_section_to_file(section_dict, expected_config_parser_dict, expe
         ({"scaledown_idletime": 20}, {"ScaleDownIdleTime": "20"}),
     ],
 )
-def test_scaling_section_to_cfn(section_dict, expected_cfn_params):
-    utils.assert_section_to_cfn(SCALING, section_dict, expected_cfn_params)
+def test_scaling_section_to_cfn(mocker, section_dict, expected_cfn_params):
+    utils.assert_section_to_cfn(mocker, SCALING, section_dict, expected_cfn_params)
 
 
 @pytest.mark.parametrize(
@@ -82,5 +82,5 @@ def test_scaling_section_to_cfn(section_dict, expected_cfn_params):
         ("scaledown_idletime", "3", 3, None),
     ],
 )
-def test_scaling_param_from_file(param_key, param_value, expected_value, expected_message):
-    utils.assert_param_from_file(SCALING, param_key, param_value, expected_value, expected_message)
+def test_scaling_param_from_file(mocker, param_key, param_value, expected_value, expected_message):
+    utils.assert_param_from_file(mocker, SCALING, param_key, param_value, expected_value, expected_message)

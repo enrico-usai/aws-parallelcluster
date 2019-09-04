@@ -13,8 +13,7 @@ import pytest
 
 from assertpy import assert_that
 from pcluster.config.mapping import CLUSTER, SCALING
-from pcluster.config.pcluster_config import PclusterConfig
-from tests.pcluster.config.utils import get_param_map
+from tests.pcluster.config.utils import get_mocked_pcluster_config, get_param_map
 
 
 @pytest.mark.parametrize(
@@ -43,13 +42,13 @@ from tests.pcluster.config.utils import get_param_map
         ),
     ],
 )
-def test_param_to_file(section_map, param_key, param_value, expected_value):
+def test_param_to_file(mocker, section_map, param_key, param_value, expected_value):
     section_label = "default"
     section_name = section_map.get("key") + " " + section_label
     config_parser = configparser.ConfigParser()
     config_parser.add_section(section_name)
 
-    pcluster_config = PclusterConfig(config_file="wrong-file")
+    pcluster_config = get_mocked_pcluster_config(mocker)
 
     param_map, param_type = get_param_map(section_map, param_key)
     param = param_type(section_map.get("key"), section_label, param_key, param_map, pcluster_config)
