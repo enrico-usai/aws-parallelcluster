@@ -62,6 +62,13 @@ def version():
     return utils.get_installed_version()
 
 
+def _check_for_updates(pcluster_config):
+    """Check for updates."""
+    update_check = pcluster_config.get_section("global").get_param_value("update_check")
+    if update_check:
+        utils.check_if_latest_version()
+
+
 def create(args):  # noqa: C901 FIXME!!!
     LOGGER.info("Beginning cluster creation for cluster: %s", args.cluster_name)
     LOGGER.debug("Building cluster config based on args %s", str(args))
@@ -79,7 +86,8 @@ def create(args):  # noqa: C901 FIXME!!!
     cfn_tags = cluster_section.get_param_value("tags")
     cfn_params = pcluster_config.to_cfn()
 
-    capabilities = ["CAPABILITY_IAM"]
+    _check_for_updates(pcluster_config)
+
     batch_temporary_bucket = None
     try:
         cfn = boto3.client("cloudformation")
@@ -126,7 +134,7 @@ def create(args):  # noqa: C901 FIXME!!!
             StackName=stack_name,
             TemplateURL=template_url,
             Parameters=params,
-            Capabilities=capabilities,
+            Capabilities=["CAPABILITY_IAM"],
             DisableRollback=args.norollback,
             Tags=tags,
         )
@@ -210,12 +218,10 @@ def update(args):  # noqa: C901 FIXME!!!
 
     cfn = boto3.client("cloudformation")
     if cfn_params.get("Scheduler") != "awsbatch":
-        asg = boto3.client("autoscaling")
-
         if not args.reset_desired:
             asg_name = _get_asg_name(stack_name, pcluster_config)
             desired_capacity = (
-                asg.describe_auto_scaling_groups(AutoScalingGroupNames=[asg_name])
+                boto3.client("autoscaling").describe_auto_scaling_groups(AutoScalingGroupNames=[asg_name])
                 .get("AutoScalingGroups")[0]
                 .get("DesiredCapacity")
             )
@@ -237,14 +243,13 @@ def update(args):  # noqa: C901 FIXME!!!
 
         cfn_params = [{"ParameterKey": key, "ParameterValue": value} for key, value in cfn_params.items()]
         LOGGER.info("Calling update_stack")
-        capabilities = ["CAPABILITY_IAM"]
         cfn.update_stack(
-            StackName=stack_name, UsePreviousTemplate=True, Parameters=cfn_params, Capabilities=capabilities
+            StackName=stack_name, UsePreviousTemplate=True, Parameters=cfn_params, Capabilities=["CAPABILITY_IAM"]
         )
-        status = cfn.describe_stacks(StackName=stack_name).get("Stacks")[0].get("StackStatus")
+        stack_status = cfn.describe_stacks(StackName=stack_name).get("Stacks")[0].get("StackStatus")
         if not args.nowait:
-            while status == "UPDATE_IN_PROGRESS":
-                status = cfn.describe_stacks(StackName=stack_name).get("Stacks")[0].get("StackStatus")
+            while stack_status == "UPDATE_IN_PROGRESS":
+                stack_status = cfn.describe_stacks(StackName=stack_name).get("Stacks")[0].get("StackStatus")
                 events = cfn.describe_stack_events(StackName=stack_name).get("StackEvents")[0]
                 resource_status = (
                     "Status: %s - %s" % (events.get("LogicalResourceId"), events.get("ResourceStatus"))
@@ -253,8 +258,8 @@ def update(args):  # noqa: C901 FIXME!!!
                 sys.stdout.flush()
                 time.sleep(5)
         else:
-            status = cfn.describe_stacks(StackName=stack_name).get("Stacks")[0].get("StackStatus")
-            LOGGER.info("Status: %s", status)
+            stack_status = cfn.describe_stacks(StackName=stack_name).get("Stacks")[0].get("StackStatus")
+            LOGGER.info("Status: %s", stack_status)
     except ClientError as e:
         LOGGER.critical(e.response.get("Error").get("Message"))
         sys.exit(1)

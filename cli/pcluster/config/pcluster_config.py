@@ -17,8 +17,8 @@ import os
 import stat
 
 import boto3
-from botocore.exceptions import ClientError
 import configparser
+from botocore.exceptions import ClientError
 
 from pcluster.config.mapping import ALIASES, AWS, CLUSTER, GLOBAL, get_section_type
 from pcluster.utils import fail, get_instance_vcpus, get_stack_name, warn
