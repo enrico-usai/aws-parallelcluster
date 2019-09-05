@@ -18,7 +18,11 @@ import boto3
 from botocore.exceptions import ClientError
 
 from pcluster.utils import (
-    get_efs_mount_target_id, get_instance_vcpus, get_partition, get_region, get_supported_features
+    get_efs_mount_target_id,
+    get_instance_vcpus,
+    get_partition,
+    get_region,
+    get_supported_features,
 )
 
 

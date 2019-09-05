@@ -65,7 +65,7 @@ def convert_to_date_mock(request, mocker):
 
 
 @pytest.fixture()
-def boto3_stubber(request, mocker, boto3_stubber_path):
+def boto3_stubber(mocker, boto3_stubber_path):
     """
     Create a function to easily mock boto3 clients.
 
@@ -83,7 +83,7 @@ def boto3_stubber(request, mocker, boto3_stubber_path):
     mocked_clients = {}
 
     mocked_client_factory = mocker.patch(boto3_stubber_path, autospec=True)
-    # use **kwargs to skip parameters passed to the boto3.client other than the "servic"e
+    # use **kwargs to skip parameters passed to the boto3.client other than the "service"
     # e.g. boto3.client("ec2", region_name=region, ...) --> x = ec2
     mocked_client_factory.client.side_effect = lambda x, **kwargs: mocked_clients[x]
 
