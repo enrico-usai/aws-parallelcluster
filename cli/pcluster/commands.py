@@ -152,8 +152,8 @@ def create(args):  # noqa: C901 FIXME!!!
             result_stack = cfn.describe_stacks(StackName=stack_name).get("Stacks")[0]
             _print_stack_outputs(result_stack)
         else:
-            status = cfn.describe_stacks(StackName=stack_name).get("Stacks")[0].get("StackStatus")
-            LOGGER.info("Status: %s", status)
+            stack_status = cfn.describe_stacks(StackName=stack_name).get("Stacks")[0].get("StackStatus")
+            LOGGER.info("Status: %s", stack_status)
     except ClientError as e:
         LOGGER.critical(e.response.get("Error").get("Message"))
         sys.stdout.flush()
@@ -202,13 +202,13 @@ def _print_stack_outputs(stack):
 
 
 def _is_ganglia_enabled(parameters):
+    is_ganglia_enabled = False
     try:
-        extra_json = filter(lambda x: x.get("ParameterKey") == "ExtraJson", parameters)[0].get("ParameterValue")
-        extra_json = json.loads(extra_json).get("cfncluster")
-        return extra_json.get("ganglia_enabled") == "yes"
+        cfn_extra_json = _get_param_value(parameters, "ExtraJson")
+        is_ganglia_enabled = json.loads(cfn_extra_json).get("cfncluster").get("ganglia_enabled") == "yes"
     except Exception:
         pass
-    return False
+    return is_ganglia_enabled
 
 
 def update(args):  # noqa: C901 FIXME!!!
@@ -361,9 +361,9 @@ def _colorize(stack_status, args):
         return stack_status
     end = "0m"
     status_to_color = {"COMPLETE": "0;32m", "FAILED": "0;31m", "IN_PROGRESS": "10;33m"}
-    for status in status_to_color:
-        if status in stack_status:
-            return "\033[%s%s\033[%s" % (status_to_color[status], stack_status, end)
+    for status_label in status_to_color:
+        if status_label in stack_status:
+            return "\033[%s%s\033[%s" % (status_to_color[status_label], stack_status, end)
 
 
 def list_stacks(args):
@@ -421,14 +421,14 @@ def _poll_master_server_state(stack_name):
                 .get("InstanceState")
                 .get("Name")
             )
-            status = "\r\033[KMasterServer: %s" % state.upper()
-            sys.stdout.write(status)
+            master_status = "\r\033[KMasterServer: %s" % state.upper()
+            sys.stdout.write(master_status)
             sys.stdout.flush()
         if state in ["terminated", "shutting-down"]:
             LOGGER.info("State: %s is irrecoverable. Cluster needs to be re-created.", state)
             sys.exit(1)
-        status = "\rMasterServer: %s\n" % state.upper()
-        sys.stdout.write(status)
+        master_status = "\rMasterServer: %s\n" % state.upper()
+        sys.stdout.write(master_status)
         sys.stdout.flush()
     except ClientError as e:
         LOGGER.critical(e.response.get("Error").get("Message"))
@@ -452,11 +452,11 @@ def _get_ec2_instances(stack):
 
     temp_instances = [r for r in resources if r.get("ResourceType") == "AWS::EC2::Instance"]
 
-    instances = []
+    stack_instances = []
     for instance in temp_instances:
-        instances.append([instance.get("LogicalResourceId"), instance.get("PhysicalResourceId")])
+        stack_instances.append([instance.get("LogicalResourceId"), instance.get("PhysicalResourceId")])
 
-    return instances
+    return stack_instances
 
 
 def _get_asg_name(stack_name):
@@ -528,7 +528,7 @@ def instances(args):
         instances.extend(_get_asg_instances(stack_name))
 
     for instance in instances:
-        LOGGER.info("%s         %s" % (instance[0], instance[1]))
+        LOGGER.info("%s         %s", instance[0], instance[1])
 
     if cluster_section.get_param_value("scheduler") == "awsbatch":
         LOGGER.info("Run 'awsbhosts --cluster %s' to list the compute instances", args.cluster_name)
@@ -582,28 +582,28 @@ def command(args, extra_args):  # noqa: C901 FIXME!!!
     cfn = boto3.client("cloudformation")
     try:
         stack_result = cfn.describe_stacks(StackName=stack).get("Stacks")[0]
-        status = stack_result.get("StackStatus")
+        stack_status = stack_result.get("StackStatus")
         valid_status = ["CREATE_COMPLETE", "UPDATE_COMPLETE", "UPDATE_ROLLBACK_COMPLETE"]
         invalid_status = ["DELETE_COMPLETE", "DELETE_IN_PROGRESS"]
 
-        if status in invalid_status:
-            LOGGER.info("Stack status: %s. Cannot SSH while in %s", status, " or ".join(invalid_status))
+        if stack_status in invalid_status:
+            LOGGER.info("Stack status: %s. Cannot SSH while in %s", stack_status, " or ".join(invalid_status))
             sys.exit(1)
-        elif status in valid_status:
+        elif stack_status in valid_status:
             outputs = stack_result.get("Outputs")
             username = utils.get_stack_output_value(outputs, "ClusterUser")
-            ip = utils.get_stack_output_value(outputs, "MasterPublicIP") or _get_master_server_ip(stack)
+            master_ip = utils.get_stack_output_value(outputs, "MasterPublicIP") or _get_master_server_ip(stack)
 
             if not username:
                 LOGGER.info("Failed to get cluster %s username.", args.cluster_name)
                 sys.exit(1)
 
-            if not ip:
+            if not master_ip:
                 LOGGER.info("Failed to get cluster %s ip.", args.cluster_name)
                 sys.exit(1)
         else:
             # Stack is in CREATING, CREATED_FAILED, or ROLLBACK_COMPLETE but MasterServer is running
-            ip = _get_master_server_ip(stack)
+            master_ip = _get_master_server_ip(stack)
             template = cfn.get_template(StackName=stack)
             mappings = template.get("TemplateBody").get("Mappings").get("OSFeatures")
             base_os = _get_param_value(stack_result.get("Parameters"), "BaseOS")
@@ -616,7 +616,7 @@ def command(args, extra_args):  # noqa: C901 FIXME!!!
 
         # build command
         cmd = config_command.format(
-            CFN_USER=username, MASTER_IP=ip, ARGS=" ".join(cmd_quote(str(e)) for e in extra_args)
+            CFN_USER=username, MASTER_IP=master_ip, ARGS=" ".join(cmd_quote(str(e)) for e in extra_args)
         )
 
         # run command
@@ -641,11 +641,11 @@ def status(args):  # noqa: C901 FIXME!!!
 
     cfn = boto3.client("cloudformation")
     try:
-        status = cfn.describe_stacks(StackName=stack_name).get("Stacks")[0].get("StackStatus")
-        sys.stdout.write("\rStatus: %s" % status)
+        stack_status = cfn.describe_stacks(StackName=stack_name).get("Stacks")[0].get("StackStatus")
+        sys.stdout.write("\rStatus: %s" % stack_status)
         sys.stdout.flush()
         if not args.nowait:
-            while status not in [
+            while stack_status not in [
                 "CREATE_COMPLETE",
                 "UPDATE_COMPLETE",
                 "UPDATE_ROLLBACK_COMPLETE",
@@ -654,21 +654,21 @@ def status(args):  # noqa: C901 FIXME!!!
                 "DELETE_FAILED",
             ]:
                 time.sleep(5)
-                status = cfn.describe_stacks(StackName=stack_name).get("Stacks")[0].get("StackStatus")
+                stack_status = cfn.describe_stacks(StackName=stack_name).get("Stacks")[0].get("StackStatus")
                 events = cfn.describe_stack_events(StackName=stack_name).get("StackEvents")[0]
                 resource_status = (
                     "Status: %s - %s" % (events.get("LogicalResourceId"), events.get("ResourceStatus"))
                 ).ljust(80)
                 sys.stdout.write("\r%s" % resource_status)
                 sys.stdout.flush()
-            sys.stdout.write("\rStatus: %s\n" % status)
+            sys.stdout.write("\rStatus: %s\n" % stack_status)
             sys.stdout.flush()
-            if status in ["CREATE_COMPLETE", "UPDATE_COMPLETE"]:
+            if stack_status in ["CREATE_COMPLETE", "UPDATE_COMPLETE"]:
                 state = _poll_master_server_state(stack_name)
                 if state == "running":
                     stack = cfn.describe_stacks(StackName=stack_name).get("Stacks")[0]
                     _print_stack_outputs(stack)
-            elif status in ["ROLLBACK_COMPLETE", "CREATE_FAILED", "DELETE_FAILED", "UPDATE_ROLLBACK_COMPLETE"]:
+            elif stack_status in ["ROLLBACK_COMPLETE", "CREATE_FAILED", "DELETE_FAILED", "UPDATE_ROLLBACK_COMPLETE"]:
                 events = cfn.describe_stack_events(StackName=stack_name).get("StackEvents")
                 for event in events:
                     if event.get("ResourceStatus") in ["CREATE_FAILED", "DELETE_FAILED", "UPDATE_FAILED"]:
@@ -707,27 +707,27 @@ def delete(args):
         cfn.describe_stacks(StackName=stack)
         cfn.delete_stack(StackName=stack)
         saw_update = True
-        status = cfn.describe_stacks(StackName=stack).get("Stacks")[0].get("StackStatus")
-        sys.stdout.write("\rStatus: %s" % status)
+        stack_status = cfn.describe_stacks(StackName=stack).get("Stacks")[0].get("StackStatus")
+        sys.stdout.write("\rStatus: %s" % stack_status)
         sys.stdout.flush()
-        LOGGER.debug("Status: %s", status)
+        LOGGER.debug("Status: %s", stack_status)
         if not args.nowait:
-            while status == "DELETE_IN_PROGRESS":
+            while stack_status == "DELETE_IN_PROGRESS":
                 time.sleep(5)
-                status = cfn.describe_stacks(StackName=stack).get("Stacks")[0].get("StackStatus")
+                stack_status = cfn.describe_stacks(StackName=stack).get("Stacks")[0].get("StackStatus")
                 events = cfn.describe_stack_events(StackName=stack).get("StackEvents")[0]
                 resource_status = (
                     "Status: %s - %s" % (events.get("LogicalResourceId"), events.get("ResourceStatus"))
                 ).ljust(80)
                 sys.stdout.write("\r%s" % resource_status)
                 sys.stdout.flush()
-            sys.stdout.write("\rStatus: %s\n" % status)
+            sys.stdout.write("\rStatus: %s\n" % stack_status)
             sys.stdout.flush()
-            LOGGER.debug("Status: %s", status)
+            LOGGER.debug("Status: %s", stack_status)
         else:
             sys.stdout.write("\n")
             sys.stdout.flush()
-        if status == "DELETE_FAILED":
+        if stack_status == "DELETE_FAILED":
             LOGGER.info("Cluster did not delete successfully. Run 'pcluster delete %s' again", args.cluster_name)
     except ClientError as e:
         if e.response.get("Error").get("Message").endswith("does not exist"):
@@ -802,8 +802,6 @@ def _dispose_packer_instance(results):
     time.sleep(2)
     try:
         ec2_client = boto3.client("ec2")
-        """ :type : pyboto3.ec2 """
-
         instance = ec2_client.describe_instance_status(
             InstanceIds=[results["PACKER_INSTANCE_ID"]], IncludeAllInstances=True
         ).get("InstanceStatuses")[0]
