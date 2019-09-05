@@ -59,8 +59,7 @@ def update(args):
 
 
 def version(args):
-    version = pcluster.version()
-    print(version)
+    print(pcluster.version())
 
 
 def start(args):

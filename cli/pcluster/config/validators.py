@@ -93,16 +93,16 @@ def _check_in_out_access(security_groups_ids, port):
     in_access = False
     out_access = False
 
-    for sg in boto3.client("ec2").describe_security_groups(GroupIds=security_groups_ids).get("SecurityGroups"):
+    for sec_group in boto3.client("ec2").describe_security_groups(GroupIds=security_groups_ids).get("SecurityGroups"):
 
         # Check all inbound rules
-        for rule in sg.get("IpPermissions"):
+        for rule in sec_group.get("IpPermissions"):
             if _check_sg_rules_for_port(rule, port):
                 in_access = True
                 break
 
         # Check all outbound rules
-        for rule in sg.get("IpPermissionsEgress"):
+        for rule in sec_group.get("IpPermissionsEgress"):
             if _check_sg_rules_for_port(rule, port):
                 out_access = True
                 break
@@ -140,19 +140,19 @@ def fsx_id_validator(param_key, param_value, pcluster_config):
         ec2 = boto3.client("ec2")
 
         # Check to see if there is any existing mt on the fs
-        fs = boto3.client("fsx").describe_file_systems(FileSystemIds=[param_value]).get("FileSystems")[0]
+        file_system = boto3.client("fsx").describe_file_systems(FileSystemIds=[param_value]).get("FileSystems")[0]
 
         subnet_id = pcluster_config.get_section("vpc").get_param_value("master_subnet_id")
         vpc_id = ec2.describe_subnets(SubnetIds=[subnet_id]).get("Subnets")[0].get("VpcId")
 
         # Check to see if fs is in the same VPC as the stack
-        if fs.get("VpcId") != vpc_id:
+        if file_system.get("VpcId") != vpc_id:
             errors.append(
                 "Currently only support using FSx file system that is in the same VPC as the stack. "
-                "The file system provided is in %s" % fs.get("VpcId")
+                "The file system provided is in {0}".format(file_system.get("VpcId"))
             )
         # If there is an existing mt in the az, need to check the inbound and outbound rules of the security groups
-        network_interface_ids = fs.get("NetworkInterfaceIds")
+        network_interface_ids = file_system.get("NetworkInterfaceIds")
         network_interface_responses = ec2.describe_network_interfaces(NetworkInterfaceIds=network_interface_ids).get(
             "NetworkInterfaces"
         )
@@ -190,7 +190,7 @@ def fsx_imported_file_chunk_size_validator(param_key, param_value, pcluster_conf
     errors = []
     warnings = []
 
-    if not (1 <= int(param_value) <= 512000):
+    if not 1 <= int(param_value) <= 512000:
         errors.append("'{0}' has a minimum size of 1 MiB, and max size of 512,000 MiB".format(param_key))
 
     return errors, warnings
@@ -247,7 +247,7 @@ def _validate_efa_sg(pcluster_config, errors):
                 # UserIdGroupPairs is always of length 1, so grabbing 0th object is ok
                 if (
                     rule.get("IpProtocol") == "-1"
-                    and len(rule.get("UserIdGroupPairs")) > 0
+                    and rule.get("UserIdGroupPairs")
                     and rule.get("UserIdGroupPairs")[0].get("GroupId") == vpc_security_group_id
                 ):
                     allowed_in = True
@@ -257,7 +257,7 @@ def _validate_efa_sg(pcluster_config, errors):
             for rule in sg.get("IpPermissionsEgress"):
                 if (
                     rule.get("IpProtocol") == "-1"
-                    and len(rule.get("UserIdGroupPairs")) > 0
+                    and rule.get("UserIdGroupPairs")
                     and rule.get("UserIdGroupPairs")[0].get("GroupId") == vpc_security_group_id
                 ):
                     allowed_out = True
@@ -456,10 +456,10 @@ def url_validator(param_key, param_value, pcluster_config):
 
     if urlparse(param_value).scheme == "s3":
         try:
-            m = re.match(r"s3://(.*?)/(.*)", param_value)
-            if not m or len(m.groups()) < 2:
+            match = re.match(r"s3://(.*?)/(.*)", param_value)
+            if not match or len(match.groups()) < 2:
                 errors.append("S3 url is invalid.")
-            bucket, key = m.group(1), m.group(2)
+            bucket, key = match.group(1), match.group(2)
             boto3.client("s3").head_object(Bucket=bucket, Key=key)
         except ClientError:
             warnings.append("The S3 object does not exist or you do not have access to it.")
