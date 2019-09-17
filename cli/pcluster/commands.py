@@ -37,7 +37,7 @@ from botocore.exceptions import ClientError
 from tabulate import tabulate
 
 import pcluster.utils as utils
-from pcluster.config.mapping import ALIASES, AWS, CLUSTER, GLOBAL
+from pcluster.config.mappings import ALIASES, CLUSTER, GLOBAL
 from pcluster.config.pcluster_config import PclusterConfig
 
 if sys.version_info[0] >= 3:
@@ -82,7 +82,7 @@ def create(args):  # noqa: C901 FIXME!!!
     # Build the config based on args
     pcluster_config = PclusterConfig(
         config_file=args.config_file,
-        file_sections=[AWS, GLOBAL, CLUSTER],
+        file_sections=[GLOBAL, CLUSTER],
         cluster_label=args.cluster_template,
         fail_on_file_absence=True,
     )
@@ -216,7 +216,7 @@ def update(args):  # noqa: C901 FIXME!!!
     stack_name = utils.get_stack_name(args.cluster_name)
     pcluster_config = PclusterConfig(
         config_file=args.config_file,
-        file_sections=[AWS, GLOBAL, CLUSTER],
+        file_sections=[GLOBAL, CLUSTER],
         cluster_label=args.cluster_template,
         fail_on_file_absence=True,
     )
@@ -565,7 +565,7 @@ def _get_param_value(params, key_name):
 
 def command(args, extra_args):  # noqa: C901 FIXME!!!
     stack = utils.get_stack_name(args.cluster_name)
-    pcluster_config = PclusterConfig(file_sections=[AWS, ALIASES])
+    pcluster_config = PclusterConfig(file_sections=[ALIASES])
 
     if args.command in pcluster_config.get_section("aliases").params:
         config_command = pcluster_config.get_section("aliases").get_param_value(args.command)
@@ -885,9 +885,7 @@ def create_ami(args):
     try:
         # FIXME it doesn't work if there is no a default section
         pcluster_config = PclusterConfig(
-            config_file=args.config_file,
-            file_sections=[AWS, GLOBAL, CLUSTER],
-            fail_on_file_absence=True,
+            config_file=args.config_file, file_sections=[GLOBAL, CLUSTER], fail_on_file_absence=True
         )
 
         vpc_section = pcluster_config.get_section("vpc")

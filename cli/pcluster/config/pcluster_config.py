@@ -20,8 +20,8 @@ import boto3
 import configparser
 from botocore.exceptions import ClientError
 
-from pcluster.config.mapping import ALIASES, AWS, CLUSTER, GLOBAL
-from pcluster.utils import fail, get_instance_vcpus, get_latest_alinux_ami_id, get_partition, get_stack_name, warn
+from pcluster.config.mappings import ALIASES, AWS, CLUSTER, GLOBAL
+from pcluster.utils import fail, get_instance_vcpus, get_latest_alinux_ami_id, get_stack_name, warn
 
 LOGGER = logging.getLogger(__name__)
 

@@ -13,7 +13,7 @@ from future import standard_library
 
 import logging
 
-from pcluster.config.mapping import ALIASES, AWS, CLUSTER, GLOBAL
+from pcluster.config.mappings import ALIASES, CLUSTER, GLOBAL
 from pcluster.config.pcluster_config import PclusterConfig
 from pcluster.configure.networking import (
     NetworkConfiguration,
@@ -105,7 +105,7 @@ def _list_instances():  # Specifying the region does not make any difference
 
 
 def configure(args):
-    pcluster_config = PclusterConfig(config_file=args.config_file, file_sections=[AWS, GLOBAL, CLUSTER, ALIASES])
+    pcluster_config = PclusterConfig(config_file=args.config_file, file_sections=[GLOBAL, CLUSTER, ALIASES])
     cluster_section = pcluster_config.get_section("cluster")
 
     global_config = pcluster_config.get_section("global")
