@@ -14,7 +14,7 @@ import os
 
 import tests.pcluster.config.utils as utils
 from assertpy import assert_that
-from pcluster.config.mapping import ALIASES, AWS, CLUSTER, EBS, EFS, FSX, GLOBAL, RAID, SCALING, VPC
+from pcluster.config.mappings import ALIASES, AWS, CLUSTER, EBS, EFS, FSX, GLOBAL, RAID, SCALING, VPC
 from pcluster.config.pcluster_config import PclusterConfig
 from tests.pcluster.config.defaults import CFN_CLI_RESERVED_PARAMS, CFN_CONFIG_NUM_OF_PARAMS, DefaultCfnParams
 
@@ -22,7 +22,7 @@ EXISTING_SECTIONS = [ALIASES, AWS, CLUSTER, EBS, EFS, FSX, GLOBAL, RAID, SCALING
 
 
 def test_mapping_consistency():
-    """Verify for typos or wrong keys in the mapping.py file."""
+    """Verify for typos or wrong keys in the mappings.py file."""
     for section_map in EXISTING_SECTIONS:
         for section_key, _ in section_map.items():
             assert_that(
@@ -44,7 +44,7 @@ def test_example_config_consistency(mocker):
     mocker.patch("pcluster.config.param_types.get_avail_zone", return_value="mocked_avail_zone")
     pcluster_config = PclusterConfig(
         config_file=utils.get_pcluster_config_example(),
-        file_sections=[AWS, GLOBAL, CLUSTER, ALIASES],
+        file_sections=[GLOBAL, CLUSTER, ALIASES],
         fail_on_file_absence=True,
     )
 

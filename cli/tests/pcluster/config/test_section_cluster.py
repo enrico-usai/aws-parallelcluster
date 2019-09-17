@@ -11,7 +11,7 @@
 import pytest
 
 import tests.pcluster.config.utils as utils
-from pcluster.config.mapping import CLUSTER
+from pcluster.config.mappings import CLUSTER
 from tests.pcluster.config.defaults import DefaultCfnParams, DefaultDict
 
 
