@@ -10,8 +10,6 @@
 # limitations under the License.
 from future.moves.collections import OrderedDict
 
-from enum import Enum
-
 from pcluster.config.param_types import (
     AdditionalIamPoliciesParam,
     AvailabilityZoneParam,
@@ -86,6 +84,15 @@ from pcluster.config.validators import (
 
 # fmt: off
 
+# Utility dictionary containing all the common regex used in the section mapping.
+ALLOWED_VALUES = {
+    "cidr": r"^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}/(0|1[6-9]|2[0-9]|3[0-2])$",
+    "greater_than_20": r"^([0-9]+[0-9]{2}|[2-9][0-9])$",
+    "security_group_id": r"^sg-[0-9a-z]{8}$|^sg-[0-9a-z]{17}$",
+    "subnet_id": r"^subnet-[0-9a-z]{8}$|^subnet-[0-9a-z]{17}$",
+    "volume_types": ["standard", "io1", "gp2", "st1", "sc1"],
+}
+
 AWS = {
     "type": Section,
     "key": "aws",
@@ -133,27 +140,27 @@ VPC = {
         },
         "master_subnet_id": {
             "cfn": "MasterSubnetId",
-            "allowed_values": CommonRegex.SUBNET_ID.value,
+            "allowed_values": ALLOWED_VALUES["subnet_id"],
             "validator": ec2_subnet_id_validator,
         },
         "ssh_from": {
             "default": "0.0.0.0/0",
-            "allowed_values": CommonRegex.CIDR.value,
+            "allowed_values": ALLOWED_VALUES["cidr"],
             "cfn": "AccessFrom",
         },
         "additional_sg": {
             "cfn": "AdditionalSG",
-            "allowed_values": CommonRegex.SECURITY_GROUP_ID.value,
+            "allowed_values": ALLOWED_VALUES["security_group_id"],
             "validator": ec2_security_group_validator,
         },
         "compute_subnet_id": {
             "cfn": "ComputeSubnetId",
-            "allowed_values": CommonRegex.SUBNET_ID.value,
+            "allowed_values": ALLOWED_VALUES["subnet_id"],
             "validator": ec2_subnet_id_validator,
         },
         "compute_subnet_cidr": {
             "cfn": "ComputeSubnetCidr",
-            "allowed_values": CommonRegex.CIDR.value,
+            "allowed_values": ALLOWED_VALUES["cidr"],
         },
         "use_public_ips": {
             "type": BoolParam,
@@ -162,7 +169,7 @@ VPC = {
         },
         "vpc_security_group_id": {
             "cfn": "VPCSecurityGroupId",
-            "allowed_values": CommonRegex.SECURITY_GROUP_ID.value,
+            "allowed_values": ALLOWED_VALUES["security_group_id"],
             "validator": ec2_security_group_validator,
         },
         "master_availability_zone": {
@@ -188,7 +195,7 @@ EBS = {
         },
         "volume_type": {
             "default": "gp2",
-            "allowed_values": ["standard", "io1", "gp2", "st1", "sc1"],
+            "allowed_values": ALLOWED_VALUES["volume_types"],
             "cfn": "VolumeType",
         },
         "volume_size": {
@@ -269,7 +276,7 @@ RAID = {
             }),
             ("volume_type", {
                 "default": "gp2",
-                "allowed_values": ["standard", "io1", "gp2", "st1", "sc1"],
+                "allowed_values": ALLOWED_VALUES["volume_types"],
             }),
             ("volume_size", {
                 "type": IntParam,
@@ -368,7 +375,7 @@ CLUSTER = {
         "master_root_volume_size": {
             "type": IntParam,
             "default": 20,
-            "allowed_values": r"^([0-9]+[0-9]{2}|[2-9][0-9])$",  # >= 20
+            "allowed_values": ALLOWED_VALUES["greater_than_20"],
             "cfn": "MasterRootVolumeSize",
         },
         # Compute fleet
@@ -380,7 +387,7 @@ CLUSTER = {
         "compute_root_volume_size": {
             "type": IntParam,
             "default": 20,
-            "allowed_values": r"^([0-9]+[0-9]{2}|[2-9][0-9])$",  # >= 20
+            "allowed_values": ALLOWED_VALUES["greater_than_20"],
             "cfn": "ComputeRootVolumeSize",
         },
         "initial_queue_size": {
