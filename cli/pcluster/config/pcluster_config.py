@@ -228,9 +228,15 @@ class PclusterConfig(object):
         """
         return self.get_section("cluster").to_cfn()
 
-    def __init_sections_from_file(
-        self, file_sections, cluster_label=None, config_parser=None, fail_on_file_absence=False
-    ):
+    def __init_sections_from_file(self, file_sections, cluster_label=None, config_parser=None, fail_on_absence=False):
+        """
+        Initialize all the Sections object and add them to the internal structure by parsing configuration file.
+
+        :param file_sections: list of sections map to initialize
+        :param cluster_label: the label of the section (if there)
+        :param config_parser: the config parser object to parse
+        :param fail_on_absence: if true, the initialization will fail if one section doesn't exist in the file
+        """
         if not file_sections:
             file_sections = []
 
@@ -247,18 +253,17 @@ class PclusterConfig(object):
                     else None
                 )
             self.__init_section_from_file(
-                CLUSTER, config_parser, section_label=cluster_label, fail_on_absence=fail_on_file_absence
+                CLUSTER, config_parser, section_label=cluster_label, fail_on_absence=fail_on_absence
             )
 
     def __init_section_from_file(self, section_map, config_parser, section_label=None, fail_on_absence=False):
         """
         Initialize the Section object and add it to the internal structure.
 
-        :param section_enum_item: the enum item corresponding to the section to convert
+        :param section_map: the map of the section to initialize
         :param config_parser: the config parser object to parse
         :param section_label: the label of the section (if there)
         :param fail_on_absence: if true, the initialization will fail if the section doesn't exist in the file
-        :return:
         """
         section_type = section_map.get("type")
         section = section_type(
