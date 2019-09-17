@@ -216,9 +216,7 @@
         "sge",
         "torque",
         "slurm",
-        "custom",
-        "awsbatch",
-        "test"
+        "awsbatch"
       ]
     },
     "SharedDir": {
