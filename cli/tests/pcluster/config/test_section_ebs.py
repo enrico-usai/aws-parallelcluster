@@ -11,7 +11,7 @@
 import pytest
 
 import tests.pcluster.config.utils as utils
-from pcluster.config.mapping import EBS
+from pcluster.config.mappings import EBS
 from tests.pcluster.config.defaults import DefaultCfnParams, DefaultDict
 
 

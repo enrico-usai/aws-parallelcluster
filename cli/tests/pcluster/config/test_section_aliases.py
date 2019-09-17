@@ -11,7 +11,7 @@
 import pytest
 
 import tests.pcluster.config.utils as utils
-from pcluster.config.mapping import ALIASES
+from pcluster.config.mappings import ALIASES
 
 
 @pytest.mark.parametrize(

@@ -11,7 +11,7 @@
 import pytest
 
 import tests.pcluster.config.utils as utils
-from pcluster.config.mapping import GLOBAL
+from pcluster.config.mappings import GLOBAL
 
 
 @pytest.mark.parametrize(

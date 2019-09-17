@@ -12,7 +12,7 @@ import configparser
 import pytest
 
 from assertpy import assert_that
-from pcluster.config.mapping import CLUSTER, SCALING
+from pcluster.config.mappings import CLUSTER, SCALING
 from tests.pcluster.config.utils import get_mocked_pcluster_config, get_param_map
 
 

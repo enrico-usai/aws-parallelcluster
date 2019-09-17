@@ -17,7 +17,7 @@ import pytest
 from configparser import NoOptionError, NoSectionError
 
 from assertpy import assert_that
-from pcluster.config.mapping import ALIASES, AWS, CLUSTER, GLOBAL
+from pcluster.config.mappings import ALIASES, CLUSTER, GLOBAL
 from pcluster.config.param_types import Param
 from pcluster.config.pcluster_config import PclusterConfig
 from tests.pcluster.config.defaults import CFN_CONFIG_NUM_OF_PARAMS, DefaultDict
@@ -42,7 +42,7 @@ def get_pcluster_config_example():
 
 
 def assert_param_from_file(mocker, section_map, param_key, param_value, expected_value, expected_message):
-    section_label = section_map.get("label")
+    section_label = section_map.get("default_label")
     section_name = "{0}{1}".format(section_map.get("key"), " {0}".format(section_label) if section_label else "")
     config_parser = configparser.ConfigParser()
     config_parser.add_section(section_name)
@@ -114,7 +114,7 @@ def assert_section_from_cfn(mocker, section_map, cfn_params_dict, expected_secti
 
 def get_mocked_pcluster_config(mocker):
     mocker.patch.object(PclusterConfig, "_PclusterConfig__validate")
-    return PclusterConfig(config_file="wrong-file", file_sections=[AWS, GLOBAL, ALIASES, CLUSTER])
+    return PclusterConfig(config_file="wrong-file", file_sections=[GLOBAL, ALIASES, CLUSTER])
 
 
 def assert_section_from_file(mocker, section_map, config_parser_dict, expected_dict_params, expected_message):
@@ -200,16 +200,16 @@ def assert_section_params(mocker, pcluster_config_reader, settings_label, expect
     mocker.patch.object(PclusterConfig, "_PclusterConfig__validate")
     if isinstance(expected_cfn_params, SystemExit):
         with pytest.raises(SystemExit):
-            _ = PclusterConfig(
+            PclusterConfig(
                 cluster_label="default",
                 config_file=pcluster_config_reader(settings_label=settings_label),
-                file_sections=[AWS, GLOBAL, CLUSTER],
+                file_sections=[GLOBAL, CLUSTER],
                 fail_on_file_absence=True,
             )
     else:
         pcluster_config = PclusterConfig(
             config_file=pcluster_config_reader(settings_label=settings_label),
-            file_sections=[AWS, GLOBAL, CLUSTER],
+            file_sections=[GLOBAL, CLUSTER],
             fail_on_file_absence=True,
         )
 
@@ -232,7 +232,7 @@ def init_pcluster_config_from_configparser(config_parser):
         pcluster_config = PclusterConfig(
             config_file=config_file.name,
             cluster_label="default",
-            file_sections=[AWS, GLOBAL, CLUSTER, ALIASES],
+            file_sections=[GLOBAL, CLUSTER, ALIASES],
             fail_on_file_absence=True,
         )
     return pcluster_config
