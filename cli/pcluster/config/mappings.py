@@ -55,13 +55,32 @@ from pcluster.config.validators import (
     url_validator,
 )
 
+# This file contains a map of all the sections and the parameters configurable by the user
+# in the configuration file.
 
-class CommonRegex(Enum):
-    """Utility class containing all the common regex used in the section mapping."""
+# For each section you can define:
+#
+# - type, the class to use to represent this section (default: Section)
+# - key, the key used in configuration file that identifies the section type
+#   (e.g [cluster default] -> "cluster" is the key)
+# - label, the label to use for the section when initializing from CFN or from map.
+#   (e.g [cluster default] -> "default" is the key)
+# - validator, a function to use to validate the section.
+#   It is called for all the parameters once all of them are initialized.
+# - cfn, the CFN parameters to use for the to/from_cfn conversion.
+#   it is used for sections that are converted to a single CFN parameter, e.g. RAID, EFS, FSX
+# - params, a dictionary containing all the parameters available for that section
 
-    CIDR = r"^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}/(0|1[6-9]|2[0-9]|3[0-2])$"
-    SECURITY_GROUP_ID = r"^sg-[0-9a-z]{8}$|^sg-[0-9a-z]{17}$"
-    SUBNET_ID = r"^subnet-[0-9a-z]{8}$|^subnet-[0-9a-z]{17}$"
+# For each parameter you can define:
+#
+# - type the class to use to represent this section (default: Param, a string parameter)
+# - cfn the CFN parameters to use for the to/from_cfn conversion.
+# - allowed_values, a list of allowed values or a regex. It is evaluated at parsing time.
+# - validator, a function to use to validate the param.
+#   It is called for all the parameters once all of them are initialized.
+# - default, a default value for the internal representation, if not specified the value will be None
+# - referred_section, it is a special attribute used only for *SettingsParam,
+#   the parameters that refers to other sections in the file (e.g. vpc_settings)
 
 
 AWS = {
