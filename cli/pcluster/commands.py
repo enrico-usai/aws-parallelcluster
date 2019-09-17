@@ -101,7 +101,7 @@ def create(args):  # noqa: C901 FIXME!!!
         pcluster_version = utils.get_installed_version()
 
         # If scheduler is awsbatch create bucket with resources
-        if cfn_params["Scheduler"] == "awsbatch":
+        if cluster_section.get_param_value("scheduler") == "awsbatch":
             batch_resources = pkg_resources.resource_filename(__name__, "resources/batch")
             batch_temporary_bucket = _create_bucket_with_batch_resources(
                 stack_name=stack_name, resources_dir=batch_resources, region=pcluster_config.region
@@ -109,6 +109,7 @@ def create(args):  # noqa: C901 FIXME!!!
             cfn_params["ResourcesS3Bucket"] = batch_temporary_bucket
 
         LOGGER.info("Creating stack named: %s", stack_name)
+        LOGGER.debug(cfn_params)
 
         # Determine the CloudFormation Template URL to use
         # order is 1) CLI arg 2) Config file 3) default for version + region
@@ -132,6 +133,7 @@ def create(args):  # noqa: C901 FIXME!!!
 
         # append extra parameters from command-line
         if args.extra_parameters:
+            LOGGER.debug("Adding extra parameters to the CFN parameters")
             cfn_params.update(dict(args.extra_parameters))
 
         # prepare input parameters for stack creation and create the stack
@@ -222,8 +224,9 @@ def update(args):  # noqa: C901 FIXME!!!
     )
     cfn_params = pcluster_config.to_cfn()
 
+    cluster_section = pcluster_config.get_section("cluster")
     cfn = boto3.client("cloudformation")
-    if cfn_params.get("Scheduler") != "awsbatch":
+    if cluster_section.get_param_value("scheduler") != "awsbatch":
         if not args.reset_desired:
             asg_name = _get_asg_name(stack_name)
             desired_capacity = (
