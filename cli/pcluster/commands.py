@@ -88,8 +88,6 @@ def create(args):  # noqa: C901 FIXME!!!
     )
     # get CFN parameters, template url and tags from config
     cluster_section = pcluster_config.get_section("cluster")
-    cfn_template_url = cluster_section.get_param_value("template_url")
-    cfn_tags = cluster_section.get_param_value("tags")
     cfn_params = pcluster_config.to_cfn()
 
     _check_for_updates(pcluster_config)
@@ -98,7 +96,6 @@ def create(args):  # noqa: C901 FIXME!!!
     try:
         cfn = boto3.client("cloudformation")
         stack_name = utils.get_stack_name(args.cluster_name)
-        pcluster_version = utils.get_installed_version()
 
         # If scheduler is awsbatch create bucket with resources
         if cluster_section.get_param_value("scheduler") == "awsbatch":
@@ -113,23 +110,12 @@ def create(args):  # noqa: C901 FIXME!!!
 
         # Determine the CloudFormation Template URL to use
         # order is 1) CLI arg 2) Config file 3) default for version + region
-        if args.template_url:
-            template_url = args.template_url
-        else:
-            template_url = cfn_template_url if cfn_template_url else _get_default_template_url(pcluster_config.region)
+        configured_template_url = cluster_section.get_param_value("template_url")
+        template_url = args.template_url or configured_template_url or _get_default_template_url(pcluster_config.region)
 
-        # prepare tags by adding the pcluster version and merging tags defined in command-line and configuration file
-        tags = []
-        if args.tags:
-            # override tags with values from command line parameter
-            try:
-                for key in args.tags:
-                    cfn_tags[key] = args.tags[key]
-            except AttributeError:
-                pass
-        if cfn_tags:
-            tags.extend([{"Key": tag, "Value": cfn_tags[tag]} for tag in cfn_tags])
-        tags.append({"Key": "Version", "Value": pcluster_version})
+        # merge tags from configuration, command-line and internal ones
+        configured_tags = cluster_section.get_param_value("tags")
+        tags = _prepare_tags(args.tags, configured_tags)
 
         # append extra parameters from command-line
         if args.extra_parameters:
@@ -176,6 +162,28 @@ def create(args):  # noqa: C901 FIXME!!!
         if batch_temporary_bucket:
             utils.delete_s3_bucket(bucket_name=batch_temporary_bucket)
         sys.exit(1)
+
+
+def _prepare_tags(args_tags, configured_tags):
+    """
+    Prepare tags by adding the pcluster version and merging tags defined in command-line and configuration file.
+
+    :param args_tags: tags coming from the CLI
+    :param configured_tags: tags coming from configuration file
+    """
+    tags = []
+
+    if args_tags:
+        # add tags from command line parameter
+        configured_tags.update(args_tags)
+
+    if configured_tags:
+        # convert to CFN tags
+        tags.extend([{"Key": tag, "Value": configured_tags[tag]} for tag in configured_tags])
+
+    # add pcluster version
+    tags.append({"Key": "Version", "Value": utils.get_installed_version()})
+    return tags
 
 
 def _print_stack_outputs(stack):
