@@ -75,7 +75,7 @@ def _check_for_updates(pcluster_config):
         utils.check_if_latest_version()
 
 
-def create(args):  # noqa: C901 FIXME!!!
+def create(args):
     LOGGER.info("Beginning cluster creation for cluster: %s", args.cluster_name)
     LOGGER.debug("Building cluster config based on args %s", str(args))
 
@@ -88,8 +88,6 @@ def create(args):  # noqa: C901 FIXME!!!
     )
     # get CFN parameters, template url and tags from config
     cluster_section = pcluster_config.get_section("cluster")
-    cfn_template_url = cluster_section.get_param_value("template_url")
-    cfn_tags = cluster_section.get_param_value("tags")
     cfn_params = pcluster_config.to_cfn()
 
     _check_for_updates(pcluster_config)
@@ -98,7 +96,6 @@ def create(args):  # noqa: C901 FIXME!!!
     try:
         cfn = boto3.client("cloudformation")
         stack_name = utils.get_stack_name(args.cluster_name)
-        pcluster_version = utils.get_installed_version()
 
         # If scheduler is awsbatch create bucket with resources
         if cluster_section.get_param_value("scheduler") == "awsbatch":
@@ -111,25 +108,11 @@ def create(args):  # noqa: C901 FIXME!!!
         LOGGER.info("Creating stack named: %s", stack_name)
         LOGGER.debug(cfn_params)
 
-        # Determine the CloudFormation Template URL to use
-        # order is 1) CLI arg 2) Config file 3) default for version + region
-        if args.template_url:
-            template_url = args.template_url
-        else:
-            template_url = cfn_template_url if cfn_template_url else _get_default_template_url(pcluster_config.region)
+        # determine the CloudFormation Template URL to use
+        template_url = _evaluate_pcluster_template_url(pcluster_config, preferred_template_url=args.template_url)
 
-        # prepare tags by adding the pcluster version and merging tags defined in command-line and configuration file
-        tags = []
-        if args.tags:
-            # override tags with values from command line parameter
-            try:
-                for key in args.tags:
-                    cfn_tags[key] = args.tags[key]
-            except AttributeError:
-                pass
-        if cfn_tags:
-            tags.extend([{"Key": tag, "Value": cfn_tags[tag]} for tag in cfn_tags])
-        tags.append({"Key": "Version", "Value": pcluster_version})
+        # merge tags from configuration, command-line and internal ones
+        tags = _evaluate_tags(pcluster_config, preferred_tags=args.tags)
 
         # append extra parameters from command-line
         if args.extra_parameters:
@@ -176,6 +159,46 @@ def create(args):  # noqa: C901 FIXME!!!
         if batch_temporary_bucket:
             utils.delete_s3_bucket(bucket_name=batch_temporary_bucket)
         sys.exit(1)
+
+
+def _evaluate_pcluster_template_url(pcluster_config, preferred_template_url=None):
+    """
+    Determine the CloudFormation Template URL to use.
+
+    Order is 1) preferred_template_url 2) Config file 3) default for version + region.
+
+    :param pcluster_config: PclusterConfig, it can contain the template_url
+    :param preferred_template_url: preferred template url to use, if not None
+    :return: the evaluated template url
+    """
+    configured_template_url = pcluster_config.get_section("cluster").get_param_value("template_url")
+
+    return preferred_template_url or configured_template_url or _get_default_template_url(pcluster_config.region)
+
+
+def _evaluate_tags(pcluster_config, preferred_tags=None):
+    """
+    Merge given tags to the ones defined in the configuration file and convert them into the Key/Value format.
+
+    :param pcluster_config: PclusterConfig, it can contain tags
+    :param preferred_tags: tags that must take the precedence before the configured ones
+    :return: a merge of the tags + version tag
+    """
+    tags = {}
+
+    configured_tags = pcluster_config.get_section("cluster").get_param_value("tags")
+    if configured_tags:
+        tags.update(configured_tags)
+
+    if preferred_tags:
+        # add tags from command line parameter, by overriding configured ones
+        tags.update(preferred_tags)
+
+    # add pcluster version
+    tags.update({"Version": utils.get_installed_version()})
+
+    # convert to CFN tags
+    return [{"Key": tag, "Value": tags[tag]} for tag in tags]
 
 
 def _print_stack_outputs(stack):
@@ -917,9 +940,7 @@ def create_ami(args):
         LOGGER.info("VPC ID: %s", vpc_id)
         LOGGER.info("Subnet ID: %s", subnet_id)
 
-        template_url = pcluster_config.get_section("cluster").get_param_value("template_url")
-        if not template_url:
-            template_url = _get_default_template_url(aws_region)
+        template_url = _evaluate_pcluster_template_url(pcluster_config)
 
         tmp_dir = mkdtemp()
         cookbook_dir = _get_cookbook_dir(aws_region, template_url, args, tmp_dir)
