@@ -276,7 +276,7 @@ def update(args):  # noqa: C901 FIXME!!!
 
 
 def start(args):
-    # Set resource limits on compute fleet or awsbatch CE to min/max/desired = 0/max/0
+    """Restore ASG limits or awsbatch CE to min/max/desired."""
     stack_name = utils.get_stack_name(args.cluster_name)
     pcluster_config = PclusterConfig(config_file=args.config_file, cluster_name=args.cluster_name)
     cluster_section = pcluster_config.get_section("cluster")
@@ -290,23 +290,18 @@ def start(args):
         _start_batch_ce(ce_name=ce_name, min_vcpus=min_vcpus, desired_vcpus=desired_vcpus, max_vcpus=max_vcpus)
     else:
         LOGGER.info("Starting compute fleet : %s", args.cluster_name)
-
-        # Set asg limits
         max_queue_size = cluster_section.get_param_value("max_queue_size")
         min_desired_size = (
             cluster_section.get_param_value("initial_queue_size")
             if cluster_section.get_param_value("maintain_initial_size")
             else 0
         )
-        desired_queue_size = min_desired_size
-        min_queue_size = min_desired_size
-
         asg_name = _get_asg_name(stack_name)
-        _set_asg_limits(asg_name=asg_name, min=min_queue_size, max=max_queue_size, desired=desired_queue_size)
+        _set_asg_limits(asg_name=asg_name, min=min_desired_size, max=max_queue_size, desired=min_desired_size)
 
 
 def stop(args):
-    # Set resource limits on compute fleet or awsbatch ce to min/max/desired = 0/0/0
+    """Set ASG limits or awsbatch ce to min/max/desired = 0/0/0."""
     stack_name = utils.get_stack_name(args.cluster_name)
     pcluster_config = PclusterConfig(config_file=args.config_file, cluster_name=args.cluster_name)
     cluster_section = pcluster_config.get_section("cluster")
@@ -317,7 +312,6 @@ def stop(args):
         _stop_batch_ce(ce_name=ce_name)
     else:
         LOGGER.info("Stopping compute fleet : %s", args.cluster_name)
-        # Set Resource limits
         asg_name = _get_asg_name(stack_name)
         _set_asg_limits(asg_name=asg_name, min=0, max=0, desired=0)
 
@@ -339,7 +333,7 @@ def _get_batch_ce(stack_name):
         sys.exit(1)
 
 
-def _get_version(stack):
+def _get_pcluster_version_from_stack(stack):
     """
     Get the version of the stack if tagged.
 
@@ -368,14 +362,14 @@ def _colorize(stack_status, args):
 
 def list_stacks(args):
     # Parse configuration file to read the AWS section
-    _ = PclusterConfig(config_file=args.config_file)
+    PclusterConfig(config_file=args.config_file)
 
     try:
         stacks = boto3.client("cloudformation").describe_stacks().get("Stacks")
         result = []
         for stack in stacks:
             if stack.get("ParentId") is None and stack.get("StackName").startswith(utils.PCLUSTER_STACK_PREFIX):
-                pcluster_version = _get_version(stack)
+                pcluster_version = _get_pcluster_version_from_stack(stack)
                 result.append(
                     [
                         stack.get("StackName")[len(utils.PCLUSTER_STACK_PREFIX) :],  # noqa: E203
@@ -637,7 +631,7 @@ def status(args):  # noqa: C901 FIXME!!!
     stack_name = utils.get_stack_name(args.cluster_name)
 
     # Parse configuration file to read the AWS section
-    _ = PclusterConfig(config_file=args.config_file)
+    PclusterConfig(config_file=args.config_file)
 
     cfn = boto3.client("cloudformation")
     try:
@@ -698,7 +692,7 @@ def delete(args):
     stack = utils.get_stack_name(args.cluster_name)
 
     # Parse configuration file to read the AWS section
-    _ = PclusterConfig(config_file=args.config_file)
+    PclusterConfig(config_file=args.config_file)
 
     cfn = boto3.client("cloudformation")
     try:
@@ -895,7 +889,6 @@ def create_ami(args):
             config_file=args.config_file,
             file_sections=[AWS, GLOBAL, CLUSTER],
             fail_on_file_absence=True,
-            # cluster_label="default",
         )
 
         vpc_section = pcluster_config.get_section("vpc")

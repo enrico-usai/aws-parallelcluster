@@ -276,14 +276,19 @@ class PclusterConfig(object):
         self.add_section(section)
 
     def __init_sections_from_cfn(self, cluster_name):
-        stack_name = get_stack_name(cluster_name)
+        try:
+            stack_name = get_stack_name(cluster_name)
+            stack = boto3.client("cloudformation").describe_stacks(StackName=stack_name).get("Stacks")[0]
 
-        cfn_client = boto3.client("cloudformation")
-        stack = cfn_client.describe_stacks(StackName=stack_name).get("Stacks")[0]
-
-        section_type = CLUSTER.get("type")
-        section = section_type(section_map=CLUSTER, pcluster_config=self, cfn_params=stack.get("Parameters", []))
-        self.add_section(section)
+            section_type = CLUSTER.get("type")
+            section = section_type(section_map=CLUSTER, pcluster_config=self, cfn_params=stack.get("Parameters", []))
+            self.add_section(section)
+        except ClientError as e:
+            fail(
+                "Unable to retrieve the configuration of the cluster '{0}'.\n{1}".format(
+                    cluster_name, e.response.get("Error").get("Message")
+                )
+            )
 
     def __validate(self):
         fail_on_error = (
