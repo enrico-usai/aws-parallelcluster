@@ -105,6 +105,25 @@ AWS = {
     }
 }
 
+GLOBAL = {
+    "type": Section,
+    "key": "global",
+    "params": {
+        "cluster_template": {
+            # TODO This could be a SettingsParam referring to a CLUSTER section
+            "default": "default",
+        },
+        "update_check": {
+            "type": BoolParam,
+            "default": True,
+        },
+        "sanity_check": {
+            "type": BoolParam,
+            "default": True,
+        },
+    }
+}
+
 ALIASES = {
     "type": Section,
     "key": "aliases",
@@ -540,25 +559,6 @@ CLUSTER = {
         "fsx_settings": {
             "type": SettingsParam,
             "referred_section": FSX,
-        },
-    }
-}
-
-GLOBAL = {
-    "type": Section,
-    "key": "global",
-    "params": {
-        "cluster_template": {
-            # TODO This could be a SettingsParam referring to a CLUSTER section
-            "default": "default",
-        },
-        "update_check": {
-            "type": BoolParam,
-            "default": True,
-        },
-        "sanity_check": {
-            "type": BoolParam,
-            "default": True,
         },
     }
 }
