@@ -27,14 +27,16 @@ def test_mapping_consistency():
         for section_key, _ in section_map.items():
             assert_that(
                 section_key,
-                description="{0} is not allowed in {1} section map".format(section_key, section_map.get("key")),
-            ).is_in("type", "key", "label", "cfn", "params", "validators")
+                description="{0} is not allowed in {1} section map".format(
+                    section_key, section_map.get("key")
+                ),
+            ).is_in("type", "key", "default_label", "cfn_param_mapping", "params", "validators")
 
         for param_key, param_map in section_map.get("params").items():
             for param_map_key, _ in param_map.items():
                 assert_that(
                     param_map_key, description="{0} is not allowed in {1} param map".format(param_map_key, param_key)
-                ).is_in("type", "cfn", "allowed_values", "validators", "default", "referred_section")
+                ).is_in("type", "cfn_param_mapping", "allowed_values", "validators", "default", "referred_section")
 
 
 def test_example_config_consistency(mocker):

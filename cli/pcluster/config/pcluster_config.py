@@ -164,7 +164,9 @@ class PclusterConfig(object):
         """
         if section.key not in self.sections:
             self.sections[section.key] = {}
-        self.sections[section.key][section.label if section.label else "default"] = section
+
+        section_label = section.label if section.label else section.definition.get("default_label", "default")
+        self.sections[section.key][section_label] = section
 
     def __init_aws_credentials(self):
         """Set credentials in the environment to be available for all the boto3 calls."""

@@ -88,10 +88,10 @@ class Param(object):
         """
         Initialize parameter value by parsing CFN input parameters or from a given value coming from CFN.
 
-        :param cfn_params: the list of all the CFN parameters, it is used if "cfn" attribute is specified in the map
+        :param cfn_params: the list of all the CFN parameters, it is used if "cfn_param_mapping" is specified in the map
         :param cfn_value: a value coming from a comma separated CFN param
         """
-        cfn_converter = self.map.get("cfn", None)
+        cfn_converter = self.map.get("cfn_param_mapping", None)
         if cfn_converter and cfn_params:
             cfn_value = get_cfn_param(cfn_params, cfn_converter) if cfn_converter else "NONE"
             self.value = self.get_value_from_string(cfn_value)
@@ -159,9 +159,9 @@ class Param(object):
                 pass
 
     def to_cfn(self):
-        """Convert parameter to CFN representation, if "cfn" attribute is present in the Param map."""
+        """Convert parameter to CFN representation, if "cfn_param_mapping" attribute is present in the Param map."""
         cfn_params = {}
-        cfn_converter = self.map.get("cfn", None)
+        cfn_converter = self.map.get("cfn_param_mapping", None)
 
         if cfn_converter:
             cfn_value = self.get_cfn_value()
@@ -394,7 +394,7 @@ class SharedDirParam(Param):
         cfn_params = {}
         # if not contains ebs_settings --> single SharedDir
         if not self.pcluster_config.get_section("ebs"):
-            cfn_params.update({self.map.get("cfn"): self.get_cfn_value()})
+            cfn_params.update({self.map.get("cfn_param_mapping"): self.get_cfn_value()})
         # else: there are ebs volumes, let the EBSSettings populate the SharedDir CFN parameter.
         return cfn_params
 
@@ -418,7 +418,7 @@ class SpotPriceParam(FloatParam):
 
     def _init_from_cfn(self, cfn_params=None, cfn_value=None):
         """Initialize param value by parsing CFN input if the scheduler is a traditional one, from map otherwise."""
-        cfn_converter = self.map.get("cfn", None)
+        cfn_converter = self.map.get("cfn_param_mapping", None)
         if cfn_converter and cfn_params:
             if get_cfn_param(cfn_params, "Scheduler") == "awsbatch":
                 self._init_from_map()
@@ -436,7 +436,7 @@ class SpotPriceParam(FloatParam):
         cluster_config = self.pcluster_config.get_section(self.section_key)
         if cluster_config.get_param_value("scheduler") != "awsbatch":
             cfn_value = cluster_config.get_param_value("spot_price")
-            cfn_params.update({self.map.get("cfn"): str(cfn_value)})
+            cfn_params.update({self.map.get("cfn_param_mapping"): str(cfn_value)})
 
         return cfn_params
 
@@ -452,7 +452,7 @@ class SpotBidPercentageParam(IntParam):
 
     def _init_from_cfn(self, cfn_params=None, cfn_value=None):
         """Initialize param value by parsing CFN input if the scheduler is awsbatch, from map otherwise."""
-        cfn_converter = self.map.get("cfn", None)
+        cfn_converter = self.map.get("cfn_param_mapping", None)
         if cfn_converter and cfn_params:
             if get_cfn_param(cfn_params, "Scheduler") == "awsbatch":
                 # we have the same CFN input parameters for both spot_price and spot_bid_percentage
@@ -472,7 +472,7 @@ class SpotBidPercentageParam(IntParam):
         cluster_config = self.pcluster_config.get_section(self.section_key)
         if cluster_config.get_param_value("scheduler") == "awsbatch":
             cfn_value = cluster_config.get_param_value("spot_bid_percentage")
-            cfn_params.update({self.map.get("cfn"): str(cfn_value)})
+            cfn_params.update({self.map.get("cfn_param_mapping"): str(cfn_value)})
 
         return cfn_params
 
@@ -488,7 +488,7 @@ class DesiredSizeParam(IntParam):
 
     def _init_from_cfn(self, cfn_params=None, cfn_value=None):
         """Initialize param value by parsing the right CFN input according to the scheduler."""
-        cfn_converter = self.map.get("cfn", None)
+        cfn_converter = self.map.get("cfn_param_mapping", None)
         if cfn_converter and cfn_params:
             cfn_value = get_cfn_param(cfn_params, cfn_converter) if cfn_converter else "NONE"
             # initialize the value from cfn or from map according to the scheduler
@@ -514,10 +514,10 @@ class DesiredSizeParam(IntParam):
         cluster_config = self.pcluster_config.get_section(self.section_key)
         if cluster_config.get_param_value("scheduler") == "awsbatch":
             cfn_value = cluster_config.get_param_value("desired_vcpus")
-            cfn_params.update({self.map.get("cfn"): str(cfn_value)})
+            cfn_params.update({self.map.get("cfn_param_mapping"): str(cfn_value)})
         else:
             cfn_value = cluster_config.get_param_value("initial_queue_size")
-            cfn_params.update({self.map.get("cfn"): str(cfn_value)})
+            cfn_params.update({self.map.get("cfn_param_mapping"): str(cfn_value)})
 
         return cfn_params
 
@@ -533,7 +533,7 @@ class MaxSizeParam(IntParam):
 
     def _init_from_cfn(self, cfn_params=None, cfn_value=None):
         """Initialize param value by parsing the right CFN input according to the scheduler."""
-        cfn_converter = self.map.get("cfn", None)
+        cfn_converter = self.map.get("cfn_param_mapping", None)
         if cfn_converter and cfn_params:
             cfn_value = get_cfn_param(cfn_params, cfn_converter) if cfn_converter else "NONE"
             # initialize the value from cfn or from map according to the scheduler
@@ -559,10 +559,10 @@ class MaxSizeParam(IntParam):
         cluster_config = self.pcluster_config.get_section(self.section_key)
         if cluster_config.get_param_value("scheduler") == "awsbatch":
             cfn_value = cluster_config.get_param_value("max_vcpus")
-            cfn_params.update({self.map.get("cfn"): str(cfn_value)})
+            cfn_params.update({self.map.get("cfn_param_mapping"): str(cfn_value)})
         else:
             cfn_value = cluster_config.get_param_value("max_queue_size")
-            cfn_params.update({self.map.get("cfn"): str(cfn_value)})
+            cfn_params.update({self.map.get("cfn_param_mapping"): str(cfn_value)})
 
         return cfn_params
 
@@ -578,7 +578,7 @@ class MaintainInitialSizeParam(BoolParam):
 
     def _init_from_cfn(self, cfn_params=None, cfn_value=None):
         """Initialize param value by parsing the right CFN input according to the scheduler."""
-        cfn_converter = self.map.get("cfn", None)
+        cfn_converter = self.map.get("cfn_param_mapping", None)
         if cfn_converter and cfn_params:
             # initialize the value from cfn or from map according to the scheduler
             if get_cfn_param(cfn_params, "Scheduler") == "awsbatch":
@@ -601,7 +601,7 @@ class MaintainInitialSizeParam(BoolParam):
         if cluster_config.get_param_value("scheduler") != "awsbatch":
             cfn_value = cluster_config.get_param_value("maintain_initial_size")
             min_size_value = cluster_config.get_param_value("initial_queue_size") if cfn_value else "0"
-            cfn_params.update({self.map.get("cfn"): str(min_size_value)})
+            cfn_params.update({self.map.get("cfn_param_mapping"): str(min_size_value)})
 
         return cfn_params
 
@@ -617,7 +617,7 @@ class MinSizeParam(IntParam):
 
     def _init_from_cfn(self, cfn_params=None, cfn_value=None):
         """Initialize param value by parsing the right CFN input according to the scheduler."""
-        cfn_converter = self.map.get("cfn", None)
+        cfn_converter = self.map.get("cfn_param_mapping", None)
         if cfn_converter and cfn_params:
             cfn_value = get_cfn_param(cfn_params, cfn_converter) if cfn_converter else "NONE"
             # initialize the value from cfn or from map according to the scheduler
@@ -637,7 +637,7 @@ class MinSizeParam(IntParam):
         cluster_config = self.pcluster_config.get_section(self.section_key)
         if cluster_config.get_param_value("scheduler") == "awsbatch":
             cfn_value = cluster_config.get_param_value("min_vcpus")
-            cfn_params.update({self.map.get("cfn"): str(cfn_value)})
+            cfn_params.update({self.map.get("cfn_param_mapping"): str(cfn_value)})
 
         return cfn_params
 
@@ -873,7 +873,7 @@ class EBSSettingsParam(SettingsParam):
                     related_section = related_section_type(self.related_section_map, self.pcluster_config, label)
 
                     for param_key, param_map in self.related_section_map.get("params").items():
-                        cfn_converter = param_map.get("cfn", None)
+                        cfn_converter = param_map.get("cfn_param_mapping", None)
                         if cfn_converter:
 
                             param_type = param_map.get("type", Param)
@@ -936,7 +936,7 @@ class EBSSettingsParam(SettingsParam):
                 # if there are no ebs volumes, let the SharedDirParam populate the "SharedDir" CFN parameter.
                 continue
 
-            cfn_converter = param_map.get("cfn", None)
+            cfn_converter = param_map.get("cfn_param_mapping", None)
             if cfn_converter:
 
                 cfn_value_list = []
@@ -984,7 +984,7 @@ class Section(object):
     ):
         self.map = section_map
         self.key = section_map.get("key")
-        self.label = section_label or self.map.get("label", "")
+        self.label = section_label or self.map.get("default_label", "")
         self.pcluster_config = pcluster_config
 
         # initialize section_dict
@@ -1040,7 +1040,7 @@ class Section(object):
 
     def _init_params_from_cfn(self, cfn_params):
         """Initialize section configuration parameters by parsing CFN parameters."""
-        cfn_converter = self.map.get("cfn", None)
+        cfn_converter = self.map.get("cfn_param_mapping", None)
         if cfn_converter:
             # It is a section converted to a single CFN parameter
             cfn_values = get_cfn_param(cfn_params, cfn_converter).split(",")
@@ -1131,11 +1131,11 @@ class Section(object):
         """
         Convert section to CFN representation.
 
-        The section is converted to a single CFN parameter if "cfn" attribute is present in the Section map ,
+        The section is converted to a single CFN parameter if "cfn_param_mapping" is present in the Section map,
         otherwise each parameter of the section will be converted to the respective CFN parameter.
         """
         cfn_params = {}
-        cfn_converter = self.map.get("cfn", None)
+        cfn_converter = self.map.get("cfn_param_mapping", None)
         if cfn_converter:
             # it is a section converted to a single CFN parameter
             cfn_items = []
@@ -1217,7 +1217,7 @@ class EFSSection(Section):
         a valid Mount Target for the given EFS FS Id.
         """
         cfn_params = {}
-        cfn_converter = self.map.get("cfn", None)
+        cfn_converter = self.map.get("cfn_param_mapping", None)
 
         cfn_items = []
         for param_key, param_map in self.map.get("params").items():

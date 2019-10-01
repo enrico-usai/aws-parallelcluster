@@ -63,18 +63,18 @@ from pcluster.config.validators import (
 # - type, the class to use to represent this section (default: Section)
 # - key, the key used in configuration file that identifies the section type
 #   (e.g [cluster default] -> "cluster" is the key)
-# - label, the label to use for the section when initializing from CFN or from map.
+# - default_label, the label to use for the section when initializing from CFN or from map.
 #   (e.g [cluster default] -> "default" is the key)
 # - validator, a function to use to validate the section.
 #   It is called for all the parameters once all of them are initialized.
-# - cfn, the CFN parameters to use for the to/from_cfn conversion.
+# - cfn_param_mapping, the CFN parameters to use for the to/from_cfn conversion.
 #   it is used for sections that are converted to a single CFN parameter, e.g. RAID, EFS, FSX
 # - params, a dictionary containing all the parameters available for that section
 
 # For each parameter you can define:
 #
 # - type the class to use to represent this section (default: Param, a string parameter)
-# - cfn the CFN parameters to use for the to/from_cfn conversion.
+# - cfn_param_mapping the CFN parameters to use for the to/from_cfn conversion.
 # - allowed_values, a list of allowed values or a regex. It is evaluated at parsing time.
 # - validators, a list of functions to use to validate the param.
 #   It is called for all the parameters once all of them are initialized.
@@ -137,12 +137,12 @@ ALIASES = {
 SCALING = {
     "type": Section,
     "key": "scaling",
-    "label": "default",
+    "default_label": "default",
     "params": {
         "scaledown_idletime": {
             "type": IntParam,
             "default": 10,
-            "cfn": "ScaleDownIdleTime",
+            "cfn_param_mapping": "ScaleDownIdleTime",
         }
     }
 }
@@ -150,51 +150,51 @@ SCALING = {
 VPC = {
     "type": Section,
     "key": "vpc",
-    "label": "default",
+    "default_label": "default",
     "params": {
         "vpc_id": {
-            "cfn": "VPCId",
+            "cfn_param_mapping": "VPCId",
             "allowed_values": r"^vpc-[0-9a-z]{8}$|^vpc-[0-9a-z]{17}$",
             "validators": [ec2_vpc_id_validator],
         },
         "master_subnet_id": {
-            "cfn": "MasterSubnetId",
+            "cfn_param_mapping": "MasterSubnetId",
             "allowed_values": ALLOWED_VALUES["subnet_id"],
             "validators": [ec2_subnet_id_validator],
         },
         "ssh_from": {
             "default": "0.0.0.0/0",
             "allowed_values": ALLOWED_VALUES["cidr"],
-            "cfn": "AccessFrom",
+            "cfn_param_mapping": "AccessFrom",
         },
         "additional_sg": {
-            "cfn": "AdditionalSG",
+            "cfn_param_mapping": "AdditionalSG",
             "allowed_values": ALLOWED_VALUES["security_group_id"],
             "validators": [ec2_security_group_validator],
         },
         "compute_subnet_id": {
-            "cfn": "ComputeSubnetId",
+            "cfn_param_mapping": "ComputeSubnetId",
             "allowed_values": ALLOWED_VALUES["subnet_id"],
             "validators": [ec2_subnet_id_validator],
         },
         "compute_subnet_cidr": {
-            "cfn": "ComputeSubnetCidr",
+            "cfn_param_mapping": "ComputeSubnetCidr",
             "allowed_values": ALLOWED_VALUES["cidr"],
         },
         "use_public_ips": {
             "type": BoolParam,
             "default": True,
-            "cfn": "UsePublicIps",
+            "cfn_param_mapping": "UsePublicIps",
         },
         "vpc_security_group_id": {
-            "cfn": "VPCSecurityGroupId",
+            "cfn_param_mapping": "VPCSecurityGroupId",
             "allowed_values": ALLOWED_VALUES["security_group_id"],
             "validators": [ec2_security_group_validator],
         },
         "master_availability_zone": {
             # NOTE: this is not exposed as a configuration parameter
             "type": AvailabilityZoneParam,
-            "cfn": "AvailabilityZone",
+            "cfn_param_mapping": "AvailabilityZone",
         }
     },
 }
@@ -202,41 +202,41 @@ VPC = {
 EBS = {
     "type": Section,
     "key": "ebs",
-    "label": "default",
+    "default_label": "default",
     "params": {
         "shared_dir": {
-            "cfn": "SharedDir",
+            "cfn_param_mapping": "SharedDir",
         },
         "ebs_snapshot_id": {
             "allowed_values": r"^snap-[0-9a-z]{8}$|^snap-[0-9a-z]{17}$",
-            "cfn": "EBSSnapshotId",
+            "cfn_param_mapping": "EBSSnapshotId",
             "validators": [ec2_ebs_snapshot_validator],
         },
         "volume_type": {
             "default": "gp2",
             "allowed_values": ALLOWED_VALUES["volume_types"],
-            "cfn": "VolumeType",
+            "cfn_param_mapping": "VolumeType",
         },
         "volume_size": {
             "type": IntParam,
             "default": 20,
-            "cfn": "VolumeSize",
+            "cfn_param_mapping": "VolumeSize",
         },
         "volume_iops": {
             "type": IntParam,
             "default": 100,
-            "cfn": "VolumeIOPS",
+            "cfn_param_mapping": "VolumeIOPS",
         },
         "encrypted": {
             "type": BoolParam,
-            "cfn": "EBSEncryption",
+            "cfn_param_mapping": "EBSEncryption",
             "default": False,
         },
         "ebs_kms_key_id": {
-            "cfn": "EBSKMSKeyId",
+            "cfn_param_mapping": "EBSKMSKeyId",
         },
         "ebs_volume_id": {
-            "cfn": "EBSVolumeId",
+            "cfn_param_mapping": "EBSVolumeId",
             "allowed_values": r"^vol-[0-9a-z]{8}$|^vol-[0-9a-z]{17}$",
             "validators": [ec2_volume_validator],
         },
@@ -246,9 +246,9 @@ EBS = {
 EFS = {
     "key": "efs",
     "type": EFSSection,
-    "label": "default",
+    "default_label": "default",
     "validators": [efs_validator],
-    "cfn": "EFSOptions",  # All the parameters in the section are converted into a single CFN parameter
+    "cfn_param_mapping": "EFSOptions",  # All the parameters in the section are converted into a single CFN parameter
     "params": OrderedDict(  # Use OrderedDict because the parameters must respect the order in the CFN parameter
         [
             ("shared_dir", {}),
@@ -280,8 +280,8 @@ EFS = {
 RAID = {
     "type": Section,
     "key": "raid",
-    "label": "default",
-    "cfn": "RAIDOptions",  # All the parameters in the section are converted into a single CFN parameter
+    "default_label": "default",
+    "cfn_param_mapping": "RAIDOptions",  # All the parameters in the section are converted into a single CFN parameter
     "params": OrderedDict(  # Use OrderedDict because the parameters must respect the order in the CFN parameter
         [
             ("shared_dir", {}),
@@ -319,9 +319,9 @@ RAID = {
 FSX = {
     "type": Section,
     "key": "fsx",
-    "label": "default",
+    "default_label": "default",
     "validators": [fsx_validator],
-    "cfn": "FSXOptions",  # All the parameters in the section are converted into a single CFN parameter
+    "cfn_param_mapping": "FSXOptions",  # All the parameters in the section are converted into a single CFN parameter
     "params": OrderedDict(  # Use OrderedDict because the parameters must respect the order in the CFN parameter
         [
             ("shared_dir", {}),
@@ -348,12 +348,12 @@ FSX = {
 CLUSTER = {
     "type": ClusterSection,
     "key": "cluster",
-    "label": "default",
+    "default_label": "default",
     "validators": [cluster_validator],
     "params": {
         # Basic configuration
         "key_name": {
-            "cfn": "KeyName",
+            "cfn_param_mapping": "KeyName",
             "validators": [ec2_key_pair_validator],
         },
         "template_url": {
@@ -362,160 +362,160 @@ CLUSTER = {
         },
         "base_os": {
             "default": "alinux",
-            "cfn": "BaseOS",
+            "cfn_param_mapping": "BaseOS",
             "allowed_values": ["alinux", "ubuntu1604", "ubuntu1804", "centos6", "centos7"],
         },
         "scheduler": {
             "default": "sge",
-            "cfn": "Scheduler",
+            "cfn_param_mapping": "Scheduler",
             "allowed_values": ["awsbatch", "sge", "slurm", "torque"],
             "validators": [scheduler_validator],
         },
         "shared_dir": {
             "type": SharedDirParam,
-            "cfn": "SharedDir",
+            "cfn_param_mapping": "SharedDir",
             "default": "/shared",
         },
         # Cluster configuration
         "placement_group": {
-            "cfn": "PlacementGroup",
+            "cfn_param_mapping": "PlacementGroup",
             "validators": [ec2_placement_group_validator],
         },
         "placement": {
             "default": "compute",
-            "cfn": "Placement",
+            "cfn_param_mapping": "Placement",
             "allowed_values": ["cluster", "compute"],
         },
         # Master
         "master_instance_type": {
             "default": "t2.micro",  # TODO add regex or validator
-            "cfn": "MasterInstanceType",
+            "cfn_param_mapping": "MasterInstanceType",
         },
         "master_root_volume_size": {
             "type": IntParam,
             "default": 20,
             "allowed_values": ALLOWED_VALUES["greater_than_20"],
-            "cfn": "MasterRootVolumeSize",
+            "cfn_param_mapping": "MasterRootVolumeSize",
         },
         # Compute fleet
         "compute_instance_type": {
             "default": "t2.micro",
-            "cfn": "ComputeInstanceType",
+            "cfn_param_mapping": "ComputeInstanceType",
             "validators": [compute_instance_type_validator],
         },
         "compute_root_volume_size": {
             "type": IntParam,
             "default": 20,
             "allowed_values": ALLOWED_VALUES["greater_than_20"],
-            "cfn": "ComputeRootVolumeSize",
+            "cfn_param_mapping": "ComputeRootVolumeSize",
         },
         "initial_queue_size": {
             "type": DesiredSizeParam,
             "default": 0,
-            "cfn": "DesiredSize",  # TODO verify the update case
+            "cfn_param_mapping": "DesiredSize",  # TODO verify the update case
         },
         "max_queue_size": {
             "type": MaxSizeParam,
             "default": 10,
-            "cfn": "MaxSize",
+            "cfn_param_mapping": "MaxSize",
         },
         "maintain_initial_size": {
             "type": MaintainInitialSizeParam,
             "default": False,
-            "cfn": "MinSize",
+            "cfn_param_mapping": "MinSize",
         },
         "min_vcpus": {
             "type": MinSizeParam,
             "default": 0,
-            "cfn": "MinSize",
+            "cfn_param_mapping": "MinSize",
         },
         "desired_vcpus": {
             "type": DesiredSizeParam,
             "default": 4,
-            "cfn": "DesiredSize",
+            "cfn_param_mapping": "DesiredSize",
         },
         "max_vcpus": {
             "type": MaxSizeParam,
             "default": 10,
-            "cfn": "MaxSize",
+            "cfn_param_mapping": "MaxSize",
         },
         "cluster_type": {
             "default": "ondemand",
             "allowed_values": ["ondemand", "spot"],
-            "cfn": "ClusterType",
+            "cfn_param_mapping": "ClusterType",
         },
         "spot_price": {
             "type": SpotPriceParam,
             "default": 0.0,
-            "cfn": "SpotPrice",
+            "cfn_param_mapping": "SpotPrice",
         },
         "spot_bid_percentage": {
             "type": SpotBidPercentageParam,
             "default": 0,
-            "cfn": "SpotPrice",
+            "cfn_param_mapping": "SpotPrice",
             "allowed_values": r"^(100|[1-9][0-9]|[0-9])$",  # 0 <= value <= 100
         },
         # Access and networking
         "proxy_server": {
-            "cfn": "ProxyServer",
+            "cfn_param_mapping": "ProxyServer",
         },
         "ec2_iam_role": {
-            "cfn": "EC2IAMRoleName",
+            "cfn_param_mapping": "EC2IAMRoleName",
             "validators": [ec2_iam_role_validator],  # TODO add regex
         },
         "additional_iam_policies": {
             "type": AdditionalIamPoliciesParam,
-            "cfn": "EC2IAMPolicies",
+            "cfn_param_mapping": "EC2IAMPolicies",
             "validators": [ec2_iam_policies_validator],
         },
         "s3_read_resource": {
-            "cfn": "S3ReadResource",  # TODO add validator
+            "cfn_param_mapping": "S3ReadResource",  # TODO add validator
         },
         "s3_read_write_resource": {
-            "cfn": "S3ReadWriteResource",  # TODO add validator
+            "cfn_param_mapping": "S3ReadWriteResource",  # TODO add validator
         },
         # Customization
         "enable_efa": {
             "allowed_values": ["compute"],
-            "cfn": "EFA",
+            "cfn_param_mapping": "EFA",
             "validators": [efa_validator],
         },
         "ephemeral_dir": {
             "default": "/scratch",
-            "cfn": "EphemeralDir",
+            "cfn_param_mapping": "EphemeralDir",
         },
         "encrypted_ephemeral": {
             "default": False,
             "type": BoolParam,
-            "cfn": "EncryptedEphemeral",
+            "cfn_param_mapping": "EncryptedEphemeral",
         },
         "custom_ami": {
-            "cfn": "CustomAMI",
+            "cfn_param_mapping": "CustomAMI",
             "allowed_values": r"^ami-[0-9a-z]{8}$|^ami-[0-9a-z]{17}$",
             "validators": [ec2_ami_validator],
         },
         "pre_install": {
-            "cfn": "PreInstallScript",
+            "cfn_param_mapping": "PreInstallScript",
             # TODO add regex
             "validators": [url_validator],
         },
         "pre_install_args": {
-            "cfn": "PreInstallArgs",
+            "cfn_param_mapping": "PreInstallArgs",
         },
         "post_install": {
-            "cfn": "PostInstallScript",
+            "cfn_param_mapping": "PostInstallScript",
             # TODO add regex
             "validators": [url_validator],
         },
         "post_install_args": {
-            "cfn": "PostInstallArgs",
+            "cfn_param_mapping": "PostInstallArgs",
         },
         "extra_json": {
             "type": JsonParam,
-            "cfn": "ExtraJson",
+            "cfn_param_mapping": "ExtraJson",
         },
         "additional_cfn_template": {
-            "cfn": "AdditionalCfnTemplate",
+            "cfn_param_mapping": "AdditionalCfnTemplate",
             # TODO add regex
             "validators": [url_validator],
         },
@@ -523,12 +523,12 @@ CLUSTER = {
             "type": JsonParam,
         },
         "custom_chef_cookbook": {
-            "cfn": "CustomChefCookbook",
+            "cfn_param_mapping": "CustomChefCookbook",
             # TODO add regex
             "validators": [url_validator],
         },
         "custom_awsbatch_template_url": {
-            "cfn": "CustomAWSBatchTemplateURL",
+            "cfn_param_mapping": "CustomAWSBatchTemplateURL",
             # TODO add regex
             "validators": [url_validator],
         },
