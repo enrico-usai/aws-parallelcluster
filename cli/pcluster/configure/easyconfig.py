@@ -23,7 +23,7 @@ from pcluster.configure.networking import (
     ec2_conn,
 )
 from pcluster.configure.utils import get_regions, get_resource_tag, handle_client_exception, prompt, prompt_iterable
-from pcluster.utils import get_supported_os, get_supported_schedulers
+from pcluster.utils import get_supported_os, get_supported_schedulers, list_ec2_instance_types
 
 standard_library.install_aliases()
 
@@ -98,12 +98,6 @@ def _get_subnets(conn, vpc_id):
     return subnet_options
 
 
-@handle_client_exception
-def _list_instances():  # Specifying the region does not make any difference
-    """Return a list of all the supported instance at the moment by aws, independent by the region."""
-    return ec2_conn().meta.service_model.shape_for("InstanceType").enum
-
-
 def configure(args):
     pcluster_config = PclusterConfig(config_file=args.config_file, file_sections=[GLOBAL, CLUSTER, ALIASES])
     cluster_section = pcluster_config.get_section("cluster")
@@ -127,7 +121,7 @@ def configure(args):
 
     master_instance_type = prompt(
         "Master instance type",
-        lambda x: x in _list_instances(),
+        lambda x: x in list_ec2_instance_types(),
         default_value=cluster_section.get_param_value("master_instance_type"),
     )
 
@@ -268,7 +262,9 @@ class SchedulerHandler:
         """Ask for compute_instance_type, if necessary."""
         if not self.is_aws_batch:
             self.compute_instance_type = prompt(
-                "Compute instance type", lambda x: x in _list_instances(), default_value=self.compute_instance_type
+                "Compute instance type",
+                lambda x: x in list_ec2_instance_types(),
+                default_value=self.compute_instance_type,
             )
 
     def prompt_cluster_size(self):

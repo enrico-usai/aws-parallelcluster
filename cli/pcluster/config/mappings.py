@@ -37,6 +37,7 @@ from pcluster.config.validators import (
     ec2_ebs_snapshot_validator,
     ec2_iam_policies_validator,
     ec2_iam_role_validator,
+    ec2_instance_type_validator,
     ec2_key_pair_validator,
     ec2_placement_group_validator,
     ec2_security_group_validator,
@@ -391,8 +392,9 @@ CLUSTER = {
         },
         # Master
         "master_instance_type": {
-            "default": "t2.micro",  # TODO add regex or validator
+            "default": "t2.micro",
             "cfn_param_mapping": "MasterInstanceType",
+            "validators": [ec2_instance_type_validator],
         },
         "master_root_volume_size": {
             "type": IntParam,

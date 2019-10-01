@@ -365,3 +365,8 @@ def get_latest_alinux_ami_id():
         fail("Unable to retrieve Amazon Linux AMI id.\n{0}".format(e.response.get("Error").get("Message")))
 
     return alinux_ami_id
+
+
+def list_ec2_instance_types():
+    """Return a list of all the instance types available on EC2, independent by the region."""
+    return boto3.client("ec2").meta.service_model.shape_for("InstanceType").enum
