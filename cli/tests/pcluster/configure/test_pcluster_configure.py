@@ -96,7 +96,7 @@ def _mock_ec2_conn(mocker):
 
 
 def _mock_create_network_configuration(mocker, public_subnet_id, private_subnet_id=None):
-    def _side_effect_function(aws_region_name, config, parameters):
+    def _side_effect_function(config, parameters):
         if private_subnet_id:
             return [
                 {"OutputKey": "PrivateSubnetId", "OutputValue": private_subnet_id},

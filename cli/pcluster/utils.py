@@ -272,11 +272,12 @@ def verify_stack_creation(cfn_client, stack_name):
     return True
 
 
-def get_templates_bucket_path(aws_region_name):
+def get_templates_bucket_path():
     """Return a string containing the path of bucket."""
-    s3_suffix = ".cn" if aws_region_name.startswith("cn") else ""
+    region = get_region()
+    s3_suffix = ".cn" if region.startswith("cn") else ""
     return "https://s3.{REGION}.amazonaws.com{S3_SUFFIX}/{REGION}-aws-parallelcluster/templates/".format(
-        REGION=aws_region_name, S3_SUFFIX=s3_suffix
+        REGION=region, S3_SUFFIX=s3_suffix
     )
 
 

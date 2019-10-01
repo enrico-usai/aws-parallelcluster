@@ -13,6 +13,8 @@ from future import standard_library
 
 import logging
 
+import boto3
+
 from pcluster.config.mappings import ALIASES, CLUSTER, GLOBAL
 from pcluster.config.pcluster_config import PclusterConfig
 from pcluster.configure.networking import (
@@ -20,10 +22,9 @@ from pcluster.configure.networking import (
     PublicPrivateNetworkConfig,
     automate_subnet_creation,
     automate_vpc_with_subnet_creation,
-    ec2_conn,
 )
 from pcluster.configure.utils import get_regions, get_resource_tag, handle_client_exception, prompt, prompt_iterable
-from pcluster.utils import get_supported_os, get_supported_schedulers, list_ec2_instance_types
+from pcluster.utils import get_region, get_supported_os, get_supported_schedulers, list_ec2_instance_types
 
 standard_library.install_aliases()
 
@@ -32,10 +33,9 @@ LOGGER = logging.getLogger(__name__)
 
 
 @handle_client_exception
-def _get_keys(aws_region_name):
+def _get_keys():
     """Return a list of keys."""
-    conn = ec2_conn()
-    keypairs = conn.describe_key_pairs()
+    keypairs = boto3.client("ec2").describe_key_pairs()
     key_options = []
     for key in keypairs.get("KeyPairs"):
         key_name = key.get("KeyName")
@@ -44,7 +44,7 @@ def _get_keys(aws_region_name):
     if not key_options:
         print(
             "No KeyPair found in region {0}, please create one following the guide: "
-            "https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-key-pairs.html".format(aws_region_name)
+            "https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-key-pairs.html".format(get_region())
         )
 
     return key_options
@@ -55,24 +55,22 @@ def _extract_subnet_size(cidr):
 
 
 @handle_client_exception
-def _get_vpcs_and_subnets(aws_region_name):
+def _get_vpcs_and_subnets():
     """
     Return a dictionary containing a list of vpc in the given region and the associated VPCs.
 
     Example:
     {"vpc_list": list(tuple(vpc-id, name, number of subnets)) ,
     "vpc_to_subnet" : {"vpc-id1": list(tuple(subnet-id1, name)), "vpc-id2": list(tuple(subnet-id1, name))}}
-
-    :param aws_region_name: the region name
     """
-    conn = ec2_conn()
-    vpcs = conn.describe_vpcs()
+    ec2_client = boto3.client("ec2")
+    vpcs = ec2_client.describe_vpcs()
     vpc_options = []
     vpc_subnets = {}
 
     for vpc in vpcs.get("Vpcs"):
         vpc_id = vpc.get("VpcId")
-        subnets = _get_subnets(conn, vpc_id)
+        subnets = _get_subnets(ec2_client, vpc_id)
         vpc_name = get_resource_tag(vpc, tag_name="Name")
         vpc_subnets[vpc_id] = subnets
         subnets_count = "{0} subnets inside".format(len(subnets))
@@ -127,11 +125,11 @@ def configure(args):
 
     scheduler_handler.prompt_compute_instance_type()
 
-    key_name = prompt_iterable("EC2 Key Pair Name", _get_keys(aws_region_name))
+    key_name = prompt_iterable("EC2 Key Pair Name", _get_keys())
     automate_vpc = prompt("Automate VPC creation? (y/n)", lambda x: x == "y" or x == "n", default_value="n") == "y"
 
     vpc_parameters = _create_vpc_parameters(
-        vpc_section, aws_region_name, scheduler, scheduler_handler.max_cluster_size, automate_vpc_creation=automate_vpc
+        vpc_section, scheduler, scheduler_handler.max_cluster_size, automate_vpc_creation=automate_vpc
     )
     cluster_parameters = {"key_name": key_name, "scheduler": scheduler, "master_instance_type": master_instance_type}
     cluster_parameters.update(scheduler_handler.get_scheduler_parameters())
@@ -163,24 +161,20 @@ def _reset_config_params(section, parameters_to_remove):
         param.value = param.get_default_value()
 
 
-def _create_vpc_parameters(vpc_section, aws_region_name, scheduler, min_subnet_size, automate_vpc_creation=True):
+def _create_vpc_parameters(vpc_section, scheduler, min_subnet_size, automate_vpc_creation=True):
     vpc_parameters = {}
     min_subnet_size = int(min_subnet_size)
     if automate_vpc_creation:
         vpc_parameters.update(
-            automate_vpc_with_subnet_creation(
-                aws_region_name, _choose_network_configuration(scheduler), min_subnet_size
-            )
+            automate_vpc_with_subnet_creation(_choose_network_configuration(scheduler), min_subnet_size)
         )
     else:
-        vpc_and_subnets = _get_vpcs_and_subnets(aws_region_name)
+        vpc_and_subnets = _get_vpcs_and_subnets()
         vpc_list = vpc_and_subnets["vpc_list"]
         if not vpc_list:
             print("There are no VPC for the given region. Starting automatic creation of VPC and subnets...")
             vpc_parameters.update(
-                automate_vpc_with_subnet_creation(
-                    aws_region_name, _choose_network_configuration(scheduler), min_subnet_size
-                )
+                automate_vpc_with_subnet_creation(_choose_network_configuration(scheduler), min_subnet_size)
             )
         else:
             vpc_id = prompt_iterable("VPC ID", vpc_list, vpc_section.get_param_value("vpc_id"))
@@ -190,9 +184,7 @@ def _create_vpc_parameters(vpc_section, aws_region_name, scheduler, min_subnet_s
                 prompt("Automate Subnet creation? (y/n)", lambda x: x == "y" or x == "n", default_value="y") == "y"
             ):
                 vpc_parameters.update(
-                    automate_subnet_creation(
-                        aws_region_name, vpc_id, _choose_network_configuration(scheduler), min_subnet_size
-                    )
+                    automate_subnet_creation(vpc_id, _choose_network_configuration(scheduler), min_subnet_size)
                 )
             else:
                 vpc_parameters.update(_ask_for_subnets(subnet_list))
