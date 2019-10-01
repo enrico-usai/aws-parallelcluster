@@ -481,6 +481,11 @@ def test_cluster_section_from_file(mocker, config_parser_dict, expected_dict_par
         ("shared_dir", "fake_value", "fake_value", None),
         ("shared_dir", "/test", "/test", None),
         ("shared_dir", "/test/test2", "/test/test2", None),
+        ("shared_dir", "/t_ 1-2( ):&;<>t?*+|", "/t_ 1-2( ):&;<>t?*+|", None),
+        ("shared_dir", "//test", None, "has an invalid value"),
+        ("shared_dir", "./test", None, "has an invalid value"),
+        ("shared_dir", ".\\test", None, "has an invalid value"),
+        ("shared_dir", ".test", None, "has an invalid value"),
         ("shared_dir", "NONE", "NONE", None),  # NONE is evaluated as a valid path
         # Cluster configuration
         ("placement_group", None, None, None),
@@ -623,6 +628,11 @@ def test_cluster_section_from_file(mocker, config_parser_dict, expected_dict_par
         ("ephemeral_dir", "fake_value", "fake_value", None),
         ("ephemeral_dir", "/test", "/test", None),
         ("ephemeral_dir", "/test/test2", "/test/test2", None),
+        ("ephemeral_dir", "/t_ 1-2( ):&;<>t?*+|", "/t_ 1-2( ):&;<>t?*+|", None),
+        ("ephemeral_dir", "//test", None, "has an invalid value"),
+        ("ephemeral_dir", "./test", None, "has an invalid value"),
+        ("ephemeral_dir", ".\\test", None, "has an invalid value"),
+        ("ephemeral_dir", ".test", None, "has an invalid value"),
         ("ephemeral_dir", "NONE", "NONE", None),  # NONE is evaluated as a valid path
         ("encrypted_ephemeral", None, False, None),
         ("encrypted_ephemeral", "", False, None),

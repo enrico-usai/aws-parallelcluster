@@ -89,6 +89,7 @@ ALLOWED_VALUES = {
     "ami_id": r"^ami-[0-9a-z]{8}$|^ami-[0-9a-z]{17}$",
     "cidr": r"^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}/(0|1[6-9]|2[0-9]|3[0-2])$",
     "efs_fs_id": r"^fs-[0-9a-z]{8}$|^fs-[0-9a-z]{17}|NONE$",
+    "file_path": r"\/?[\w:]+",
     "fsx_fs_id": r"^fs-[0-9a-z]{17}|NONE$",
     "greater_than_20": r"^([0-9]+[0-9]{2}|[2-9][0-9])$",
     "security_group_id": r"^sg-[0-9a-z]{8}$|^sg-[0-9a-z]{17}$",
@@ -211,6 +212,7 @@ EBS = {
     "default_label": "default",
     "params": {
         "shared_dir": {
+            "allowed_values": ALLOWED_VALUES["file_path"],
             "cfn_param_mapping": "SharedDir",
         },
         "ebs_snapshot_id": {
@@ -257,7 +259,9 @@ EFS = {
     "cfn_param_mapping": "EFSOptions",  # All the parameters in the section are converted into a single CFN parameter
     "params": OrderedDict(  # Use OrderedDict because the parameters must respect the order in the CFN parameter
         [
-            ("shared_dir", {}),
+            ("shared_dir", {
+                "allowed_values": ALLOWED_VALUES["file_path"],
+            }),
             ("efs_fs_id", {
                 "allowed_values": ALLOWED_VALUES["efs_fs_id"],
                 "validators": [efs_id_validator],
@@ -290,7 +294,9 @@ RAID = {
     "cfn_param_mapping": "RAIDOptions",  # All the parameters in the section are converted into a single CFN parameter
     "params": OrderedDict(  # Use OrderedDict because the parameters must respect the order in the CFN parameter
         [
-            ("shared_dir", {}),
+            ("shared_dir", {
+                "allowed_values": ALLOWED_VALUES["file_path"],
+            }),
             ("raid_type", {
                 "type": IntParam,
                 "allowed_values": [0, 1],
@@ -330,7 +336,9 @@ FSX = {
     "cfn_param_mapping": "FSXOptions",  # All the parameters in the section are converted into a single CFN parameter
     "params": OrderedDict(  # Use OrderedDict because the parameters must respect the order in the CFN parameter
         [
-            ("shared_dir", {}),
+            ("shared_dir", {
+                "allowed_values": ALLOWED_VALUES["file_path"],
+            }),
             ("fsx_fs_id", {
                 "allowed_values": ALLOWED_VALUES["fsx_fs_id"],
                 "validators": [fsx_id_validator],
@@ -357,14 +365,9 @@ CLUSTER = {
     "default_label": "default",
     "validators": [cluster_validator],
     "params": {
-        # Basic configuration
         "key_name": {
             "cfn_param_mapping": "KeyName",
             "validators": [ec2_key_pair_validator],
-        },
-        "template_url": {
-            # TODO add regex
-            "validators": [url_validator],
         },
         "base_os": {
             "default": "alinux",
@@ -377,12 +380,6 @@ CLUSTER = {
             "allowed_values": ["awsbatch", "sge", "slurm", "torque"],
             "validators": [scheduler_validator],
         },
-        "shared_dir": {
-            "type": SharedDirParam,
-            "cfn_param_mapping": "SharedDir",
-            "default": "/shared",
-        },
-        # Cluster configuration
         "placement_group": {
             "cfn_param_mapping": "PlacementGroup",
             "validators": [ec2_placement_group_validator],
@@ -481,12 +478,23 @@ CLUSTER = {
             "cfn_param_mapping": "S3ReadWriteResource",  # TODO add validator
         },
         # Customization
+        "template_url": {
+            # TODO add regex
+            "validators": [url_validator],
+        },
+        "shared_dir": {
+            "type": SharedDirParam,
+            "allowed_values": ALLOWED_VALUES["file_path"],
+            "cfn_param_mapping": "SharedDir",
+            "default": "/shared",
+        },
         "enable_efa": {
             "allowed_values": ["compute"],
             "cfn_param_mapping": "EFA",
             "validators": [efa_validator],
         },
         "ephemeral_dir": {
+            "allowed_values": ALLOWED_VALUES["file_path"],
             "default": "/scratch",
             "cfn_param_mapping": "EphemeralDir",
         },

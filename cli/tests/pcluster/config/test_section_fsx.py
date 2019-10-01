@@ -100,6 +100,11 @@ def test_fsx_section_to_cfn(mocker, section_dict, expected_cfn_params):
         ("shared_dir", "fake_value", "fake_value", None),
         ("shared_dir", "/test", "/test", None),
         ("shared_dir", "/test/test2", "/test/test2", None),
+        ("shared_dir", "/t_ 1-2( ):&;<>t?*+|", "/t_ 1-2( ):&;<>t?*+|", None),
+        ("shared_dir", "//test", None, "has an invalid value"),
+        ("shared_dir", "./test", None, "has an invalid value"),
+        ("shared_dir", ".\\test", None, "has an invalid value"),
+        ("shared_dir", ".test", None, "has an invalid value"),
         ("shared_dir", "NONE", "NONE", None),  # Note: NONE is considered as a valid path
         ("fsx_fs_id", None, None, None),
         ("fsx_fs_id", "", None, None),
