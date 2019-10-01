@@ -76,7 +76,7 @@ from pcluster.config.validators import (
 # - type the class to use to represent this section (default: Param, a string parameter)
 # - cfn the CFN parameters to use for the to/from_cfn conversion.
 # - allowed_values, a list of allowed values or a regex. It is evaluated at parsing time.
-# - validator, a function to use to validate the param.
+# - validators, a list of functions to use to validate the param.
 #   It is called for all the parameters once all of them are initialized.
 # - default, a default value for the internal representation, if not specified the value will be None
 # - referred_section, it is a special attribute used only for *SettingsParam,
@@ -155,12 +155,12 @@ VPC = {
         "vpc_id": {
             "cfn": "VPCId",
             "allowed_values": r"^vpc-[0-9a-z]{8}$|^vpc-[0-9a-z]{17}$",
-            "validator": ec2_vpc_id_validator,
+            "validators": [ec2_vpc_id_validator],
         },
         "master_subnet_id": {
             "cfn": "MasterSubnetId",
             "allowed_values": ALLOWED_VALUES["subnet_id"],
-            "validator": ec2_subnet_id_validator,
+            "validators": [ec2_subnet_id_validator],
         },
         "ssh_from": {
             "default": "0.0.0.0/0",
@@ -170,12 +170,12 @@ VPC = {
         "additional_sg": {
             "cfn": "AdditionalSG",
             "allowed_values": ALLOWED_VALUES["security_group_id"],
-            "validator": ec2_security_group_validator,
+            "validators": [ec2_security_group_validator],
         },
         "compute_subnet_id": {
             "cfn": "ComputeSubnetId",
             "allowed_values": ALLOWED_VALUES["subnet_id"],
-            "validator": ec2_subnet_id_validator,
+            "validators": [ec2_subnet_id_validator],
         },
         "compute_subnet_cidr": {
             "cfn": "ComputeSubnetCidr",
@@ -189,7 +189,7 @@ VPC = {
         "vpc_security_group_id": {
             "cfn": "VPCSecurityGroupId",
             "allowed_values": ALLOWED_VALUES["security_group_id"],
-            "validator": ec2_security_group_validator,
+            "validators": [ec2_security_group_validator],
         },
         "master_availability_zone": {
             # NOTE: this is not exposed as a configuration parameter
@@ -210,7 +210,7 @@ EBS = {
         "ebs_snapshot_id": {
             "allowed_values": r"^snap-[0-9a-z]{8}$|^snap-[0-9a-z]{17}$",
             "cfn": "EBSSnapshotId",
-            "validator": ec2_ebs_snapshot_validator,
+            "validators": [ec2_ebs_snapshot_validator],
         },
         "volume_type": {
             "default": "gp2",
@@ -238,7 +238,7 @@ EBS = {
         "ebs_volume_id": {
             "cfn": "EBSVolumeId",
             "allowed_values": r"^vol-[0-9a-z]{8}$|^vol-[0-9a-z]{17}$",
-            "validator": ec2_volume_validator,
+            "validators": [ec2_volume_validator],
         },
     },
 }
@@ -247,14 +247,14 @@ EFS = {
     "key": "efs",
     "type": EFSSection,
     "label": "default",
-    "validator": efs_validator,
+    "validators": [efs_validator],
     "cfn": "EFSOptions",  # All the parameters in the section are converted into a single CFN parameter
     "params": OrderedDict(  # Use OrderedDict because the parameters must respect the order in the CFN parameter
         [
             ("shared_dir", {}),
             ("efs_fs_id", {
                 "allowed_values": r"^fs-[0-9a-z]{8}$|^fs-[0-9a-z]{17}|NONE$",
-                "validator": efs_id_validator,
+                "validators": [efs_id_validator],
             }),
             ("performance_mode", {
                 "default": "generalPurpose",
@@ -304,7 +304,7 @@ RAID = {
             ("volume_iops", {
                 "type": IntParam,
                 "default": 100,
-                "validator": raid_volume_iops_validator,
+                "validators": [raid_volume_iops_validator],
             }),
             ("encrypted", {
                 "type": BoolParam,
@@ -320,23 +320,23 @@ FSX = {
     "type": Section,
     "key": "fsx",
     "label": "default",
-    "validator": fsx_validator,
+    "validators": [fsx_validator],
     "cfn": "FSXOptions",  # All the parameters in the section are converted into a single CFN parameter
     "params": OrderedDict(  # Use OrderedDict because the parameters must respect the order in the CFN parameter
         [
             ("shared_dir", {}),
             ("fsx_fs_id", {
                 "allowed_values": r"^fs-[0-9a-z]{17}|NONE$",
-                "validator": fsx_id_validator,
+                "validators": [fsx_id_validator],
             }),
             ("storage_capacity", {
                 "type": IntParam,
-                "validator": fsx_storage_capacity_validator
+                "validators": [fsx_storage_capacity_validator]
             }),
             ("fsx_kms_key_id", {}),
             ("imported_file_chunk_size", {
                 "type": IntParam,
-                "validator": fsx_imported_file_chunk_size_validator
+                "validators": [fsx_imported_file_chunk_size_validator]
             }),
             ("export_path", {}),  # TODO add regex
             ("import_path", {}),  # TODO add regex
@@ -349,16 +349,16 @@ CLUSTER = {
     "type": ClusterSection,
     "key": "cluster",
     "label": "default",
-    "validator": cluster_validator,
+    "validators": [cluster_validator],
     "params": {
         # Basic configuration
         "key_name": {
             "cfn": "KeyName",
-            "validator": ec2_key_pair_validator,
+            "validators": [ec2_key_pair_validator],
         },
         "template_url": {
             # TODO add regex
-            "validator": url_validator,
+            "validators": [url_validator],
         },
         "base_os": {
             "default": "alinux",
@@ -369,7 +369,7 @@ CLUSTER = {
             "default": "sge",
             "cfn": "Scheduler",
             "allowed_values": ["awsbatch", "sge", "slurm", "torque"],
-            "validator": scheduler_validator,
+            "validators": [scheduler_validator],
         },
         "shared_dir": {
             "type": SharedDirParam,
@@ -379,7 +379,7 @@ CLUSTER = {
         # Cluster configuration
         "placement_group": {
             "cfn": "PlacementGroup",
-            "validator": ec2_placement_group_validator,
+            "validators": [ec2_placement_group_validator],
         },
         "placement": {
             "default": "compute",
@@ -401,7 +401,7 @@ CLUSTER = {
         "compute_instance_type": {
             "default": "t2.micro",
             "cfn": "ComputeInstanceType",
-            "validator": compute_instance_type_validator,
+            "validators": [compute_instance_type_validator],
         },
         "compute_root_volume_size": {
             "type": IntParam,
@@ -418,7 +418,6 @@ CLUSTER = {
             "type": MaxSizeParam,
             "default": 10,
             "cfn": "MaxSize",
-            "validator": None,  # TODO we could test the account capacity
         },
         "maintain_initial_size": {
             "type": MaintainInitialSizeParam,
@@ -462,12 +461,12 @@ CLUSTER = {
         },
         "ec2_iam_role": {
             "cfn": "EC2IAMRoleName",
-            "validator": ec2_iam_role_validator,  # TODO add regex
+            "validators": [ec2_iam_role_validator],  # TODO add regex
         },
         "additional_iam_policies": {
             "type": AdditionalIamPoliciesParam,
             "cfn": "EC2IAMPolicies",
-            "validator": ec2_iam_policies_validator,
+            "validators": [ec2_iam_policies_validator],
         },
         "s3_read_resource": {
             "cfn": "S3ReadResource",  # TODO add validator
@@ -479,7 +478,7 @@ CLUSTER = {
         "enable_efa": {
             "allowed_values": ["compute"],
             "cfn": "EFA",
-            "validator": efa_validator,
+            "validators": [efa_validator],
         },
         "ephemeral_dir": {
             "default": "/scratch",
@@ -493,12 +492,12 @@ CLUSTER = {
         "custom_ami": {
             "cfn": "CustomAMI",
             "allowed_values": r"^ami-[0-9a-z]{8}$|^ami-[0-9a-z]{17}$",
-            "validator": ec2_ami_validator,
+            "validators": [ec2_ami_validator],
         },
         "pre_install": {
             "cfn": "PreInstallScript",
             # TODO add regex
-            "validator": url_validator,
+            "validators": [url_validator],
         },
         "pre_install_args": {
             "cfn": "PreInstallArgs",
@@ -506,7 +505,7 @@ CLUSTER = {
         "post_install": {
             "cfn": "PostInstallScript",
             # TODO add regex
-            "validator": url_validator,
+            "validators": [url_validator],
         },
         "post_install_args": {
             "cfn": "PostInstallArgs",
@@ -518,7 +517,7 @@ CLUSTER = {
         "additional_cfn_template": {
             "cfn": "AdditionalCfnTemplate",
             # TODO add regex
-            "validator": url_validator,
+            "validators": [url_validator],
         },
         "tags": {
             "type": JsonParam,
@@ -526,12 +525,12 @@ CLUSTER = {
         "custom_chef_cookbook": {
             "cfn": "CustomChefCookbook",
             # TODO add regex
-            "validator": url_validator,
+            "validators": [url_validator],
         },
         "custom_awsbatch_template_url": {
             "cfn": "CustomAWSBatchTemplateURL",
             # TODO add regex
-            "validator": url_validator,
+            "validators": [url_validator],
         },
         # Settings
         "scaling_settings": {

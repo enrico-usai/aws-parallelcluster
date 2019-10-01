@@ -125,29 +125,26 @@ class Param(object):
                     )
 
     def validate(self, fail_on_error=True):
-        """Call validation function for the parameter, if there."""
-        validation_func = self.map.get("validator", None)
-
-        if not validation_func:
-            LOGGER.debug("Configuration parameter '%s' has no validator", self.key)
-        elif self.value is None:
-            LOGGER.debug("Configuration parameter '%s' has not a value", self.key)
-        else:
-            errors, warnings = validation_func(self.key, self.value, self.pcluster_config)
-            if errors:
-                error(
-                    "The configuration parameter '{0}' has an invalid value '{1}'\n"
-                    "{2}".format(self.key, self.value, "\n".join(errors)),
-                    fail_on_error,
-                )
-            elif warnings:
-                warn(
-                    "The configuration parameter '{0}' has a wrong value '{1}'\n{2}".format(
-                        self.key, self.value, "\n".join(warnings)
-                    )
-                )
+        """Call validation functions for the parameter, if there."""
+        for validation_func in self.map.get("validators", []):
+            if self.value is None:
+                LOGGER.debug("Configuration parameter '%s' has not a value", self.key)
             else:
-                LOGGER.debug("Configuration parameter '%s' is valid", self.key)
+                errors, warnings = validation_func(self.key, self.value, self.pcluster_config)
+                if errors:
+                    error(
+                        "The configuration parameter '{0}' has an invalid value '{1}'\n"
+                        "{2}".format(self.key, self.value, "\n".join(errors)),
+                        fail_on_error,
+                    )
+                elif warnings:
+                    warn(
+                        "The configuration parameter '{0}' has a wrong value '{1}'\n{2}".format(
+                            self.key, self.value, "\n".join(warnings)
+                        )
+                    )
+                else:
+                    LOGGER.debug("Configuration parameter '%s' is valid", self.key)
 
     def to_file(self, config_parser):
         """Set parameter in the config_parser in the right section."""
@@ -1084,8 +1081,7 @@ class Section(object):
             section_name = _get_file_section_name(self.key, self.label)
 
             # validate section
-            validation_func = self.map.get("validator", None)
-            if validation_func:
+            for validation_func in self.map.get("validators", []):
                 errors, warnings = validation_func(self.key, self.label, self.pcluster_config)
                 if errors:
                     error(
@@ -1096,8 +1092,6 @@ class Section(object):
                     warn("The section [{0}] is wrongly configured\n{1}".format(section_name, "\n".join(warnings)))
                 else:
                     LOGGER.debug("Section '[%s]' is valid", section_name)
-            else:
-                LOGGER.debug("Section '[%s]' has not validators", section_name)
 
             # validate items
             for param_key, param_map in self.map.get("params").items():
