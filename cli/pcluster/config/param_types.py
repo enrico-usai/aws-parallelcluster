@@ -477,13 +477,13 @@ class SpotBidPercentageParam(IntParam):
         return cfn_params
 
 
-class DesiredSizeParam(IntParam):
+class QueueSizeParam(IntParam):
     """
-    Class to manage both the initial_queue_size and desired_vcpus configuration parameters.
+    Class to manage both the *_queue_size and *_vcpus configuration parameters.
 
-    We need this class since the same CFN input parameter "DesiredSize" is populated
-    from the "desired_vcpus" parameter when the scheduler is awsbatch and
-    from "initial_queue_size" when the scheduler is a traditional one.
+    We need this class since the same CFN input parameter "*Size" is populated
+    from the "*_vcpus" parameter when the scheduler is awsbatch and
+    from "*_queue_size" when the scheduler is a traditional one.
     """
 
     def _init_from_cfn(self, cfn_params=None, cfn_value=None):
@@ -491,16 +491,23 @@ class DesiredSizeParam(IntParam):
         cfn_converter = self.map.get("cfn_param_mapping", None)
         if cfn_converter and cfn_params:
             cfn_value = get_cfn_param(cfn_params, cfn_converter) if cfn_converter else "NONE"
-            # initialize the value from cfn or from map according to the scheduler
-            if get_cfn_param(cfn_params, "Scheduler") == "awsbatch":
-                if self.key == "initial_queue_size":
+
+            # traditional scheduler parameter
+            if self.key == "initial_queue_size" or self.key == "max_queue_size":
+
+                # initialize the value from cfn or from map according to the scheduler
+                if get_cfn_param(cfn_params, "Scheduler") == "awsbatch":
                     self._init_from_map()
-                elif self.key == "desired_vcpus":
+                else:
                     self.value = self.get_value_from_string(cfn_value)
-            else:
-                if self.key == "initial_queue_size":
+
+            # awsbatch scheduler parameter
+            elif self.key == "desired_vcpus" or self.key == "max_vcpus" or self.key == "min_vcpus":
+
+                # initialize the value from cfn or from map according to the scheduler
+                if get_cfn_param(cfn_params, "Scheduler") == "awsbatch":
                     self.value = self.get_value_from_string(cfn_value)
-                elif self.key == "desired_vcpus":
+                else:
                     self._init_from_map()
         elif cfn_value:
             self.value = self.get_value_from_string(cfn_value)
@@ -512,56 +519,16 @@ class DesiredSizeParam(IntParam):
         cfn_params = {}
 
         cluster_config = self.pcluster_config.get_section(self.section_key)
-        if cluster_config.get_param_value("scheduler") == "awsbatch":
-            cfn_value = cluster_config.get_param_value("desired_vcpus")
-            cfn_params.update({self.map.get("cfn_param_mapping"): str(cfn_value)})
-        else:
-            cfn_value = cluster_config.get_param_value("initial_queue_size")
-            cfn_params.update({self.map.get("cfn_param_mapping"): str(cfn_value)})
-
-        return cfn_params
-
-
-class MaxSizeParam(IntParam):
-    """
-    Class to manage both the max_queue_size and max_vcpus configuration parameters.
-
-    We need this class since the same CFN input parameter "MaxSize" is populated
-    from the "max_vcpus" parameter when the scheduler is awsbatch and
-    from "max_queue_size" when the scheduler is a traditional one.
-    """
-
-    def _init_from_cfn(self, cfn_params=None, cfn_value=None):
-        """Initialize param value by parsing the right CFN input according to the scheduler."""
-        cfn_converter = self.map.get("cfn_param_mapping", None)
-        if cfn_converter and cfn_params:
-            cfn_value = get_cfn_param(cfn_params, cfn_converter) if cfn_converter else "NONE"
-            # initialize the value from cfn or from map according to the scheduler
-            if get_cfn_param(cfn_params, "Scheduler") == "awsbatch":
-                if self.key == "max_queue_size":
-                    self._init_from_map()
-                elif self.key == "max_vcpus":
-                    self.value = self.get_value_from_string(cfn_value)
-            else:
-                if self.key == "max_queue_size":
-                    self.value = self.get_value_from_string(cfn_value)
-                elif self.key == "max_vcpus":
-                    self._init_from_map()
-        elif cfn_value:
-            self.value = self.get_value_from_string(cfn_value)
-        else:
-            self._init_from_map()
-
-    def to_cfn(self):
-        """Convert parameter to CFN representation."""
-        cfn_params = {}
-
-        cluster_config = self.pcluster_config.get_section(self.section_key)
-        if cluster_config.get_param_value("scheduler") == "awsbatch":
-            cfn_value = cluster_config.get_param_value("max_vcpus")
-            cfn_params.update({self.map.get("cfn_param_mapping"): str(cfn_value)})
-        else:
-            cfn_value = cluster_config.get_param_value("max_queue_size")
+        if (
+            # traditional scheduler parameters
+            cluster_config.get_param_value("scheduler") != "awsbatch"
+            and (self.key == "initial_queue_size" or self.key == "max_queue_size")
+        ) or (
+            # awsbatch scheduler parameters
+            cluster_config.get_param_value("scheduler") == "awsbatch"
+            and (self.key == "desired_vcpus" or self.key == "max_vcpus" or self.key == "min_vcpus")
+        ):
+            cfn_value = cluster_config.get_param_value(self.key)
             cfn_params.update({self.map.get("cfn_param_mapping"): str(cfn_value)})
 
         return cfn_params
@@ -602,42 +569,6 @@ class MaintainInitialSizeParam(BoolParam):
             cfn_value = cluster_config.get_param_value("maintain_initial_size")
             min_size_value = cluster_config.get_param_value("initial_queue_size") if cfn_value else "0"
             cfn_params.update({self.map.get("cfn_param_mapping"): str(min_size_value)})
-
-        return cfn_params
-
-
-class MinSizeParam(IntParam):
-    """
-    Class to manage the min_vcpus configuration parameters.
-
-    We need this class since the same CFN input parameter "MinSize" is populated
-    from the "min_vcpus" parameter when the scheduler is awsbatch and
-    merging info from "initial_queue_size" and "maintain_initial_size" when the scheduler is a traditional one.
-    """
-
-    def _init_from_cfn(self, cfn_params=None, cfn_value=None):
-        """Initialize param value by parsing the right CFN input according to the scheduler."""
-        cfn_converter = self.map.get("cfn_param_mapping", None)
-        if cfn_converter and cfn_params:
-            cfn_value = get_cfn_param(cfn_params, cfn_converter) if cfn_converter else "NONE"
-            # initialize the value from cfn or from map according to the scheduler
-            if get_cfn_param(cfn_params, "Scheduler") == "awsbatch":
-                self.value = self.get_value_from_string(cfn_value)
-            else:
-                self._init_from_map()
-        elif cfn_value:
-            self.value = self.get_value_from_string(cfn_value)
-        else:
-            self._init_from_map()
-
-    def to_cfn(self):
-        """Convert parameter to CFN representation."""
-        cfn_params = {}
-
-        cluster_config = self.pcluster_config.get_section(self.section_key)
-        if cluster_config.get_param_value("scheduler") == "awsbatch":
-            cfn_value = cluster_config.get_param_value("min_vcpus")
-            cfn_params.update({self.map.get("cfn_param_mapping"): str(cfn_value)})
 
         return cfn_params
 
