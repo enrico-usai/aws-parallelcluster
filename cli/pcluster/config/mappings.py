@@ -86,11 +86,17 @@ from pcluster.config.validators import (
 
 # Utility dictionary containing all the common regex used in the section mapping.
 ALLOWED_VALUES = {
+    "ami_id": r"^ami-[0-9a-z]{8}$|^ami-[0-9a-z]{17}$",
     "cidr": r"^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}/(0|1[6-9]|2[0-9]|3[0-2])$",
+    "efs_fs_id": r"^fs-[0-9a-z]{8}$|^fs-[0-9a-z]{17}|NONE$",
+    "fsx_fs_id": r"^fs-[0-9a-z]{17}|NONE$",
     "greater_than_20": r"^([0-9]+[0-9]{2}|[2-9][0-9])$",
     "security_group_id": r"^sg-[0-9a-z]{8}$|^sg-[0-9a-z]{17}$",
+    "snapshot_id": r"^snap-[0-9a-z]{8}$|^snap-[0-9a-z]{17}$",
     "subnet_id": r"^subnet-[0-9a-z]{8}$|^subnet-[0-9a-z]{17}$",
+    "volume_id": r"^vol-[0-9a-z]{8}$|^vol-[0-9a-z]{17}$",
     "volume_types": ["standard", "io1", "gp2", "st1", "sc1"],
+    "vpc_id": r"^vpc-[0-9a-z]{8}$|^vpc-[0-9a-z]{17}$",
 }
 
 AWS = {
@@ -154,7 +160,7 @@ VPC = {
     "params": {
         "vpc_id": {
             "cfn_param_mapping": "VPCId",
-            "allowed_values": r"^vpc-[0-9a-z]{8}$|^vpc-[0-9a-z]{17}$",
+            "allowed_values": ALLOWED_VALUES["vpc_id"],
             "validators": [ec2_vpc_id_validator],
         },
         "master_subnet_id": {
@@ -208,7 +214,7 @@ EBS = {
             "cfn_param_mapping": "SharedDir",
         },
         "ebs_snapshot_id": {
-            "allowed_values": r"^snap-[0-9a-z]{8}$|^snap-[0-9a-z]{17}$",
+            "allowed_values": ALLOWED_VALUES["snapshot_id"],
             "cfn_param_mapping": "EBSSnapshotId",
             "validators": [ec2_ebs_snapshot_validator],
         },
@@ -237,7 +243,7 @@ EBS = {
         },
         "ebs_volume_id": {
             "cfn_param_mapping": "EBSVolumeId",
-            "allowed_values": r"^vol-[0-9a-z]{8}$|^vol-[0-9a-z]{17}$",
+            "allowed_values": ALLOWED_VALUES["volume_id"],
             "validators": [ec2_volume_validator],
         },
     },
@@ -253,7 +259,7 @@ EFS = {
         [
             ("shared_dir", {}),
             ("efs_fs_id", {
-                "allowed_values": r"^fs-[0-9a-z]{8}$|^fs-[0-9a-z]{17}|NONE$",
+                "allowed_values": ALLOWED_VALUES["efs_fs_id"],
                 "validators": [efs_id_validator],
             }),
             ("performance_mode", {
@@ -326,7 +332,7 @@ FSX = {
         [
             ("shared_dir", {}),
             ("fsx_fs_id", {
-                "allowed_values": r"^fs-[0-9a-z]{17}|NONE$",
+                "allowed_values": ALLOWED_VALUES["fsx_fs_id"],
                 "validators": [fsx_id_validator],
             }),
             ("storage_capacity", {
@@ -491,7 +497,7 @@ CLUSTER = {
         },
         "custom_ami": {
             "cfn_param_mapping": "CustomAMI",
-            "allowed_values": r"^ami-[0-9a-z]{8}$|^ami-[0-9a-z]{17}$",
+            "allowed_values": ALLOWED_VALUES["ami_id"],
             "validators": [ec2_ami_validator],
         },
         "pre_install": {
