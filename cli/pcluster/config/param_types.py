@@ -14,7 +14,7 @@ import functools
 import logging
 import re
 
-from configparser import DuplicateSectionError, NoSectionError
+from configparser import NoSectionError
 
 import yaml
 from pcluster.utils import error, get_avail_zone, get_cfn_param, get_efs_mount_target_id, get_partition, warn
@@ -154,6 +154,7 @@ class Param(object):
         """Set parameter in the config_parser in the right section."""
         section_name = _get_file_section_name(self.section_key, self.section_label)
         if self.value is not None and self.value != self.get_default_value():
+            _ensure_section_existence(config_parser, section_name)
             config_parser.set(section_name, self.key, str(self.value))
         else:
             # remove parameter from config_parser if there
@@ -207,6 +208,7 @@ class CommaSeparatedParam(Param):
     def to_file(self, config_parser):
         section_name = _get_file_section_name(self.section_key, self.section_label)
         if self.value is not None and self.value != self.get_default_value():
+            _ensure_section_existence(config_parser, section_name)
             config_parser.set(section_name, self.key, str(",".join(self.value)))
         else:
             # remove parameter from config_parser if there
@@ -306,6 +308,7 @@ class BoolParam(Param):
         """Set parameter in the config_parser in the right section."""
         section_name = _get_file_section_name(self.section_key, self.section_label)
         if self.value != self.get_default_value():
+            _ensure_section_existence(config_parser, section_name)
             config_parser.set(section_name, self.key, self.get_cfn_value())
         else:
             # remove parameter from config_parser if there
@@ -424,6 +427,7 @@ class SharedDirParam(Param):
         # if not contains ebs_settings --> single SharedDir
         section_name = _get_file_section_name(self.section_key, self.section_label)
         if not self.pcluster_config.get_section("ebs") and self.value != self.get_default_value():
+            _ensure_section_existence(config_parser, section_name)
             config_parser.set(section_name, self.key, self.value)
         # else: there are ebs volumes, let the EBSSettings parse the SharedDir CFN parameter.
 
@@ -713,21 +717,16 @@ class SettingsParam(Param):
             # evaluate all the parameters of the section and
             # add "*_settings = *" to the parent section
             # only if at least one parameter value is different from the default
-            settings_param_created = False
             for param_key, param_definition in self.related_section_definition.get("params").items():
                 param_value = section.get_param_value(param_key)
 
-                if not settings_param_created and param_value != param_definition.get("default", None):
-                    config_section_name = _get_file_section_name(self.section_key, self.section_label)
-                    try:
-                        # add parent section, if not present
-                        config_parser.add_section(config_section_name)
-                    except DuplicateSectionError:
-                        LOGGER.debug("Section '[%s]' is already present in the file.", config_section_name)
-                        pass
-
-                    config_parser.set(config_section_name, self.key, self.value)
-                    settings_param_created = True
+                section_name = _get_file_section_name(self.section_key, self.section_label)
+                if (
+                    not config_parser.has_option(section_name, self.key)
+                    and param_value != param_definition.get("default", None)
+                ):
+                    _ensure_section_existence(config_parser, section_name)
+                    config_parser.set(section_name, self.key, self.value)
 
             # create section
             section.to_file(config_parser)
@@ -818,15 +817,10 @@ class EBSSettingsParam(SettingsParam):
                 sections.update(self.pcluster_config.get_section(self.related_section_key, section_label.strip()))
 
         if sections:
-            config_section_name = _get_file_section_name(self.section_key, self.section_label)
-            try:
-                # add parent section, if not present
-                config_parser.add_section(config_section_name)
-            except DuplicateSectionError:
-                LOGGER.debug("Section '[%s]' is already present in the file.", config_section_name)
-                pass
+            section_name = _get_file_section_name(self.section_key, self.section_label)
             # add "*_settings = *" to the parent section
-            config_parser.add_section(config_section_name)
+            _ensure_section_existence(config_parser, section_name)
+            config_parser.add_section(section_name)
 
             # create sections
             for _, section in sections:
@@ -1005,8 +999,7 @@ class Section(object):
 
     def to_file(self, config_parser):
         """Create the section and add all the parameters in the config_parser."""
-        config_section_name = _get_file_section_name(self.key, self.label)
-        config_section_created = False
+        section_name = _get_file_section_name(self.key, self.label)
 
         for param_key, param_definition in self.definition.get("params").items():
             param = self.get_param(param_key)
@@ -1015,14 +1008,9 @@ class Section(object):
                 param_type = param_definition.get("type", Param)
                 param = param_type(self.key, self.label, param_key, param_definition, self.pcluster_config)
 
-            if not config_section_created and param.value != param_definition.get("default", None):
-                # write section in the config file only if at least one parameter value is different by the default
-                try:
-                    config_parser.add_section(config_section_name)
-                except DuplicateSectionError:
-                    LOGGER.debug("Section '[%s]' is already present in the file.", config_section_name)
-                    pass
-                config_section_created = True
+            if param.value != param_definition.get("default", None):
+                # add section in the config file only if at least one parameter value is different by the default
+                _ensure_section_existence(config_parser, section_name)
 
             param.to_file(config_parser)
 
@@ -1177,3 +1165,9 @@ class ClusterSection(Section):
 
 def _get_file_section_name(section_key, section_label=None):
     return section_key + (" {0}".format(section_label) if section_label else "")
+
+
+def _ensure_section_existence(config_parser, section_name):
+    """Add a section to the config_parser if not present."""
+    if not config_parser.has_section(section_name):
+        config_parser.add_section(section_name)
