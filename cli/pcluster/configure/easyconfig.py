@@ -8,8 +8,11 @@
 # or in the 'LICENSE.txt' file accompanying this file. This file is distributed on an 'AS IS' BASIS, WITHOUT WARRANTIES
 # OR CONDITIONS OF ANY KIND, express or implied. See the License for the specific language governing permissions and
 # limitations under the License.
-from __future__ import absolute_import, print_function
-from future import standard_library
+# fmt: off
+from __future__ import absolute_import, print_function  # isort:skip
+from future import standard_library  # isort:skip
+standard_library.install_aliases()
+# fmt: on
 
 import logging
 
@@ -25,9 +28,6 @@ from pcluster.configure.networking import (
 )
 from pcluster.configure.utils import get_regions, get_resource_tag, handle_client_exception, prompt, prompt_iterable
 from pcluster.utils import get_region, get_supported_os, get_supported_schedulers, list_ec2_instance_types
-
-standard_library.install_aliases()
-
 
 LOGGER = logging.getLogger(__name__)
 
@@ -126,7 +126,7 @@ def configure(args):
     scheduler_handler.prompt_compute_instance_type()
 
     key_name = prompt_iterable("EC2 Key Pair Name", _get_keys())
-    automate_vpc = prompt("Automate VPC creation? (y/n)", lambda x: x == "y" or x == "n", default_value="n") == "y"
+    automate_vpc = prompt("Automate VPC creation? (y/n)", lambda x: x in ("y", "n"), default_value="n") == "y"
 
     vpc_parameters = _create_vpc_parameters(
         vpc_section, scheduler, scheduler_handler.max_cluster_size, automate_vpc_creation=automate_vpc
@@ -134,7 +134,7 @@ def configure(args):
     cluster_parameters = {"key_name": key_name, "scheduler": scheduler, "master_instance_type": master_instance_type}
     cluster_parameters.update(scheduler_handler.get_scheduler_parameters())
 
-    # We remove parameters that may still be present from the past configuration but can conflict with the current.
+    # Remove parameters from the past configuration that can conflict with the user's choices.
     _reset_config_params(cluster_section, scheduler_handler.get_parameters_to_reset())
     _reset_config_params(vpc_section, ("compute_subnet_id", "use_public_ips", "compute_subnet_cidr"))
 
@@ -181,7 +181,7 @@ def _create_vpc_parameters(vpc_section, scheduler, min_subnet_size, automate_vpc
             vpc_parameters["vpc_id"] = vpc_id
             subnet_list = vpc_and_subnets["vpc_subnets"][vpc_id]
             if not subnet_list or (
-                prompt("Automate Subnet creation? (y/n)", lambda x: x == "y" or x == "n", default_value="y") == "y"
+                prompt("Automate Subnet creation? (y/n)", lambda x: x in ("y", "n"), default_value="y") == "y"
             ):
                 vpc_parameters.update(
                     automate_subnet_creation(vpc_id, _choose_network_configuration(scheduler), min_subnet_size)

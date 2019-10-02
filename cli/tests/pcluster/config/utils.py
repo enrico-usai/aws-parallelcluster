@@ -102,7 +102,7 @@ def assert_section_from_cfn(mocker, section_definition, cfn_params_dict, expecte
 
     section_dict = {}
     for param_key, param in section.params.items():
-        section_dict.update({param_key: param.value})
+        section_dict[param_key] = param.value
 
     assert_that(section_dict).is_equal_to(expected_dict)
 
@@ -135,7 +135,7 @@ def assert_section_from_file(mocker, section_definition, config_parser_dict, exp
         section = section_type(section_definition, pcluster_config).from_file(config_parser)
         section_dict = {}
         for param_key, param in section.params.items():
-            section_dict.update({param_key: param.value})
+            section_dict[param_key] = param.value
 
         assert_that(section_dict).is_equal_to(expected_dict)
 

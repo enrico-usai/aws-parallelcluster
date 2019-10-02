@@ -27,7 +27,9 @@ def test_mapping_consistency():
         for section_key, _ in section_definition.items():
             assert_that(
                 section_key,
-                description="{0} is not allowed in {1} section definition".format(section_key, section_definition.get("key")),
+                description="{0} is not allowed in {1} section definition".format(
+                    section_key, section_definition.get("key")
+                ),
             ).is_in("type", "key", "default_label", "cfn_param_mapping", "params", "validators")
 
         for param_key, param_definition in section_definition.get("params").items():

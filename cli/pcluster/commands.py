@@ -75,7 +75,7 @@ def _check_for_updates(pcluster_config):
         utils.check_if_latest_version()
 
 
-def create(args):
+def create(args):  # noqa: C901 FIXME!!!
     LOGGER.info("Beginning cluster creation for cluster: %s", args.cluster_name)
     LOGGER.debug("Building cluster config based on args %s", str(args))
 
@@ -195,7 +195,7 @@ def _evaluate_tags(pcluster_config, preferred_tags=None):
         tags.update(preferred_tags)
 
     # add pcluster version
-    tags.update({"Version": utils.get_installed_version()})
+    tags["Version"] = utils.get_installed_version()
 
     # convert to CFN tags
     return [{"Key": tag, "Value": tags[tag]} for tag in tags]

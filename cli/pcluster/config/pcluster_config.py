@@ -302,7 +302,9 @@ class PclusterConfig(object):
 
     def __validate(self):
         fail_on_error = (
-            self.get_section("global").get_param_value("sanity_check") if self.get_section("global") else True
+            self.get_section("global").get_param_value("sanity_check")
+            if self.get_section("global")
+            else GLOBAL.get("params").get("sanity_check").get("default")
         )
 
         for _, sections in self.sections.items():
