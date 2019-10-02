@@ -89,7 +89,7 @@ def test_vpc_section_from_file(mocker, config_parser_dict, expected_dict_params,
 
 
 @pytest.mark.parametrize(
-    "section_map, section_dict, expected_config_parser_dict, expected_message",
+    "section_definition, section_dict, expected_config_parser_dict, expected_message",
     [
         # default
         (VPC, {}, {"vpc default": {}}, None),
@@ -100,7 +100,7 @@ def test_vpc_section_from_file(mocker, config_parser_dict, expected_dict_params,
         (VPC, {"additional_sg": "sg-12345678"}, {"vpc default": {"additional_sg": "sg-12345678"}}, None),
     ],
 )
-def test_vpc_section_to_file(mocker, section_map, section_dict, expected_config_parser_dict, expected_message):
+def test_vpc_section_to_file(mocker, section_definition, section_dict, expected_config_parser_dict, expected_message):
     utils.assert_section_to_file(mocker, VPC, section_dict, expected_config_parser_dict, expected_message)
 
 

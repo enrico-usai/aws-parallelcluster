@@ -33,7 +33,6 @@ from pcluster.config.validators import (
     compute_instance_type_validator,
     ec2_ami_validator,
     ec2_ebs_snapshot_validator,
-    ec2_iam_role_validator,
     ec2_iam_policies_validator,
     ec2_iam_role_validator,
     ec2_instance_type_validator,
@@ -55,7 +54,7 @@ from pcluster.config.validators import (
     url_validator,
 )
 
-# This file contains a map of all the sections and the parameters configurable by the user
+# This file contains a definition of all the sections and the parameters configurable by the user
 # in the configuration file.
 
 # For each section you can define:
@@ -63,7 +62,7 @@ from pcluster.config.validators import (
 # - type, the class to use to represent this section (default: Section)
 # - key, the key used in configuration file that identifies the section type
 #   (e.g [cluster default] -> "cluster" is the key)
-# - default_label, the label to use for the section when initializing from CFN or from map.
+# - default_label, the label to use for the section when initializing from CFN or from default values.
 #   (e.g [cluster default] -> "default" is the key)
 # - validator, a function to use to validate the section.
 #   It is called for all the parameters once all of them are initialized.

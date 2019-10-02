@@ -12,11 +12,11 @@ import pytest
 
 from assertpy import assert_that
 from pcluster.config.mappings import CLUSTER, SCALING
-from tests.pcluster.config.utils import get_mocked_pcluster_config, get_param_map
+from tests.pcluster.config.utils import get_mocked_pcluster_config, get_param_definition
 
 
 @pytest.mark.parametrize(
-    "section_map, param_key, cfn_value, expected_value",
+    "section_definition, param_key, cfn_value, expected_value",
     [
         # Param
         (CLUSTER, "key_name", "", None),
@@ -75,20 +75,20 @@ from tests.pcluster.config.utils import get_mocked_pcluster_config, get_param_ma
         (CLUSTER, "additional_iam_policies", "policy1, policy2", ["policy1", "policy2"]),
     ],
 )
-def test_param_from_cfn_value(mocker, section_map, param_key, cfn_value, expected_value):
+def test_param_from_cfn_value(mocker, section_definition, param_key, cfn_value, expected_value):
     """Test conversion from cfn value of simple parameters, that don't depends from multiple CFN parameters."""
-    param_map, param_type = get_param_map(section_map, param_key)
+    param_definition, param_type = get_param_definition(section_definition, param_key)
 
     pcluster_config = get_mocked_pcluster_config(mocker)
 
     param_value = param_type(
-        section_map.get("key"), "default", param_key, param_map, pcluster_config
+        section_definition.get("key"), "default", param_key, param_definition, pcluster_config
     ).get_value_from_string(cfn_value)
     assert_that(param_value).is_equal_to(expected_value)
 
 
 @pytest.mark.parametrize(
-    "section_map, param_key, cfn_params_dict, expected_value",
+    "section_definition, param_key, cfn_params_dict, expected_value",
     [
         # Param
         (CLUSTER, "key_name", {"KeyName": ""}, None),
@@ -125,15 +125,17 @@ def test_param_from_cfn_value(mocker, section_map, param_key, cfn_value, expecte
         (CLUSTER, "additional_iam_policies", {"EC2IAMPolicies": "policy1, policy2"}, ["policy1", "policy2"]),
     ],
 )
-def test_param_from_cfn(mocker, section_map, param_key, cfn_params_dict, expected_value):
+def test_param_from_cfn(mocker, section_definition, param_key, cfn_params_dict, expected_value):
     """Test conversion of simple parameters, that don't depends from multiple CFN parameters."""
-    param_map, param_type = get_param_map(section_map, param_key)
+    param_definition, param_type = get_param_definition(section_definition, param_key)
     cfn_params = []
     for cfn_key, cfn_value in cfn_params_dict.items():
         cfn_params.append({"ParameterKey": cfn_key, "ParameterValue": cfn_value})
 
     pcluster_config = get_mocked_pcluster_config(mocker)
 
-    param = param_type(section_map.get("key"), "default", param_key, param_map, pcluster_config, cfn_params=cfn_params)
+    param = param_type(
+        section_definition.get("key"), "default", param_key, param_definition, pcluster_config, cfn_params=cfn_params
+    )
 
     assert_that(param.value, description="param key {0}".format(param_key)).is_equal_to(expected_value)

@@ -13,11 +13,11 @@ import pytest
 
 from assertpy import assert_that
 from pcluster.config.mappings import CLUSTER, SCALING
-from tests.pcluster.config.utils import get_mocked_pcluster_config, get_param_map
+from tests.pcluster.config.utils import get_mocked_pcluster_config, get_param_definition
 
 
 @pytest.mark.parametrize(
-    "section_map, param_key, param_value, expected_value",
+    "section_definition, param_key, param_value, expected_value",
     [
         # Param
         (CLUSTER, "key_name", None, None),
@@ -45,17 +45,17 @@ from tests.pcluster.config.utils import get_mocked_pcluster_config, get_param_ma
         ),
     ],
 )
-def test_param_to_file(mocker, section_map, param_key, param_value, expected_value):
+def test_param_to_file(mocker, section_definition, param_key, param_value, expected_value):
     section_label = "default"
-    section_name = section_map.get("key") + " " + section_label
+    section_name = section_definition.get("key") + " " + section_label
     config_parser = configparser.ConfigParser()
     config_parser.add_section(section_name)
 
     pcluster_config = get_mocked_pcluster_config(mocker)
 
-    param_map, param_type = get_param_map(section_map, param_key)
-    param = param_type(section_map.get("key"), section_label, param_key, param_map, pcluster_config)
-    param.value = param_value or param_map.get("default")
+    param_definition, param_type = get_param_definition(section_definition, param_key)
+    param = param_type(section_definition.get("key"), section_label, param_key, param_definition, pcluster_config)
+    param.value = param_value or param_definition.get("default")
     param.to_file(config_parser)
 
     if expected_value:

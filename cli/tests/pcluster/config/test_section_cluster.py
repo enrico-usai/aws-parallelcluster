@@ -725,7 +725,7 @@ def test_cluster_param_from_file(mocker, param_key, param_value, expected_value,
 
 
 @pytest.mark.parametrize(
-    "section_map, section_dict, expected_config_parser_dict, expected_message",
+    "section_definition, section_dict, expected_config_parser_dict, expected_message",
     [
         # default
         (CLUSTER, {}, {"cluster default": {}}, None),
@@ -736,7 +736,9 @@ def test_cluster_param_from_file(mocker, param_key, param_value, expected_value,
         (CLUSTER, {"base_os": "centos7"}, {"cluster default": {"base_os": "centos7"}}, None),
     ],
 )
-def test_cluster_section_to_file(mocker, section_map, section_dict, expected_config_parser_dict, expected_message):
+def test_cluster_section_to_file(
+    mocker, section_definition, section_dict, expected_config_parser_dict, expected_message
+):
     utils.assert_section_to_file(mocker, CLUSTER, section_dict, expected_config_parser_dict, expected_message)
 
 

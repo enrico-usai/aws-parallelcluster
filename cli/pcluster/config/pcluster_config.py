@@ -234,7 +234,7 @@ class PclusterConfig(object):
         """
         Initialize all the Sections object and add them to the internal structure by parsing configuration file.
 
-        :param file_sections: list of sections map to initialize
+        :param file_sections: list of sections definition to initialize
         :param cluster_label: the label of the section (if there)
         :param config_parser: the config parser object to parse
         :param fail_on_absence: if true, the initialization will fail if one section doesn't exist in the file
@@ -242,9 +242,9 @@ class PclusterConfig(object):
         if not file_sections:
             file_sections = []
 
-        for section_map in [ALIASES, GLOBAL]:
-            if section_map in file_sections:
-                self.__init_section_from_file(section_map, config_parser)
+        for section_definition in [ALIASES, GLOBAL]:
+            if section_definition in file_sections:
+                self.__init_section_from_file(section_definition, config_parser)
 
         # get cluster by cluster_label
         if CLUSTER in file_sections:
@@ -258,18 +258,18 @@ class PclusterConfig(object):
                 CLUSTER, config_parser, section_label=cluster_label, fail_on_absence=fail_on_absence
             )
 
-    def __init_section_from_file(self, section_map, config_parser, section_label=None, fail_on_absence=False):
+    def __init_section_from_file(self, section_definition, config_parser, section_label=None, fail_on_absence=False):
         """
         Initialize the Section object and add it to the internal structure.
 
-        :param section_map: the map of the section to initialize
+        :param section_definition: the definition of the section to initialize
         :param config_parser: the config parser object to parse
         :param section_label: the label of the section (if there)
         :param fail_on_absence: if true, the initialization will fail if the section doesn't exist in the file
         """
-        section_type = section_map.get("type")
+        section_type = section_definition.get("type")
         section = section_type(
-            section_map=section_map,
+            section_definition=section_definition,
             pcluster_config=self,
             section_label=section_label,
             config_parser=config_parser,
@@ -283,7 +283,9 @@ class PclusterConfig(object):
             stack = boto3.client("cloudformation").describe_stacks(StackName=stack_name).get("Stacks")[0]
 
             section_type = CLUSTER.get("type")
-            section = section_type(section_map=CLUSTER, pcluster_config=self, cfn_params=stack.get("Parameters", []))
+            section = section_type(
+                section_definition=CLUSTER, pcluster_config=self, cfn_params=stack.get("Parameters", [])
+            )
             self.add_section(section)
         except ClientError as e:
             fail(

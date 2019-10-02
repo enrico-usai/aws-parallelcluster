@@ -35,7 +35,7 @@ class Param(object):
         section_key,
         section_label,
         param_key,
-        param_map,
+        param_definition,
         pcluster_config,
         cfn_value=None,
         config_parser=None,
@@ -44,7 +44,7 @@ class Param(object):
         self.section_key = section_key
         self.section_label = section_label
         self.key = param_key
-        self.map = param_map
+        self.definition = param_definition
         self.pcluster_config = pcluster_config
 
         # initialize param value
@@ -54,12 +54,12 @@ class Param(object):
             try:
                 self._init_from_file(config_parser)
             except NoOptionError:
-                self._init_from_map()
+                self._init_from_definition()
             except NoSectionError:
                 section_name = _get_file_section_name(self.section_key, self.section_label)
                 error("Section '[{0}]' not found in the config file.".format(section_name))
         else:
-            self._init_from_map()
+            self._init_from_definition()
 
     def get_value_from_string(self, string_value):
         """Return internal representation starting from CFN/user-input value."""
@@ -88,19 +88,19 @@ class Param(object):
         """
         Initialize parameter value by parsing CFN input parameters or from a given value coming from CFN.
 
-        :param cfn_params: the list of all the CFN parameters, it is used if "cfn_param_mapping" is specified in the map
+        :param cfn_params: list of all the CFN parameters, used if "cfn_param_mapping" is specified in the definition
         :param cfn_value: a value coming from a comma separated CFN param
         """
-        cfn_converter = self.map.get("cfn_param_mapping", None)
+        cfn_converter = self.definition.get("cfn_param_mapping", None)
         if cfn_converter and cfn_params:
             cfn_value = get_cfn_param(cfn_params, cfn_converter) if cfn_converter else "NONE"
             self.value = self.get_value_from_string(cfn_value)
         elif cfn_value:
             self.value = self.get_value_from_string(cfn_value)
         else:
-            self._init_from_map()
+            self._init_from_definition()
 
-    def _init_from_map(self):
+    def _init_from_definition(self):
         """Initialize parameter value by using default specified in the mapping file."""
         self.value = self.get_default_value()
         if self.value:
@@ -108,7 +108,7 @@ class Param(object):
 
     def _check_allowed_values(self):
         """Verify if the parameter value is one of the allowed values specified in the mapping file."""
-        allowed_values = self.map.get("allowed_values", None)
+        allowed_values = self.definition.get("allowed_values", None)
         if allowed_values:
             if isinstance(allowed_values, list):
                 if self.value not in allowed_values:
@@ -126,7 +126,7 @@ class Param(object):
 
     def validate(self, fail_on_error=True):
         """Call validation functions for the parameter, if there."""
-        for validation_func in self.map.get("validators", []):
+        for validation_func in self.definition.get("validators", []):
             if self.value is None:
                 LOGGER.debug("Configuration parameter '%s' has not a value", self.key)
             else:
@@ -159,9 +159,9 @@ class Param(object):
                 pass
 
     def to_cfn(self):
-        """Convert parameter to CFN representation, if "cfn_param_mapping" attribute is present in the Param map."""
+        """Convert param to CFN representation, if "cfn_param_mapping" attribute is present in the Param definition."""
         cfn_params = {}
-        cfn_converter = self.map.get("cfn_param_mapping", None)
+        cfn_converter = self.definition.get("cfn_param_mapping", None)
 
         if cfn_converter:
             cfn_value = self.get_cfn_value()
@@ -170,8 +170,8 @@ class Param(object):
         return cfn_params
 
     def get_default_value(self):
-        """Get default value from the Param map if there, None otherwise."""
-        return self.map.get("default", None)
+        """Get default value from the Param definition if there, None otherwise."""
+        return self.definition.get("default", None)
 
     def get_cfn_value(self):
         """
@@ -179,7 +179,7 @@ class Param(object):
 
         Used when the parameter must go into a comma separated CFN parameter.
         """
-        return str(self.value if self.value is not None else self.map.get("default", "NONE"))
+        return str(self.value if self.value is not None else self.definition.get("default", "NONE"))
 
 
 class CommaSeparatedParam(Param):
@@ -221,10 +221,10 @@ class CommaSeparatedParam(Param):
 
         Used when the parameter must go into a comma separated CFN parameter.
         """
-        return str(",".join(self.value) if self.value else self.map.get("default", "NONE"))
+        return str(",".join(self.value) if self.value else self.definition.get("default", "NONE"))
 
     def get_default_value(self):
-        return self.map.get("default", [])
+        return self.definition.get("default", [])
 
 
 class FloatParam(Param):
@@ -371,8 +371,8 @@ class JsonParam(Param):
         return param_value
 
     def get_default_value(self):
-        """Get default value from the Param map, if there, {} otherwise."""
-        return self.map.get("default", {})
+        """Get default value from the Param definition, if there, {} otherwise."""
+        return self.definition.get("default", {})
 
 
 # ---------------------- custom Parameters ---------------------- #
@@ -394,7 +394,7 @@ class SharedDirParam(Param):
         cfn_params = {}
         # if not contains ebs_settings --> single SharedDir
         if not self.pcluster_config.get_section("ebs"):
-            cfn_params.update({self.map.get("cfn_param_mapping"): self.get_cfn_value()})
+            cfn_params.update({self.definition.get("cfn_param_mapping"): self.get_cfn_value()})
         # else: there are ebs volumes, let the EBSSettings populate the SharedDir CFN parameter.
         return cfn_params
 
@@ -417,17 +417,17 @@ class SpotPriceParam(FloatParam):
     """
 
     def _init_from_cfn(self, cfn_params=None, cfn_value=None):
-        """Initialize param value by parsing CFN input if the scheduler is a traditional one, from map otherwise."""
-        cfn_converter = self.map.get("cfn_param_mapping", None)
+        """Initialize param value by parsing CFN input for traditional scheduler, from definition otherwise."""
+        cfn_converter = self.definition.get("cfn_param_mapping", None)
         if cfn_converter and cfn_params:
             if get_cfn_param(cfn_params, "Scheduler") == "awsbatch":
-                self._init_from_map()
+                self._init_from_definition()
             else:
                 self.value = float(get_cfn_param(cfn_params, cfn_converter))
         elif cfn_value:
             self.value = self.get_value_from_string(cfn_value)
         else:
-            self._init_from_map()
+            self._init_from_definition()
 
     def to_cfn(self):
         """Convert parameter to CFN representation."""
@@ -436,7 +436,7 @@ class SpotPriceParam(FloatParam):
         cluster_config = self.pcluster_config.get_section(self.section_key)
         if cluster_config.get_param_value("scheduler") != "awsbatch":
             cfn_value = cluster_config.get_param_value("spot_price")
-            cfn_params.update({self.map.get("cfn_param_mapping"): str(cfn_value)})
+            cfn_params.update({self.definition.get("cfn_param_mapping"): str(cfn_value)})
 
         return cfn_params
 
@@ -451,19 +451,19 @@ class SpotBidPercentageParam(IntParam):
     """
 
     def _init_from_cfn(self, cfn_params=None, cfn_value=None):
-        """Initialize param value by parsing CFN input if the scheduler is awsbatch, from map otherwise."""
-        cfn_converter = self.map.get("cfn_param_mapping", None)
+        """Initialize param value by parsing CFN input if the scheduler is awsbatch, from definition otherwise."""
+        cfn_converter = self.definition.get("cfn_param_mapping", None)
         if cfn_converter and cfn_params:
             if get_cfn_param(cfn_params, "Scheduler") == "awsbatch":
                 # we have the same CFN input parameters for both spot_price and spot_bid_percentage
                 # so the CFN input could be a float
                 self.value = int(float(get_cfn_param(cfn_params, cfn_converter)))
             else:
-                self._init_from_map()
+                self._init_from_definition()
         elif cfn_value:
             self.value = self.get_value_from_string(cfn_value)
         else:
-            self._init_from_map()
+            self._init_from_definition()
 
     def to_cfn(self):
         """Convert parameter to CFN representation."""
@@ -472,7 +472,7 @@ class SpotBidPercentageParam(IntParam):
         cluster_config = self.pcluster_config.get_section(self.section_key)
         if cluster_config.get_param_value("scheduler") == "awsbatch":
             cfn_value = cluster_config.get_param_value("spot_bid_percentage")
-            cfn_params.update({self.map.get("cfn_param_mapping"): str(cfn_value)})
+            cfn_params.update({self.definition.get("cfn_param_mapping"): str(cfn_value)})
 
         return cfn_params
 
@@ -488,31 +488,31 @@ class QueueSizeParam(IntParam):
 
     def _init_from_cfn(self, cfn_params=None, cfn_value=None):
         """Initialize param value by parsing the right CFN input according to the scheduler."""
-        cfn_converter = self.map.get("cfn_param_mapping", None)
+        cfn_converter = self.definition.get("cfn_param_mapping", None)
         if cfn_converter and cfn_params:
             cfn_value = get_cfn_param(cfn_params, cfn_converter) if cfn_converter else "NONE"
 
             # traditional scheduler parameter
             if self.key == "initial_queue_size" or self.key == "max_queue_size":
 
-                # initialize the value from cfn or from map according to the scheduler
+                # initialize the value from cfn or from definition according to the scheduler
                 if get_cfn_param(cfn_params, "Scheduler") == "awsbatch":
-                    self._init_from_map()
+                    self._init_from_definition()
                 else:
                     self.value = self.get_value_from_string(cfn_value)
 
             # awsbatch scheduler parameter
             elif self.key == "desired_vcpus" or self.key == "max_vcpus" or self.key == "min_vcpus":
 
-                # initialize the value from cfn or from map according to the scheduler
+                # initialize the value from cfn or from definition according to the scheduler
                 if get_cfn_param(cfn_params, "Scheduler") == "awsbatch":
                     self.value = self.get_value_from_string(cfn_value)
                 else:
-                    self._init_from_map()
+                    self._init_from_definition()
         elif cfn_value:
             self.value = self.get_value_from_string(cfn_value)
         else:
-            self._init_from_map()
+            self._init_from_definition()
 
     def to_cfn(self):
         """Convert parameter to CFN representation."""
@@ -529,7 +529,7 @@ class QueueSizeParam(IntParam):
             and (self.key == "desired_vcpus" or self.key == "max_vcpus" or self.key == "min_vcpus")
         ):
             cfn_value = cluster_config.get_param_value(self.key)
-            cfn_params.update({self.map.get("cfn_param_mapping"): str(cfn_value)})
+            cfn_params.update({self.definition.get("cfn_param_mapping"): str(cfn_value)})
 
         return cfn_params
 
@@ -545,11 +545,11 @@ class MaintainInitialSizeParam(BoolParam):
 
     def _init_from_cfn(self, cfn_params=None, cfn_value=None):
         """Initialize param value by parsing the right CFN input according to the scheduler."""
-        cfn_converter = self.map.get("cfn_param_mapping", None)
+        cfn_converter = self.definition.get("cfn_param_mapping", None)
         if cfn_converter and cfn_params:
-            # initialize the value from cfn or from map according to the scheduler
+            # initialize the value from cfn or from definition according to the scheduler
             if get_cfn_param(cfn_params, "Scheduler") == "awsbatch":
-                self._init_from_map()
+                self._init_from_definition()
             else:
                 # MinSize param > 0 means that maintain_initial_size was set to true at cluster creation
                 min_size_cfn_value = get_cfn_param(cfn_params, cfn_converter) if cfn_converter else "0"
@@ -558,7 +558,7 @@ class MaintainInitialSizeParam(BoolParam):
         elif cfn_value:
             self.value = self.get_value_from_string(cfn_value)
         else:
-            self._init_from_map()
+            self._init_from_definition()
 
     def to_cfn(self):
         """Convert parameter to CFN representation."""
@@ -568,7 +568,7 @@ class MaintainInitialSizeParam(BoolParam):
         if cluster_config.get_param_value("scheduler") != "awsbatch":
             cfn_value = cluster_config.get_param_value("maintain_initial_size")
             min_size_value = cluster_config.get_param_value("initial_queue_size") if cfn_value else "0"
-            cfn_params.update({self.map.get("cfn_param_mapping"): str(min_size_value)})
+            cfn_params.update({self.definition.get("cfn_param_mapping"): str(min_size_value)})
 
         return cfn_params
 
@@ -579,7 +579,7 @@ class AdditionalIamPoliciesParam(CommaSeparatedParam):
         section_key,
         section_label,
         param_key,
-        param_map,
+        param_definition,
         pcluster_config,
         cfn_value=None,
         config_parser=None,
@@ -587,7 +587,14 @@ class AdditionalIamPoliciesParam(CommaSeparatedParam):
     ):
         self.aws_batch_iam_policy = "arn:{0}:iam::aws:policy/AWSBatchFullAccess".format(get_partition())
         super(CommaSeparatedParam, self).__init__(
-            section_key, section_label, param_key, param_map, pcluster_config, cfn_value, config_parser, cfn_params
+            section_key,
+            section_label,
+            param_key,
+            param_definition,
+            pcluster_config,
+            cfn_value,
+            config_parser,
+            cfn_params,
         )
 
     def to_file(self, config_parser):
@@ -646,18 +653,25 @@ class SettingsParam(Param):
         section_key,
         section_label,
         param_key,
-        param_map,
+        param_definition,
         pcluster_config,
         cfn_value=None,
         config_parser=None,
         cfn_params=None,
     ):
         """Extend Param by adding info regarding the section referred by the settings."""
-        self.related_section_map = param_map.get("referred_section")
-        self.related_section_key = self.related_section_map.get("key")
-        self.related_section_type = self.related_section_map.get("type")
+        self.related_section_definition = param_definition.get("referred_section")
+        self.related_section_key = self.related_section_definition.get("key")
+        self.related_section_type = self.related_section_definition.get("type")
         super(SettingsParam, self).__init__(
-            section_key, section_label, param_key, param_map, pcluster_config, cfn_value, config_parser, cfn_params
+            section_key,
+            section_label,
+            param_key,
+            param_definition,
+            pcluster_config,
+            cfn_value,
+            config_parser,
+            cfn_params,
         )
 
     def _init_from_file(self, config_parser):
@@ -679,7 +693,7 @@ class SettingsParam(Param):
                 else:
                     # Calls the "from_file" of the Section
                     section = self.related_section_type(
-                        self.related_section_map,
+                        self.related_section_definition,
                         self.pcluster_config,
                         section_label=self.value,
                         config_parser=config_parser,
@@ -687,24 +701,24 @@ class SettingsParam(Param):
                     )
                     self.pcluster_config.add_section(section)
         except NoOptionError:
-            self._init_from_map()
+            self._init_from_definition()
 
     def _init_from_cfn(self, cfn_params=None, cfn_value=None):
         """Initialize section configuration parameters referred by the settings value by parsing CFN parameters."""
-        self.value = self.map.get("default", None)
+        self.value = self.definition.get("default", None)
         if cfn_params:
             section = self.related_section_type(
-                self.related_section_map, self.pcluster_config, section_label=self.value, cfn_params=cfn_params
+                self.related_section_definition, self.pcluster_config, section_label=self.value, cfn_params=cfn_params
             )
             self.pcluster_config.add_section(section)
 
-    def _init_from_map(self):
-        self.value = self.map.get("default", None)
+    def _init_from_definition(self):
+        self.value = self.definition.get("default", None)
         if self.value:
             # the SettingsParam has a default label, it means that it is required to initialize the
             # the related section with default values.
             LOGGER.debug("Initializing default Section '[%s %s]'", self.key, self.value)
-            # Use the label defined in the SettingsParam map
+            # Use the label defined in the SettingsParam definition
             if "," in self.value:
                 error(
                     "The default value of '{0}' parameter is invalid. "
@@ -712,7 +726,7 @@ class SettingsParam(Param):
                 )
             else:
                 section = self.related_section_type(
-                    self.related_section_map, self.pcluster_config, section_label=self.value
+                    self.related_section_definition, self.pcluster_config, section_label=self.value
                 )
                 self.pcluster_config.add_section(section)
 
@@ -724,10 +738,10 @@ class SettingsParam(Param):
             # add "*_settings = *" to the parent section
             # only if at least one parameter value is different from the default
             settings_param_created = False
-            for param_key, param_map in self.related_section_map.get("params").items():
+            for param_key, param_definition in self.related_section_definition.get("params").items():
                 param_value = section.get_param_value(param_key)
 
-                if not settings_param_created and param_value != param_map.get("default", None):
+                if not settings_param_created and param_value != param_definition.get("default", None):
                     config_section_name = _get_file_section_name(self.section_key, self.section_label)
                     try:
                         # add parent section, if not present
@@ -748,7 +762,7 @@ class SettingsParam(Param):
         section = self.pcluster_config.get_section(self.related_section_key, self.value)
         if not section:
             # Crate a default section and convert it to cfn, to populate with default values (e.g. NONE)
-            section = self.related_section_type(self.related_section_map, self.pcluster_config)
+            section = self.related_section_type(self.related_section_definition, self.pcluster_config)
 
         cfn_params.update(section.to_cfn())
 
@@ -777,7 +791,7 @@ class EBSSettingsParam(SettingsParam):
             if self.value:
                 for section_label in self.value.split(","):
                     section = self.related_section_type(
-                        self.related_section_map,
+                        self.related_section_definition,
                         self.pcluster_config,
                         section_label=section_label.strip(),
                         config_parser=config_parser,
@@ -785,7 +799,7 @@ class EBSSettingsParam(SettingsParam):
                     )
                     self.pcluster_config.add_section(section)
         except NoOptionError:
-            self._init_from_map()
+            self._init_from_definition()
 
     def _init_from_cfn(self, cfn_params=None, cfn_value=None):
         """Init ebs section only if there are more than one ebs (the default one)."""
@@ -800,26 +814,26 @@ class EBSSettingsParam(SettingsParam):
                     labels.append(label)
 
                     # create empty section
-                    related_section_type = self.related_section_map.get("type", Section)
-                    related_section = related_section_type(self.related_section_map, self.pcluster_config, label)
+                    related_section_type = self.related_section_definition.get("type", Section)
+                    related_section = related_section_type(self.related_section_definition, self.pcluster_config, label)
 
-                    for param_key, param_map in self.related_section_map.get("params").items():
-                        cfn_converter = param_map.get("cfn_param_mapping", None)
+                    for param_key, param_definition in self.related_section_definition.get("params").items():
+                        cfn_converter = param_definition.get("cfn_param_mapping", None)
                         if cfn_converter:
 
-                            param_type = param_map.get("type", Param)
+                            param_type = param_definition.get("type", Param)
                             cfn_value = get_cfn_param(cfn_params, cfn_converter).split(",")[index]
                             param = param_type(
                                 self.section_key,
                                 self.section_label,
                                 param_key,
-                                param_map,
+                                param_definition,
                                 self.pcluster_config,
                                 cfn_value=cfn_value,
                             )
                             related_section.add_param(param)
 
-                            if param.value != param_map.get("default", None):
+                            if param.value != param_definition.get("default", None):
                                 configured_params = True
 
                     if configured_params:
@@ -861,13 +875,13 @@ class EBSSettingsParam(SettingsParam):
 
         cfn_params = {}
         number_of_ebs_sections = len(sections)
-        for param_key, param_map in self.related_section_map.get("params").items():
+        for param_key, param_definition in self.related_section_definition.get("params").items():
             if number_of_ebs_sections == 0 and param_key == "shared_dir":
                 # The same CFN parameter is used for both single and multiple EBS cases
                 # if there are no ebs volumes, let the SharedDirParam populate the "SharedDir" CFN parameter.
                 continue
 
-            cfn_converter = param_map.get("cfn_param_mapping", None)
+            cfn_converter = param_definition.get("cfn_param_mapping", None)
             if cfn_converter:
 
                 cfn_value_list = []
@@ -877,13 +891,17 @@ class EBSSettingsParam(SettingsParam):
                         cfn_value_list.append(param.to_cfn().get(cfn_converter))
                     else:
                         # define a "default" param and convert it to cfn
-                        param_type = param_map.get("type", Param)
-                        param = param_type(section.key, section_label, param_key, param_map, self.pcluster_config)
+                        param_type = param_definition.get("type", Param)
+                        param = param_type(
+                            section.key, section_label, param_key, param_definition, self.pcluster_config
+                        )
                         cfn_value_list.append(param.to_cfn().get(cfn_converter))
 
                 # add missing items until the max, with a default param
-                param_type = param_map.get("type", Param)
-                param = param_type(self.related_section_key, "default", param_key, param_map, self.pcluster_config)
+                param_type = param_definition.get("type", Param)
+                param = param_type(
+                    self.related_section_key, "default", param_key, param_definition, self.pcluster_config
+                )
                 cfn_value_list.extend(
                     [param.to_cfn().get(cfn_converter)] * (max_number_of_ebs_volumes - number_of_ebs_sections)
                 )
@@ -906,16 +924,16 @@ class Section(object):
 
     def __init__(
         self,
-        section_map,
+        section_definition,
         pcluster_config,
         section_label=None,
         cfn_params=None,
         config_parser=None,
         fail_on_absence=False,
     ):
-        self.map = section_map
-        self.key = section_map.get("key")
-        self.label = section_label or self.map.get("default_label", "")
+        self.definition = section_definition
+        self.key = section_definition.get("key")
+        self.label = section_label or self.definition.get("default_label", "")
         self.pcluster_config = pcluster_config
 
         # initialize section_dict
@@ -937,25 +955,25 @@ class Section(object):
 
     def _init_params_from_file(self, config_parser):
         """Initialize section configuration parameters by parsing config file."""
-        section_map_items = self.map.get("params")
+        section_definition_items = self.definition.get("params")
         section_name = _get_file_section_name(self.key, self.label)
 
         if config_parser.has_section(section_name):
-            for param_key, param_map in section_map_items.items():
-                param_type = param_map.get("type", Param)
+            for param_key, param_definition in section_definition_items.items():
+                param_type = param_definition.get("type", Param)
 
                 param = param_type(
                     self.key,
                     self.label,
                     param_key,
-                    param_map,
+                    param_definition,
                     pcluster_config=self.pcluster_config,
                     config_parser=config_parser,
                 )
                 self.add_param(param)
 
                 not_valid_keys = [
-                    key for key, value in config_parser.items(section_name) if key not in section_map_items
+                    key for key, value in config_parser.items(section_name) if key not in section_definition_items
                 ]
                 if not_valid_keys:
                     error(
@@ -971,13 +989,13 @@ class Section(object):
 
     def _init_params_from_cfn(self, cfn_params):
         """Initialize section configuration parameters by parsing CFN parameters."""
-        cfn_converter = self.map.get("cfn_param_mapping", None)
+        cfn_converter = self.definition.get("cfn_param_mapping", None)
         if cfn_converter:
             # It is a section converted to a single CFN parameter
             cfn_values = get_cfn_param(cfn_params, cfn_converter).split(",")
 
             cfn_param_index = 0
-            for param_key, param_map in self.map.get("params").items():
+            for param_key, param_definition in self.definition.get("params").items():
                 try:
                     cfn_value = cfn_values[cfn_param_index]
                 except IndexError:
@@ -985,25 +1003,25 @@ class Section(object):
                     # so it is set to a single NONE value
                     cfn_value = "NONE"
 
-                param_type = param_map.get("type", Param)
+                param_type = param_definition.get("type", Param)
                 param = param_type(
-                    self.key, self.label, param_key, param_map, self.pcluster_config, cfn_value=cfn_value
+                    self.key, self.label, param_key, param_definition, self.pcluster_config, cfn_value=cfn_value
                 )
 
                 self.add_param(param)
                 cfn_param_index += 1
         else:
-            for param_key, param_map in self.map.get("params").items():
-                param_type = param_map.get("type", Param)
+            for param_key, param_definition in self.definition.get("params").items():
+                param_type = param_definition.get("type", Param)
                 param = param_type(
-                    self.key, self.label, param_key, param_map, self.pcluster_config, cfn_params=cfn_params
+                    self.key, self.label, param_key, param_definition, self.pcluster_config, cfn_params=cfn_params
                 )
                 self.add_param(param)
 
     def _init_params_from_map(self):
-        for param_key, param_map in self.map.get("params").items():
-            param_type = param_map.get("type", Param)
-            param = param_type(self.key, self.label, param_key, param_map, self.pcluster_config)
+        for param_key, param_definition in self.definition.get("params").items():
+            param_type = param_definition.get("type", Param)
+            param = param_type(self.key, self.label, param_key, param_definition, self.pcluster_config)
             self.add_param(param)
 
     def validate(self, fail_on_error=True):
@@ -1012,7 +1030,7 @@ class Section(object):
             section_name = _get_file_section_name(self.key, self.label)
 
             # validate section
-            for validation_func in self.map.get("validators", []):
+            for validation_func in self.definition.get("validators", []):
                 errors, warnings = validation_func(self.key, self.label, self.pcluster_config)
                 if errors:
                     error(
@@ -1025,29 +1043,31 @@ class Section(object):
                     LOGGER.debug("Section '[%s]' is valid", section_name)
 
             # validate items
-            for param_key, param_map in self.map.get("params").items():
-                param_type = param_map.get("type", Param)
+            for param_key, param_definition in self.definition.get("params").items():
+                param_type = param_definition.get("type", Param)
 
                 param = self.get_param(param_key)
                 if param:
                     param.validate(fail_on_error)
                 else:
                     # define a default param and validate it
-                    param_type(self.key, self.label, param_key, param_map, self.pcluster_config).validate(fail_on_error)
+                    param_type(self.key, self.label, param_key, param_definition, self.pcluster_config).validate(
+                        fail_on_error
+                    )
 
     def to_file(self, config_parser):
         """Create the section and add all the parameters in the config_parser."""
         config_section_name = _get_file_section_name(self.key, self.label)
         config_section_created = False
 
-        for param_key, param_map in self.map.get("params").items():
+        for param_key, param_definition in self.definition.get("params").items():
             param = self.get_param(param_key)
             if not param:
                 # generate a default param
-                param_type = param_map.get("type", Param)
-                param = param_type(self.key, self.label, param_key, param_map, self.pcluster_config)
+                param_type = param_definition.get("type", Param)
+                param = param_type(self.key, self.label, param_key, param_definition, self.pcluster_config)
 
-            if not config_section_created and param.value != param_map.get("default", None):
+            if not config_section_created and param.value != param_definition.get("default", None):
                 # write section in the config file only if at least one parameter value is different by the default
                 try:
                     config_parser.add_section(config_section_name)
@@ -1062,38 +1082,38 @@ class Section(object):
         """
         Convert section to CFN representation.
 
-        The section is converted to a single CFN parameter if "cfn_param_mapping" is present in the Section map,
+        The section is converted to a single CFN parameter if "cfn_param_mapping" is present in the Section definition,
         otherwise each parameter of the section will be converted to the respective CFN parameter.
         """
         cfn_params = {}
-        cfn_converter = self.map.get("cfn_param_mapping", None)
+        cfn_converter = self.definition.get("cfn_param_mapping", None)
         if cfn_converter:
             # it is a section converted to a single CFN parameter
             cfn_items = []
-            for param_key, param_map in self.map.get("params").items():
+            for param_key, param_definition in self.definition.get("params").items():
                 param = self.get_param(param_key)
                 if param:
                     cfn_items.append(param.get_cfn_value())
                 else:
-                    param_type = param_map.get("type", Param)
-                    param = param_type(self.key, self.label, param_key, param_map, self.pcluster_config)
+                    param_type = param_definition.get("type", Param)
+                    param = param_type(self.key, self.label, param_key, param_definition, self.pcluster_config)
                     cfn_items.append(param.get_cfn_value())
 
             if cfn_items[0] == "NONE":
                 # empty dict or first item is NONE --> set all values to NONE
-                cfn_items = ["NONE"] * len(self.map.get("params"))
+                cfn_items = ["NONE"] * len(self.definition.get("params"))
 
             cfn_params.update({cfn_converter: ",".join(cfn_items)})
         else:
             # get value from config object
-            for param_key, param_map in self.map.get("params").items():
+            for param_key, param_definition in self.definition.get("params").items():
                 param = self.get_param(param_key)
                 if param:
                     cfn_params.update(param.to_cfn())
                 else:
                     # set CFN value from a default param
-                    param_type = param_map.get("type", Param)
-                    param = param_type(self.key, self.label, param_key, param_map, self.pcluster_config)
+                    param_type = param_definition.get("type", Param)
+                    param = param_type(self.key, self.label, param_key, param_definition, self.pcluster_config)
                     cfn_params.update(param.to_cfn())
 
         return cfn_params
@@ -1143,27 +1163,27 @@ class EFSSection(Section):
         """
         Convert section to CFN representation.
 
-        In addition to the conversion of the parameter contained in the section map,
+        In addition to the conversion of the parameter contained in the section definition,
         it also add a final value in the CFN param that identifies if exists or not
         a valid Mount Target for the given EFS FS Id.
         """
         cfn_params = {}
-        cfn_converter = self.map.get("cfn_param_mapping", None)
+        cfn_converter = self.definition.get("cfn_param_mapping", None)
 
         cfn_items = []
-        for param_key, param_map in self.map.get("params").items():
+        for param_key, param_definition in self.definition.get("params").items():
             param = self.get_param(param_key)
             if param:
                 cfn_items.append(param.get_cfn_value())
             else:
-                param_type = param_map.get("type", Param)
-                param = param_type(self.key, self.label, param_key, param_map, self.pcluster_config)
+                param_type = param_definition.get("type", Param)
+                param = param_type(self.key, self.label, param_key, param_definition, self.pcluster_config)
                 cfn_items.append(param.get_cfn_value())
 
         if cfn_items[0] == "NONE":
             efs_section_valid = False
             # empty dict or first item is NONE --> set all values to NONE
-            cfn_items = ["NONE"] * len(self.map.get("params"))
+            cfn_items = ["NONE"] * len(self.definition.get("params"))
         else:
             # add another CFN param that will identify if create or not a Mount Target for the given EFS FS Id
             master_avail_zone = self.pcluster_config.get_master_availability_zone()
@@ -1195,7 +1215,7 @@ class ClusterSection(Section):
         """
         Convert section to CFN representation.
 
-        In addition to the conversion of the parameter contained in the section map,
+        In addition to the conversion of the parameter contained in the section definition,
         it also add a CFN param that identifies the label in the template.
         [cluster test] --> test will be the CLITemplate CFN parameter.
         """

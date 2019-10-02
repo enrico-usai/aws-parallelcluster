@@ -12,11 +12,11 @@ import pytest
 
 from assertpy import assert_that
 from pcluster.config.mappings import CLUSTER, SCALING
-from tests.pcluster.config.utils import get_mocked_pcluster_config, get_param_map
+from tests.pcluster.config.utils import get_mocked_pcluster_config, get_param_definition
 
 
 @pytest.mark.parametrize(
-    "section_map, param_key, param_value, expected_value",
+    "section_definition, param_key, param_value, expected_value",
     [
         # Param
         (CLUSTER, "key_name", None, "NONE"),
@@ -46,18 +46,18 @@ from tests.pcluster.config.utils import get_mocked_pcluster_config, get_param_ma
         (CLUSTER, "additional_iam_policies", ["policy1", "policy2"], "policy1,policy2"),
     ],
 )
-def test_param_to_cfn_value(mocker, section_map, param_key, param_value, expected_value):
+def test_param_to_cfn_value(mocker, section_definition, param_key, param_value, expected_value):
     pcluster_config = get_mocked_pcluster_config(mocker)
 
-    param_map, param_type = get_param_map(section_map, param_key)
-    param = param_type(section_map.get("key"), "default", param_key, param_map, pcluster_config)
+    param_definition, param_type = get_param_definition(section_definition, param_key)
+    param = param_type(section_definition.get("key"), "default", param_key, param_definition, pcluster_config)
     param.value = param_value
     cfn_value = param.get_cfn_value()
     assert_that(cfn_value).is_equal_to(expected_value)
 
 
 @pytest.mark.parametrize(
-    "section_map, param_key, param_value, expected_cfn_params",
+    "section_definition, param_key, param_value, expected_cfn_params",
     [
         # Param
         (CLUSTER, "key_name", None, {"KeyName": "NONE"}),
@@ -77,11 +77,11 @@ def test_param_to_cfn_value(mocker, section_map, param_key, param_value, expecte
         # (CLUSTER, "shared_dir", {"ebs": [{"label": "fake_ebs"}], "shared_dir": "unused_value"}, {}),
     ],
 )
-def test_param_to_cfn(mocker, section_map, param_key, param_value, expected_cfn_params):
+def test_param_to_cfn(mocker, section_definition, param_key, param_value, expected_cfn_params):
     pcluster_config = get_mocked_pcluster_config(mocker)
 
-    param_map, param_type = get_param_map(section_map, param_key)
-    param = param_type(section_map.get("key"), "default", param_key, param_map, pcluster_config)
+    param_definition, param_type = get_param_definition(section_definition, param_key)
+    param = param_type(section_definition.get("key"), "default", param_key, param_definition, pcluster_config)
     param.value = param_value
     cfn_params = param.to_cfn()
     assert_that(cfn_params).is_equal_to(expected_cfn_params)

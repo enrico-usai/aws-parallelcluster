@@ -23,9 +23,9 @@ from pcluster.config.pcluster_config import PclusterConfig
 from tests.pcluster.config.defaults import CFN_CONFIG_NUM_OF_PARAMS, DefaultDict
 
 
-def get_param_map(section_map, param_key):
-    param_map = section_map.get("params").get(param_key)
-    return param_map, param_map.get("type", Param)
+def get_param_definition(section_definition, param_key):
+    param_definition = section_definition.get("params").get(param_key)
+    return param_definition, param_definition.get("type", Param)
 
 
 def merge_dicts(*args):
@@ -41,9 +41,9 @@ def get_pcluster_config_example():
     return os.path.join(current_dir, "..", "..", "..", "pcluster", "examples", "config")
 
 
-def assert_param_from_file(mocker, section_map, param_key, param_value, expected_value, expected_message):
-    section_label = section_map.get("default_label")
-    section_name = "{0}{1}".format(section_map.get("key"), " {0}".format(section_label) if section_label else "")
+def assert_param_from_file(mocker, section_definition, param_key, param_value, expected_value, expected_message):
+    section_label = section_definition.get("default_label")
+    section_name = "{0}{1}".format(section_definition.get("key"), " {0}".format(section_label) if section_label else "")
     config_parser = configparser.ConfigParser()
     config_parser.add_section(section_name)
 
@@ -52,21 +52,26 @@ def assert_param_from_file(mocker, section_map, param_key, param_value, expected
     if param_value:
         config_parser.set(section_name, param_key, param_value)
 
-    param_map, param_type = get_param_map(section_map, param_key)
+    param_definition, param_type = get_param_definition(section_definition, param_key)
 
     if expected_message:
         with pytest.raises(SystemExit, match=expected_message):
             param_type(
-                section_map.get("key"),
+                section_definition.get("key"),
                 section_label,
                 param_key,
-                param_map,
+                param_definition,
                 pcluster_config,
                 config_parser=config_parser,
             )
     else:
         param = param_type(
-            section_map.get("key"), section_label, param_key, param_map, pcluster_config, config_parser=config_parser
+            section_definition.get("key"),
+            section_label,
+            param_key,
+            param_definition,
+            pcluster_config,
+            config_parser=config_parser,
         )
         assert_that(param.value, description="{0} assert fail".format(param.key)).is_equal_to(expected_value)
 
@@ -85,7 +90,7 @@ def assert_param_validator(mocker, config_parser_dict, expected_message=None):
         _ = init_pcluster_config_from_configparser(config_parser)
 
 
-def assert_section_from_cfn(mocker, section_map, cfn_params_dict, expected_section_dict):
+def assert_section_from_cfn(mocker, section_definition, cfn_params_dict, expected_section_dict):
 
     cfn_params = []
     for cfn_key, cfn_value in cfn_params_dict.items():
@@ -93,14 +98,14 @@ def assert_section_from_cfn(mocker, section_map, cfn_params_dict, expected_secti
 
     pcluster_config = get_mocked_pcluster_config(mocker)
 
-    section_type = section_map.get("type")
-    section = section_type(section_map, pcluster_config, cfn_params=cfn_params)
+    section_type = section_definition.get("type")
+    section = section_type(section_definition, pcluster_config, cfn_params=cfn_params)
 
     if section.label:
         assert_that(section.label).is_equal_to("default")
 
     # update expected dictionary
-    default_dict = DefaultDict[section_map.get("key")].value
+    default_dict = DefaultDict[section_definition.get("key")].value
     expected_dict = default_dict.copy()
     if isinstance(expected_section_dict, dict):
         expected_dict.update(expected_section_dict)
@@ -117,12 +122,12 @@ def get_mocked_pcluster_config(mocker):
     return PclusterConfig(config_file="wrong-file", file_sections=[GLOBAL, ALIASES, CLUSTER])
 
 
-def assert_section_from_file(mocker, section_map, config_parser_dict, expected_dict_params, expected_message):
+def assert_section_from_file(mocker, section_definition, config_parser_dict, expected_dict_params, expected_message):
     config_parser = configparser.ConfigParser()
     config_parser.read_dict(config_parser_dict)
 
     # update expected dictionary
-    default_dict_key = section_map.get("key")
+    default_dict_key = section_definition.get("key")
     if default_dict_key == "global":
         default_dict_key += "_"
     default_dict = DefaultDict[default_dict_key].value
@@ -132,12 +137,12 @@ def assert_section_from_file(mocker, section_map, config_parser_dict, expected_d
 
     pcluster_config = get_mocked_pcluster_config(mocker)
 
-    section_type = section_map.get("type")
+    section_type = section_definition.get("type")
     if expected_message:
         with pytest.raises(SystemExit, match=expected_message):
-            _ = section_type(section_map, pcluster_config, config_parser=config_parser)
+            _ = section_type(section_definition, pcluster_config, config_parser=config_parser)
     else:
-        section = section_type(section_map, pcluster_config, config_parser=config_parser)
+        section = section_type(section_definition, pcluster_config, config_parser=config_parser)
         section_dict = {}
         for param_key, param in section.params.items():
             section_dict.update({param_key: param.value})
@@ -145,19 +150,19 @@ def assert_section_from_file(mocker, section_map, config_parser_dict, expected_d
         assert_that(section_dict).is_equal_to(expected_dict)
 
 
-def assert_section_to_file(mocker, section_map, section_dict, expected_config_parser_dict, expected_message):
+def assert_section_to_file(mocker, section_definition, section_dict, expected_config_parser_dict, expected_message):
     expected_config_parser = configparser.ConfigParser()
     expected_config_parser.read_dict(expected_config_parser_dict)
 
     pcluster_config = get_mocked_pcluster_config(mocker)
 
     output_config_parser = configparser.ConfigParser()
-    section_type = section_map.get("type")
-    section = section_type(section_map, pcluster_config, section_label="default")
+    section_type = section_definition.get("type")
+    section = section_type(section_definition, pcluster_config, section_label="default")
 
     for param_key, param_value in section_dict.items():
-        param_map, param_type = get_param_map(section.map, param_key)
-        param = param_type(section_map.get("key"), "default", param_key, param_map, pcluster_config)
+        param_definition, param_type = get_param_definition(section.definition, param_key)
+        param = param_type(section_definition.get("key"), "default", param_key, param_definition, pcluster_config)
         param.value = param_value
         section.add_param(param)
 
@@ -179,15 +184,15 @@ def assert_section_to_file(mocker, section_map, section_dict, expected_config_pa
                 assert_that(output_config_parser.get(section_key, param_key)).is_equal_to(param_value)
 
 
-def assert_section_to_cfn(mocker, section_map, section_dict, expected_cfn_params):
+def assert_section_to_cfn(mocker, section_definition, section_dict, expected_cfn_params):
 
     pcluster_config = get_mocked_pcluster_config(mocker)
 
-    section_type = section_map.get("type")
-    section = section_type(section_map, pcluster_config)
+    section_type = section_definition.get("type")
+    section = section_type(section_definition, pcluster_config)
     for param_key, param_value in section_dict.items():
-        param_map, param_type = get_param_map(section_map, param_key)
-        param = param_type(section_map.get("key"), "default", param_key, param_map, pcluster_config)
+        param_definition, param_type = get_param_definition(section_definition, param_key)
+        param = param_type(section_definition.get("key"), "default", param_key, param_definition, pcluster_config)
         param.value = param_value
         section.add_param(param)
     pcluster_config.add_section(section)
