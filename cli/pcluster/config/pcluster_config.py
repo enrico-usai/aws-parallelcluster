@@ -21,7 +21,7 @@ import configparser
 from botocore.exceptions import ClientError
 
 from pcluster.config.mappings import ALIASES, AWS, CLUSTER, GLOBAL
-from pcluster.utils import fail, get_instance_vcpus, get_latest_alinux_ami_id, get_stack_name, warn
+from pcluster.utils import error, get_instance_vcpus, get_latest_alinux_ami_id, get_stack_name, warn
 
 LOGGER = logging.getLogger(__name__)
 
@@ -107,7 +107,7 @@ class PclusterConfig(object):
                             os.path.sep,
                         )
                     )
-                fail(error_message)
+                error(error_message)
             else:
                 LOGGER.debug("Specified configuration file %s doesn't exist.", self.config_file)
         else:
@@ -288,7 +288,7 @@ class PclusterConfig(object):
             )
             self.add_section(section)
         except ClientError as e:
-            fail(
+            error(
                 "Unable to retrieve the configuration of the cluster '{0}'.\n{1}".format(
                     cluster_name, e.response.get("Error").get("Message")
                 )
@@ -358,24 +358,24 @@ class PclusterConfig(object):
             if code == "DryRunOperation":
                 pass
             elif code == "InstanceLimitExceeded":
-                fail(
+                error(
                     "The configured max size parameter {0} exceeds the AWS Account limit "
                     "in the {1} region.\n{2}".format(max_size, self.region, message)
                 )
             elif code == "InsufficientInstanceCapacity":
-                fail(
+                error(
                     "The configured max size parameter {0} exceeds the On-Demand capacity on AWS.\n{1}".format(
                         max_size, message
                     )
                 )
             elif code == "InsufficientFreeAddressesInSubnet":
-                fail(
+                error(
                     "The configured max size parameter {0} exceeds the number of free private IP addresses "
                     "available in the Compute subnet.\n{1}".format(max_size, message)
                 )
             elif code == "InvalidParameterCombination":
-                fail(message)
+                error(message)
             else:
-                fail(
+                error(
                     "Unable to check AWS Account limits. Please double check your cluster configuration.\n%s" % message
                 )

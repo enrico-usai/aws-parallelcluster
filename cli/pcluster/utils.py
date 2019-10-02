@@ -303,15 +303,10 @@ def warn(message):
     print("WARNING: {0}".format(message))
 
 
-def fail(message):
-    """Raise SystemExit exception and print an error message to the stderr."""
-    sys.exit("ERROR: {0}".format(message))
-
-
 def error(message, fail_on_error=True):
     """Print an error message and Raise SystemExit exception to the stderr if fail_on_error is true."""
     if fail_on_error:
-        fail(message)
+        sys.exit("ERROR: {0}".format(message))
     else:
         print("ERROR: {0}".format(message))
 
@@ -363,7 +358,7 @@ def get_latest_alinux_ami_id():
             .get("Value")
         )
     except ClientError as e:
-        fail("Unable to retrieve Amazon Linux AMI id.\n{0}".format(e.response.get("Error").get("Message")))
+        error("Unable to retrieve Amazon Linux AMI id.\n{0}".format(e.response.get("Error").get("Message")))
 
     return alinux_ami_id
 
