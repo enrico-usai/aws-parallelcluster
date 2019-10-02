@@ -10,15 +10,29 @@
 # limitations under the License.
 from future.moves.collections import OrderedDict
 
+import functools
 import logging
 import re
 
-from configparser import DuplicateSectionError, NoOptionError, NoSectionError
+from configparser import DuplicateSectionError, NoSectionError
 
 import yaml
 from pcluster.utils import error, get_avail_zone, get_cfn_param, get_efs_mount_target_id, get_partition, warn
 
 LOGGER = logging.getLogger(__name__)
+
+
+def handle_no_section_error(func):
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        try:
+            called_func = func(*args, **kwargs)
+        except NoSectionError as e:
+            error("Section '[{0}]' not found in the config file.".format(e.section))
+
+        return called_func
+
+    return wrapper
 
 
 # ---------------------- standard Parameters ---------------------- #
@@ -30,36 +44,16 @@ LOGGER = logging.getLogger(__name__)
 class Param(object):
     """Class to manage simple string configuration parameters."""
 
-    def __init__(
-        self,
-        section_key,
-        section_label,
-        param_key,
-        param_definition,
-        pcluster_config,
-        cfn_value=None,
-        config_parser=None,
-        cfn_params=None,
-    ):
+    def __init__(self, section_key, section_label, param_key, param_definition, pcluster_config):
         self.section_key = section_key
         self.section_label = section_label
         self.key = param_key
         self.definition = param_definition
         self.pcluster_config = pcluster_config
 
-        # initialize param value
-        if cfn_params or cfn_value:
-            self._init_from_cfn(cfn_params=cfn_params, cfn_value=cfn_value)
-        elif config_parser:
-            try:
-                self._init_from_file(config_parser)
-            except NoOptionError:
-                self._init_from_definition()
-            except NoSectionError:
-                section_name = _get_file_section_name(self.section_key, self.section_label)
-                error("Section '[{0}]' not found in the config file.".format(section_name))
-        else:
-            self._init_from_definition()
+        # initialize default value
+        self.value = None
+        self._from_definition()
 
     def get_value_from_string(self, string_value):
         """Return internal representation starting from CFN/user-input value."""
@@ -73,34 +67,44 @@ class Param(object):
 
         return param_value
 
-    def _init_from_file(self, config_parser):
+    @handle_no_section_error
+    def from_file(self, config_parser):
         """
-        Initialize param_value from config_parser.
+        Initialize parameter value from config_parser.
 
         :param config_parser: the configparser object from which get the parameter
-        :raise NoOptionError, NoSectionError if unable to get the param from config_parser
         """
         section_name = _get_file_section_name(self.section_key, self.section_label)
-        self.value = config_parser.get(section_name, self.key)
-        self._check_allowed_values()
+        if config_parser.has_option(section_name, self.key):
+            self.value = config_parser.get(section_name, self.key)
+            self._check_allowed_values()
 
-    def _init_from_cfn(self, cfn_params=None, cfn_value=None):
+        return self
+
+    def from_cfn_params(self, cfn_params):
         """
-        Initialize parameter value by parsing CFN input parameters or from a given value coming from CFN.
+        Initialize parameter value by parsing CFN input parameters.
 
         :param cfn_params: list of all the CFN parameters, used if "cfn_param_mapping" is specified in the definition
-        :param cfn_value: a value coming from a comma separated CFN param
         """
         cfn_converter = self.definition.get("cfn_param_mapping", None)
-        if cfn_converter and cfn_params:
+        if cfn_params:
             cfn_value = get_cfn_param(cfn_params, cfn_converter) if cfn_converter else "NONE"
             self.value = self.get_value_from_string(cfn_value)
-        elif cfn_value:
-            self.value = self.get_value_from_string(cfn_value)
-        else:
-            self._init_from_definition()
 
-    def _init_from_definition(self):
+        return self
+
+    def from_cfn_value(self, cfn_value):
+        """
+        Initialize parameter value by parsing from a given value coming from CFN.
+
+        :param cfn_value: a value coming from a comma separated CFN param
+        """
+        self.value = self.get_value_from_string(cfn_value)
+
+        return self
+
+    def _from_definition(self):
         """Initialize parameter value by using default specified in the mapping file."""
         self.value = self.get_default_value()
         if self.value:
@@ -183,17 +187,22 @@ class Param(object):
 
 
 class CommaSeparatedParam(Param):
-    def _init_from_file(self, config_parser):
+    """Class to manage comma separated parameters. E.g. additional_iam_policies."""
+
+    @handle_no_section_error
+    def from_file(self, config_parser):
         """
-        Initialize param_value from config_parser.
+        Initialize parameter value from config_parser.
 
         :param config_parser: the configparser object from which get the parameter
-        :raise NoOptionError, NoSectionError if unable to get the param from config_parser
         """
         section_name = _get_file_section_name(self.section_key, self.section_label)
-        config_value = config_parser.get(section_name, self.key)
-        self.value = list(map(lambda x: x.strip(), config_value.split(",")))
-        self._check_allowed_values()
+        if config_parser.has_option(section_name, self.key):
+            config_value = config_parser.get(section_name, self.key)
+            self.value = list(map(lambda x: x.strip(), config_value.split(",")))
+            self._check_allowed_values()
+
+        return self
 
     def to_file(self, config_parser):
         section_name = _get_file_section_name(self.section_key, self.section_label)
@@ -230,19 +239,22 @@ class CommaSeparatedParam(Param):
 class FloatParam(Param):
     """Class to manage float configuration parameters."""
 
-    def _init_from_file(self, config_parser):
+    @handle_no_section_error
+    def from_file(self, config_parser):
         """
-        Initialize param_value from config_parser.
+        Initialize parameter value from config_parser.
 
         :param config_parser: the configparser object from which get the parameter
-        :raise NoOptionError, NoSectionError if unable to get the param from config_parser
         """
         section_name = _get_file_section_name(self.section_key, self.section_label)
-        try:
-            self.value = config_parser.getfloat(section_name, self.key)
-            self._check_allowed_values()
-        except ValueError:
-            error("Configuration parameter '{0}' must be a Float".format(self.key))
+        if config_parser.has_option(section_name, self.key):
+            try:
+                self.value = config_parser.getfloat(section_name, self.key)
+                self._check_allowed_values()
+            except ValueError:
+                error("Configuration parameter '{0}' must be a Float".format(self.key))
+
+        return self
 
     def get_value_from_string(self, string_value):
         """Return internal representation starting from CFN/user-input value."""
@@ -262,19 +274,22 @@ class FloatParam(Param):
 class BoolParam(Param):
     """Class to manage boolean configuration parameters."""
 
-    def _init_from_file(self, config_parser):
+    @handle_no_section_error
+    def from_file(self, config_parser):
         """
-        Initialize param_value from config_parser.
+        Initialize parameter value from config_parser.
 
         :param config_parser: the configparser object from which get the parameter
-        :raise NoOptionError, NoSectionError if unable to get the param from config_parser
         """
         section_name = _get_file_section_name(self.section_key, self.section_label)
-        try:
-            self.value = config_parser.getboolean(section_name, self.key)
-            self._check_allowed_values()
-        except ValueError:
-            error("Configuration parameter '{0}' must be a Boolean".format(self.key))
+        if config_parser.has_option(section_name, self.key):
+            try:
+                self.value = config_parser.getboolean(section_name, self.key)
+                self._check_allowed_values()
+            except ValueError:
+                error("Configuration parameter '{0}' must be a Boolean".format(self.key))
+
+        return self
 
     def get_value_from_string(self, string_value):
         """Return internal representation starting from CFN/user-input value."""
@@ -312,19 +327,22 @@ class BoolParam(Param):
 class IntParam(Param):
     """Class to manage integer configuration parameters."""
 
-    def _init_from_file(self, config_parser):
+    @handle_no_section_error
+    def from_file(self, config_parser):
         """
         Initialize param_value from config_parser.
 
         :param config_parser: the configparser object from which get the parameter
-        :raise NoOptionError, NoSectionError if unable to get the param from config_parser
         """
         section_name = _get_file_section_name(self.section_key, self.section_label)
-        try:
-            self.value = config_parser.getint(section_name, self.key)
-            self._check_allowed_values()
-        except ValueError:
-            error("Configuration parameter '{0}' must be an Integer".format(self.key))
+        if config_parser.has_option(section_name, self.key):
+            try:
+                self.value = config_parser.getint(section_name, self.key)
+                self._check_allowed_values()
+            except ValueError:
+                error("Configuration parameter '{0}' must be an Integer".format(self.key))
+
+        return self
 
     def get_value_from_string(self, string_value):
         """Return internal representation starting from CFN/user-input value."""
@@ -343,17 +361,20 @@ class IntParam(Param):
 class JsonParam(Param):
     """Class to manage json configuration parameters."""
 
-    def _init_from_file(self, config_parser):
+    @handle_no_section_error
+    def from_file(self, config_parser):
         """
-        Initialize param_value from config_parser.
+        Initialize parameter value from config_parser.
 
         :param config_parser: the configparser object from which get the parameter
-        :raise NoOptionError, NoSectionError if unable to get the param from config_parser
         """
         section_name = _get_file_section_name(self.section_key, self.section_label)
-        item_value = config_parser.get(section_name, self.key)
-        self.value = self.get_value_from_string(item_value)
-        self._check_allowed_values()
+        if config_parser.has_option(section_name, self.key):
+            config_value = config_parser.get(section_name, self.key)
+            self.value = self.get_value_from_string(config_value)
+            self._check_allowed_values()
+
+        return self
 
     def get_value_from_string(self, string_value):
         """Return internal representation starting from CFN/user-input value."""
@@ -416,18 +437,14 @@ class SpotPriceParam(FloatParam):
     from "spot_price" when the scheduler is a traditional one.
     """
 
-    def _init_from_cfn(self, cfn_params=None, cfn_value=None):
-        """Initialize param value by parsing CFN input for traditional scheduler, from definition otherwise."""
+    def from_cfn_params(self, cfn_params):
+        """Initialize param value by parsing CFN input only if the scheduler is a traditional one."""
         cfn_converter = self.definition.get("cfn_param_mapping", None)
         if cfn_converter and cfn_params:
-            if get_cfn_param(cfn_params, "Scheduler") == "awsbatch":
-                self._init_from_definition()
-            else:
+            if get_cfn_param(cfn_params, "Scheduler") != "awsbatch":
                 self.value = float(get_cfn_param(cfn_params, cfn_converter))
-        elif cfn_value:
-            self.value = self.get_value_from_string(cfn_value)
-        else:
-            self._init_from_definition()
+
+        return self
 
     def to_cfn(self):
         """Convert parameter to CFN representation."""
@@ -450,20 +467,16 @@ class SpotBidPercentageParam(IntParam):
     from "spot_price" when the scheduler is a traditional one.
     """
 
-    def _init_from_cfn(self, cfn_params=None, cfn_value=None):
-        """Initialize param value by parsing CFN input if the scheduler is awsbatch, from definition otherwise."""
+    def from_cfn_params(self, cfn_params):
+        """Initialize param value by parsing CFN input only if the scheduler is awsbatch."""
         cfn_converter = self.definition.get("cfn_param_mapping", None)
         if cfn_converter and cfn_params:
             if get_cfn_param(cfn_params, "Scheduler") == "awsbatch":
                 # we have the same CFN input parameters for both spot_price and spot_bid_percentage
                 # so the CFN input could be a float
                 self.value = int(float(get_cfn_param(cfn_params, cfn_converter)))
-            else:
-                self._init_from_definition()
-        elif cfn_value:
-            self.value = self.get_value_from_string(cfn_value)
-        else:
-            self._init_from_definition()
+
+        return self
 
     def to_cfn(self):
         """Convert parameter to CFN representation."""
@@ -486,33 +499,25 @@ class QueueSizeParam(IntParam):
     from "*_queue_size" when the scheduler is a traditional one.
     """
 
-    def _init_from_cfn(self, cfn_params=None, cfn_value=None):
+    def from_cfn_params(self, cfn_params):
         """Initialize param value by parsing the right CFN input according to the scheduler."""
         cfn_converter = self.definition.get("cfn_param_mapping", None)
         if cfn_converter and cfn_params:
             cfn_value = get_cfn_param(cfn_params, cfn_converter) if cfn_converter else "NONE"
 
-            # traditional scheduler parameter
-            if self.key == "initial_queue_size" or self.key == "max_queue_size":
+            # initialize the value from cfn according to the scheduler
+            if (
+                # traditional scheduler parameter
+                get_cfn_param(cfn_params, "Scheduler") != "awsbatch"
+                and (self.key == "initial_queue_size" or self.key == "max_queue_size")
+            ) or (
+                # awsbatch scheduler parameters
+                get_cfn_param(cfn_params, "Scheduler") == "awsbatch"
+                and (self.key == "desired_vcpus" or self.key == "max_vcpus" or self.key == "min_vcpus")
+            ):
+                self.value = self.get_value_from_string(cfn_value)
 
-                # initialize the value from cfn or from definition according to the scheduler
-                if get_cfn_param(cfn_params, "Scheduler") == "awsbatch":
-                    self._init_from_definition()
-                else:
-                    self.value = self.get_value_from_string(cfn_value)
-
-            # awsbatch scheduler parameter
-            elif self.key == "desired_vcpus" or self.key == "max_vcpus" or self.key == "min_vcpus":
-
-                # initialize the value from cfn or from definition according to the scheduler
-                if get_cfn_param(cfn_params, "Scheduler") == "awsbatch":
-                    self.value = self.get_value_from_string(cfn_value)
-                else:
-                    self._init_from_definition()
-        elif cfn_value:
-            self.value = self.get_value_from_string(cfn_value)
-        else:
-            self._init_from_definition()
+        return self
 
     def to_cfn(self):
         """Convert parameter to CFN representation."""
@@ -543,22 +548,18 @@ class MaintainInitialSizeParam(BoolParam):
     merging info from "initial_queue_size" and "maintain_initial_size" when the scheduler is a traditional one.
     """
 
-    def _init_from_cfn(self, cfn_params=None, cfn_value=None):
-        """Initialize param value by parsing the right CFN input according to the scheduler."""
+    def from_cfn_params(self, cfn_params):
+        """Initialize param value by parsing the right CFN input."""
         cfn_converter = self.definition.get("cfn_param_mapping", None)
         if cfn_converter and cfn_params:
-            # initialize the value from cfn or from definition according to the scheduler
-            if get_cfn_param(cfn_params, "Scheduler") == "awsbatch":
-                self._init_from_definition()
-            else:
+            # initialize the value from cfn only if the scheduler is a traditional one
+            if get_cfn_param(cfn_params, "Scheduler") != "awsbatch":
                 # MinSize param > 0 means that maintain_initial_size was set to true at cluster creation
                 min_size_cfn_value = get_cfn_param(cfn_params, cfn_converter) if cfn_converter else "0"
                 min_size_value = int(min_size_cfn_value) if min_size_cfn_value != "NONE" else 0
                 self.value = min_size_value > 0
-        elif cfn_value:
-            self.value = self.get_value_from_string(cfn_value)
-        else:
-            self._init_from_definition()
+
+        return self
 
     def to_cfn(self):
         """Convert parameter to CFN representation."""
@@ -574,27 +575,10 @@ class MaintainInitialSizeParam(BoolParam):
 
 
 class AdditionalIamPoliciesParam(CommaSeparatedParam):
-    def __init__(
-        self,
-        section_key,
-        section_label,
-        param_key,
-        param_definition,
-        pcluster_config,
-        cfn_value=None,
-        config_parser=None,
-        cfn_params=None,
-    ):
+    def __init__(self, section_key, section_label, param_key, param_definition, pcluster_config):
         self.aws_batch_iam_policy = "arn:{0}:iam::aws:policy/AWSBatchFullAccess".format(get_partition())
         super(CommaSeparatedParam, self).__init__(
-            section_key,
-            section_label,
-            param_key,
-            param_definition,
-            pcluster_config,
-            cfn_value,
-            config_parser,
-            cfn_params,
+            section_key, section_label, param_key, param_definition, pcluster_config
         )
 
     def to_file(self, config_parser):
@@ -603,12 +587,14 @@ class AdditionalIamPoliciesParam(CommaSeparatedParam):
             self.value.remove(self.aws_batch_iam_policy)
         super(CommaSeparatedParam, self).to_file(config_parser)
 
-    def _init_from_cfn(self, cfn_params=None, cfn_value=None):
-        super(CommaSeparatedParam, self)._init_from_cfn(cfn_params, cfn_value)
+    def from_cfn_params(self, cfn_params):
+        super(CommaSeparatedParam, self).from_cfn_params(cfn_params)
 
         # remove awsbatch policy, if there
         if self.aws_batch_iam_policy in self.value:
             self.value.remove(self.aws_batch_iam_policy)
+
+        return self
 
     def to_cfn(self):
         # add awsbatch policy if scheduler is awsbatch
@@ -630,12 +616,16 @@ class AvailabilityZoneParam(Param):
     and it is used during EFS conversion and validation.
     """
 
-    def _init_from_file(self, config_parser):
+    @handle_no_section_error
+    def from_file(self, config_parser):
         """Initialize the Availability zone of the cluster by checking the Master Subnet."""
         section_name = _get_file_section_name(self.section_key, self.section_label)
-        master_subnet_id = config_parser.get(section_name, "master_subnet_id")
-        self.value = get_avail_zone(master_subnet_id)
-        self._check_allowed_values()
+        if config_parser.has_option(section_name, "master_subnet_id"):
+            master_subnet_id = config_parser.get(section_name, "master_subnet_id")
+            self.value = get_avail_zone(master_subnet_id)
+            self._check_allowed_values()
+
+        return self
 
     def to_file(self, config_parser):
         """Do nothing, because master_availability_zone it is an internal parameter, not exposed in the config file."""
@@ -648,41 +638,22 @@ class AvailabilityZoneParam(Param):
 class SettingsParam(Param):
     """Class to manage *_settings parameter on which the value is a single value (e.g. vpc_settings = default)."""
 
-    def __init__(
-        self,
-        section_key,
-        section_label,
-        param_key,
-        param_definition,
-        pcluster_config,
-        cfn_value=None,
-        config_parser=None,
-        cfn_params=None,
-    ):
+    def __init__(self, section_key, section_label, param_key, param_definition, pcluster_config):
         """Extend Param by adding info regarding the section referred by the settings."""
         self.related_section_definition = param_definition.get("referred_section")
         self.related_section_key = self.related_section_definition.get("key")
         self.related_section_type = self.related_section_definition.get("type")
-        super(SettingsParam, self).__init__(
-            section_key,
-            section_label,
-            param_key,
-            param_definition,
-            pcluster_config,
-            cfn_value,
-            config_parser,
-            cfn_params,
-        )
+        super(SettingsParam, self).__init__(section_key, section_label, param_key, param_definition, pcluster_config)
 
-    def _init_from_file(self, config_parser):
+    @handle_no_section_error
+    def from_file(self, config_parser):
         """
-        Initialize param_value from config_parser.
+        Initialize parameter value from config_parser.
 
         :param config_parser: the configparser object from which get the parameter
-        :raise NoSectionError if unable to get the section from config_parser
         """
         section_name = _get_file_section_name(self.section_key, self.section_label)
-        try:
+        if config_parser.has_option(section_name, self.key):
             self.value = config_parser.get(section_name, self.key)
             if self.value:
                 if "," in self.value:
@@ -693,26 +664,30 @@ class SettingsParam(Param):
                 else:
                     # Calls the "from_file" of the Section
                     section = self.related_section_type(
-                        self.related_section_definition,
-                        self.pcluster_config,
-                        section_label=self.value,
-                        config_parser=config_parser,
-                        fail_on_absence=True,
+                        self.related_section_definition, self.pcluster_config, section_label=self.value
+                    ).from_file(config_parser, fail_on_absence=True)
+
+                    # Remove default section and replace with the new one.
+                    # We can only have a single section of this kind of settings
+                    self.pcluster_config.remove_section(
+                        self.referred_section_key, self.referred_section_definition.get("default_label")
                     )
                     self.pcluster_config.add_section(section)
-        except NoOptionError:
-            self._init_from_definition()
 
-    def _init_from_cfn(self, cfn_params=None, cfn_value=None):
+        return self
+
+    def from_cfn_params(self, cfn_params):
         """Initialize section configuration parameters referred by the settings value by parsing CFN parameters."""
         self.value = self.definition.get("default", None)
         if cfn_params:
             section = self.related_section_type(
-                self.related_section_definition, self.pcluster_config, section_label=self.value, cfn_params=cfn_params
-            )
+                self.related_section_definition, self.pcluster_config, section_label=self.value
+            ).from_cfn_params(cfn_params)
             self.pcluster_config.add_section(section)
 
-    def _init_from_definition(self):
+        return self
+
+    def _from_definition(self):
         self.value = self.definition.get("default", None)
         if self.value:
             # the SettingsParam has a default label, it means that it is required to initialize the
@@ -725,6 +700,7 @@ class SettingsParam(Param):
                     "It can only contains a single {1} section label.".format(self.key, self.related_section_key)
                 )
             else:
+                # initialize related section with default values
                 section = self.related_section_type(
                     self.related_section_definition, self.pcluster_config, section_label=self.value
                 )
@@ -761,7 +737,7 @@ class SettingsParam(Param):
         cfn_params = {}
         section = self.pcluster_config.get_section(self.related_section_key, self.value)
         if not section:
-            # Crate a default section and convert it to cfn, to populate with default values (e.g. NONE)
+            # Crate a default section to populate with default values (e.g. NONE)
             section = self.related_section_type(self.related_section_definition, self.pcluster_config)
 
         cfn_params.update(section.to_cfn())
@@ -778,30 +754,26 @@ class EBSSettingsParam(SettingsParam):
     Furthermore, as opposed to SettingsParam, the value can be a comma separated value (e.g. ebs_settings = ebs1,ebs2).
     """
 
-    def _init_from_file(self, config_parser):
+    @handle_no_section_error
+    def from_file(self, config_parser):
         """
-        Initialize param value from configuration file.
+        Initialize parameter value from configuration file.
 
         :param config_parser: the configparser object from which get the parameter
-        :raise NoSectionError if unable to get the section from config_parser
         """
         section_name = _get_file_section_name(self.section_key, self.section_label)
-        try:
+        if config_parser.has_option(section_name, self.key):
             self.value = config_parser.get(section_name, self.key)
             if self.value:
                 for section_label in self.value.split(","):
                     section = self.related_section_type(
-                        self.related_section_definition,
-                        self.pcluster_config,
-                        section_label=section_label.strip(),
-                        config_parser=config_parser,
-                        fail_on_absence=True,
-                    )
+                        self.related_section_definition, self.pcluster_config, section_label=section_label.strip()
+                    ).from_file(config_parser=config_parser, fail_on_absence=True)
                     self.pcluster_config.add_section(section)
-        except NoOptionError:
-            self._init_from_definition()
 
-    def _init_from_cfn(self, cfn_params=None, cfn_value=None):
+        return self
+
+    def from_cfn_params(self, cfn_params):
         """Init ebs section only if there are more than one ebs (the default one)."""
         labels = []
         if cfn_params:
@@ -824,13 +796,8 @@ class EBSSettingsParam(SettingsParam):
                             param_type = param_definition.get("type", Param)
                             cfn_value = get_cfn_param(cfn_params, cfn_converter).split(",")[index]
                             param = param_type(
-                                self.section_key,
-                                self.section_label,
-                                param_key,
-                                param_definition,
-                                self.pcluster_config,
-                                cfn_value=cfn_value,
-                            )
+                                self.section_key, self.section_label, param_key, param_definition, self.pcluster_config
+                            ).from_cfn_value(cfn_value)
                             related_section.add_param(param)
 
                             if param.value != param_definition.get("default", None):
@@ -840,6 +807,8 @@ class EBSSettingsParam(SettingsParam):
                         self.pcluster_config.add_section(related_section)
 
         self.value = ",".join(labels) if labels else None
+
+        return self
 
     def to_file(self, config_parser):
         """Convert the param value into a list of sections in the config_parser and initialize them."""
@@ -922,58 +891,32 @@ class EBSSettingsParam(SettingsParam):
 class Section(object):
     """Class to manage a generic section (e.g vpc, scaling, aws, etc)."""
 
-    def __init__(
-        self,
-        section_definition,
-        pcluster_config,
-        section_label=None,
-        cfn_params=None,
-        config_parser=None,
-        fail_on_absence=False,
-    ):
+    def __init__(self, section_definition, pcluster_config, section_label=None):
         self.definition = section_definition
         self.key = section_definition.get("key")
         self.label = section_label or self.definition.get("default_label", "")
         self.pcluster_config = pcluster_config
 
-        # initialize section_dict
+        # initialize section parameters with default values
         self.params = {}
-        if cfn_params:
-            self._init_params_from_cfn(cfn_params)
-        elif config_parser:
-            try:
-                self._init_params_from_file(config_parser)
-            except SectionNotFoundError:
-                section_name = _get_file_section_name(self.key, self.label)
-                if fail_on_absence:
-                    error("Section '[{0}]' not found in the config file.".format(section_name))
-                else:
-                    LOGGER.info("Section '[{0}]' not found in the config file. Using defaults.".format(section_name))
-                    self._init_params_from_map()
-        else:
-            self._init_params_from_map()
+        self._from_definition()
 
-    def _init_params_from_file(self, config_parser):
+    def from_file(self, config_parser, fail_on_absence=False):
         """Initialize section configuration parameters by parsing config file."""
-        section_definition_items = self.definition.get("params")
+        params_definitions = self.definition.get("params")
         section_name = _get_file_section_name(self.key, self.label)
 
         if config_parser.has_section(section_name):
-            for param_key, param_definition in section_definition_items.items():
+            for param_key, param_definition in params_definitions.items():
                 param_type = param_definition.get("type", Param)
 
                 param = param_type(
-                    self.key,
-                    self.label,
-                    param_key,
-                    param_definition,
-                    pcluster_config=self.pcluster_config,
-                    config_parser=config_parser,
-                )
+                    self.key, self.label, param_key, param_definition, pcluster_config=self.pcluster_config
+                ).from_file(config_parser)
                 self.add_param(param)
 
                 not_valid_keys = [
-                    key for key, value in config_parser.items(section_name) if key not in section_definition_items
+                    key for key, value in config_parser.items(section_name) if key not in params_definitions
                 ]
                 if not_valid_keys:
                     error(
@@ -984,10 +927,12 @@ class Section(object):
                             section_name,
                         )
                     )
-        else:
-            raise SectionNotFoundError
+        elif fail_on_absence:
+            error("Section '[{0}]' not found in the config file.".format(section_name))
 
-    def _init_params_from_cfn(self, cfn_params):
+        return self
+
+    def from_cfn_params(self, cfn_params):
         """Initialize section configuration parameters by parsing CFN parameters."""
         cfn_converter = self.definition.get("cfn_param_mapping", None)
         if cfn_converter:
@@ -1005,8 +950,8 @@ class Section(object):
 
                 param_type = param_definition.get("type", Param)
                 param = param_type(
-                    self.key, self.label, param_key, param_definition, self.pcluster_config, cfn_value=cfn_value
-                )
+                    self.key, self.label, param_key, param_definition, self.pcluster_config
+                ).from_cfn_value(cfn_value)
 
                 self.add_param(param)
                 cfn_param_index += 1
@@ -1014,11 +959,14 @@ class Section(object):
             for param_key, param_definition in self.definition.get("params").items():
                 param_type = param_definition.get("type", Param)
                 param = param_type(
-                    self.key, self.label, param_key, param_definition, self.pcluster_config, cfn_params=cfn_params
-                )
+                    self.key, self.label, param_key, param_definition, self.pcluster_config
+                ).from_cfn_params(cfn_params)
                 self.add_param(param)
 
-    def _init_params_from_map(self):
+        return self
+
+    def _from_definition(self):
+        """Initialize parameters with default values."""
         for param_key, param_definition in self.definition.get("params").items():
             param_type = param_definition.get("type", Param)
             param = param_type(self.key, self.label, param_key, param_definition, self.pcluster_config)
@@ -1206,10 +1154,13 @@ class ClusterSection(Section):
     that identifies the label in the template.
     """
 
-    def _init_params_from_cfn(self, cfn_params):
+    def from_cfn_params(self, cfn_params):
         """Initialize section configuration parameters by parsing CFN parameters."""
-        self.label = get_cfn_param(cfn_params, "CLITemplate")
-        super(ClusterSection, self)._init_params_from_cfn(cfn_params)
+        if cfn_params:
+            super(ClusterSection, self).from_cfn_params(cfn_params)
+            self.label = get_cfn_param(cfn_params, "CLITemplate")
+
+        return self
 
     def to_cfn(self):
         """
@@ -1222,12 +1173,6 @@ class ClusterSection(Section):
         cfn_params = super(ClusterSection, self).to_cfn()
         cfn_params.update({"CLITemplate": self.label})
         return cfn_params
-
-
-class SectionNotFoundError(Exception):
-    """Class to represent an error when the Section is not present in the file."""
-
-    pass
 
 
 def _get_file_section_name(section_key, section_label=None):

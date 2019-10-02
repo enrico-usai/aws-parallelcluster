@@ -168,6 +168,16 @@ class PclusterConfig(object):
         section_label = section.label if section.label else section.definition.get("default_label", "default")
         self.sections[section.key][section_label] = section
 
+    def remove_section(self, section_key, section_label):
+        """
+        Remove a section from the PclusterConfig object, if there.
+
+        :param section_key: the identifier of the section type
+        :param section_label: the label of the section to delete.
+        """
+        if section_key in self.sections:
+            self.sections[section_key].pop(section_label, None)
+
     def __init_aws_credentials(self):
         """Set credentials in the environment to be available for all the boto3 calls."""
         # Init credentials by checking if they have been provided in config
@@ -269,12 +279,8 @@ class PclusterConfig(object):
         """
         section_type = section_definition.get("type")
         section = section_type(
-            section_definition=section_definition,
-            pcluster_config=self,
-            section_label=section_label,
-            config_parser=config_parser,
-            fail_on_absence=fail_on_absence,
-        )
+            section_definition=section_definition, pcluster_config=self, section_label=section_label
+        ).from_file(config_parser, fail_on_absence)
         self.add_section(section)
 
     def __init_sections_from_cfn(self, cluster_name):
@@ -283,8 +289,8 @@ class PclusterConfig(object):
             stack = boto3.client("cloudformation").describe_stacks(StackName=stack_name).get("Stacks")[0]
 
             section_type = CLUSTER.get("type")
-            section = section_type(
-                section_definition=CLUSTER, pcluster_config=self, cfn_params=stack.get("Parameters", [])
+            section = section_type(section_definition=CLUSTER, pcluster_config=self).from_cfn_params(
+                cfn_params=stack.get("Parameters", [])
             )
             self.add_section(section)
         except ClientError as e:

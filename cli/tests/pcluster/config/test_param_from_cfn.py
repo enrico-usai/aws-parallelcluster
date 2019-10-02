@@ -135,7 +135,7 @@ def test_param_from_cfn(mocker, section_definition, param_key, cfn_params_dict, 
     pcluster_config = get_mocked_pcluster_config(mocker)
 
     param = param_type(
-        section_definition.get("key"), "default", param_key, param_definition, pcluster_config, cfn_params=cfn_params
-    )
+        section_definition.get("key"), "default", param_key, param_definition, pcluster_config
+    ).from_cfn_params(cfn_params)
 
     assert_that(param.value, description="param key {0}".format(param_key)).is_equal_to(expected_value)

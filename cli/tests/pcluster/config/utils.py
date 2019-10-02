@@ -57,22 +57,12 @@ def assert_param_from_file(mocker, section_definition, param_key, param_value, e
     if expected_message:
         with pytest.raises(SystemExit, match=expected_message):
             param_type(
-                section_definition.get("key"),
-                section_label,
-                param_key,
-                param_definition,
-                pcluster_config,
-                config_parser=config_parser,
-            )
+                section_definition.get("key"), section_label, param_key, param_definition, pcluster_config
+            ).from_file(config_parser)
     else:
         param = param_type(
-            section_definition.get("key"),
-            section_label,
-            param_key,
-            param_definition,
-            pcluster_config,
-            config_parser=config_parser,
-        )
+            section_definition.get("key"), section_label, param_key, param_definition, pcluster_config
+        ).from_file(config_parser)
         assert_that(param.value, description="{0} assert fail".format(param.key)).is_equal_to(expected_value)
 
 
@@ -99,7 +89,7 @@ def assert_section_from_cfn(mocker, section_definition, cfn_params_dict, expecte
     pcluster_config = get_mocked_pcluster_config(mocker)
 
     section_type = section_definition.get("type")
-    section = section_type(section_definition, pcluster_config, cfn_params=cfn_params)
+    section = section_type(section_definition, pcluster_config).from_cfn_params(cfn_params)
 
     if section.label:
         assert_that(section.label).is_equal_to("default")
@@ -140,9 +130,9 @@ def assert_section_from_file(mocker, section_definition, config_parser_dict, exp
     section_type = section_definition.get("type")
     if expected_message:
         with pytest.raises(SystemExit, match=expected_message):
-            _ = section_type(section_definition, pcluster_config, config_parser=config_parser)
+            _ = section_type(section_definition, pcluster_config).from_file(config_parser)
     else:
-        section = section_type(section_definition, pcluster_config, config_parser=config_parser)
+        section = section_type(section_definition, pcluster_config).from_file(config_parser)
         section_dict = {}
         for param_key, param in section.params.items():
             section_dict.update({param_key: param.value})
