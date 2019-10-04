@@ -431,6 +431,21 @@ class SharedDirParam(Param):
             config_parser.set(section_name, self.key, self.value)
         # else: there are ebs volumes, let the EBSSettings parse the SharedDir CFN parameter.
 
+    def from_cfn_params(self, cfn_params):
+        """
+        Initialize param value by parsing CFN input only if the scheduler is a traditional one.
+
+        When the SharedDir doesn't contain commas, it has been created from a single EBS volume
+        specified through the shared_dir configuration parameter,
+        if it contains commas, we need to create at least one ebs section.
+        """
+        if cfn_params:
+            num_of_ebs = int(get_cfn_param(cfn_params, "NumberOfEBSVol"))
+            if num_of_ebs == 1 and "," not in get_cfn_param(cfn_params, "SharedDir"):
+                super(SharedDirParam, self).from_cfn_params(cfn_params)
+
+        return self
+
 
 class SpotPriceParam(FloatParam):
     """
@@ -777,9 +792,11 @@ class EBSSettingsParam(SettingsParam):
         labels = []
         if cfn_params:
             num_of_ebs = int(get_cfn_param(cfn_params, "NumberOfEBSVol"))
-            if num_of_ebs > 1:
+            if num_of_ebs >= 1 and "," in get_cfn_param(cfn_params, "SharedDir"):
+                # When the SharedDir doesn't contain commas, it has been created from a single EBS volume
+                # specified through the shared_dir configuration parameter only
+                # If SharedDir contains comma, we need to create at least one ebs section
                 for index in range(num_of_ebs):
-                    configured_params = False
                     # TODO Use the label when will be available
                     label = "{0}{1}".format(self.related_section_key, str(index + 1))
                     labels.append(label)
@@ -799,11 +816,7 @@ class EBSSettingsParam(SettingsParam):
                             ).from_cfn_value(cfn_value)
                             related_section.add_param(param)
 
-                            if param.value != param_definition.get("default", None):
-                                configured_params = True
-
-                    if configured_params:
-                        self.pcluster_config.add_section(related_section)
+                    self.pcluster_config.add_section(related_section)
 
         self.value = ",".join(labels) if labels else None
 

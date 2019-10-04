@@ -83,6 +83,22 @@ from tests.pcluster.config.defaults import DefaultCfnParams, DefaultDict
                 },
             ),
         ),
+        # single ebs specified through shared_dir only
+        (
+            utils.merge_dicts(DefaultCfnParams["cluster"].value, {"SharedDir": "test"}),
+            utils.merge_dicts(DefaultDict["cluster"].value, {"shared_dir": "test"}),
+        ),
+        # single ebs specified through ebs setting
+        (
+            utils.merge_dicts(DefaultCfnParams["cluster"].value, {"SharedDir": "/test,NONE,NONE,NONE,NONE"}),
+            utils.merge_dicts(
+                DefaultDict["cluster"].value,
+                {
+                    "shared_dir": "/shared",  # it is the default value, "/test" will be in the ebs section
+                    "ebs_settings": "ebs1",
+                },
+            ),
+        ),
         # TODO test all cluster parameters
     ],
 )
