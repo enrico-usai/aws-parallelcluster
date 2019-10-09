@@ -71,8 +71,7 @@ class PclusterConfig(object):
             self.__init_sections_from_cfn(cluster_name)
         else:
             self.__init_sections_from_file(file_sections, cluster_label, self.config_parser, fail_on_file_absence)
-
-        self.__validate()
+            self.__validate()
 
     def _init_config_parser(self, config_file, fail_on_config_file_absence=True):
         """
