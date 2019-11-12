@@ -245,6 +245,19 @@ def get_instance_vcpus(region, instance_type):
     return vcpus
 
 
+def get_supported_instance_types():
+    """
+    Get supported instance types.
+
+    :return: the list of supported instance types
+    """
+    try:
+        instances = _get_json_from_s3(get_region(), "instances/instances.json")
+        return instances.keys()
+    except (ValueError, ClientError):
+        error("Unable to retrieve the list of supported instance types.")
+
+
 def get_supported_os(scheduler):
     """
     Return a tuple of the os supported by parallelcluster for the specific scheduler.
@@ -458,11 +471,6 @@ def get_latest_alinux_ami_id():
         error("Unable to retrieve Amazon Linux AMI id.\n{0}".format(e.response.get("Error").get("Message")))
 
     return alinux_ami_id
-
-
-def list_ec2_instance_types():
-    """Return a list of all the instance types available on EC2, independent by the region."""
-    return boto3.client("ec2").meta.service_model.shape_for("InstanceType").enum
 
 
 def get_master_server_id(stack_name):

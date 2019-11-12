@@ -23,6 +23,7 @@ from pcluster.utils import (
     get_partition,
     get_region,
     get_supported_features,
+    get_supported_instance_types,
 )
 
 
@@ -418,6 +419,24 @@ def _get_pcluster_user_policy(partition, region, account_id):
         (["s3:GetObject"], "arn:%s:s3:::%s-aws-parallelcluster/*" % (partition, region)),
         (["sqs:ListQueues"], "*"),
     ]
+
+
+def ec2_instance_type_validator(param_key, param_value, pcluster_config):
+    errors = []
+    warnings = []
+
+    try:
+        if param_value not in get_supported_instance_types():
+            errors.append(
+                "The instance type '{0}' used for the '{1}' parameter is not supported by AWS ParallelCluster.".format(
+                    param_value, param_key
+                )
+            )
+
+    except ClientError as e:
+        errors.append(e.response.get("Error").get("Message"))
+
+    return errors, warnings
 
 
 def ec2_vpc_id_validator(param_key, param_value, pcluster_config):
