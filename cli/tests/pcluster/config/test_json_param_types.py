@@ -85,6 +85,18 @@ DESCRIBE_INSTANCE_TYPES_RESPONSES = {
             }
         ]
     },
+    # Disable hyperthreading: not supported
+    # EFA: not supported
+    "t2.micro": {
+        "InstanceTypes": [
+            {
+                "InstanceType": "t2.micro",
+                "VCpuInfo": {"DefaultVCpus": 1, "DefaultCores": 1, "DefaultThreadsPerCore": 1},
+                "NetworkInfo": {"EfaSupported": False},
+                "ProcessorInfo": {"SupportedArchitectures": ["x86_64"]},
+            }
+        ]
+    },
 }
 
 
@@ -114,7 +126,7 @@ def test_config_to_json(capsys, boto3_stubber, test_datadir, pcluster_config_rea
     expected_json_params = _prepare_json_config(queues, test_datadir)
 
     # Mock expected boto3 calls
-    _mock_boto3(boto3_stubber, expected_json_params)
+    _mock_boto3(boto3_stubber, expected_json_params, master_instance_type="c4.xlarge")
 
     # Load config from created config file
     dst_config_file = pcluster_config_reader(dst_config_file, queue_settings=queue_settings)
@@ -146,9 +158,9 @@ def test_config_from_json(mocker, boto3_stubber, test_datadir, pcluster_config_r
     expected_json_params = _prepare_json_config(queues, test_datadir)
 
     # Mock expected boto3 calls
-    _mock_boto3(boto3_stubber, expected_json_params)
+    _mock_boto3(boto3_stubber, expected_json_params, master_instance_type="t2.micro")
 
-    pcluster_config = get_mocked_pcluster_config(mocker)
+    pcluster_config = get_mocked_pcluster_config(mocker, auto_refresh=False)
     cluster_section = CfnSection(CLUSTER_HIT, pcluster_config, section_label="default")
     cluster_section.from_storage(StorageData(cfn_params=[], json_params=expected_json_params))
     pcluster_config.add_section(cluster_section)
@@ -213,10 +225,22 @@ def _prepare_json_config(queues, test_datadir):
     return expected_json_params
 
 
-def _mock_boto3(boto3_stubber, expected_json_params):
+def _mock_boto3(boto3_stubber, expected_json_params, master_instance_type=None):
     """Mock the boto3 client based on the expected json configuration."""
     expected_json_queue_settings = expected_json_params["cluster"].get("queue_settings", {})
     mocked_requests = []
+
+    # One describe_instance_type for the Master node
+    if master_instance_type:
+        mocked_requests.append(
+            MockedBoto3Request(
+                method="describe_instance_types",
+                response=DESCRIBE_INSTANCE_TYPES_RESPONSES[master_instance_type],
+                expected_params={"InstanceTypes": [master_instance_type]},
+            )
+        )
+
+    # One describe_instance_type per compute resource
     for _, queue in expected_json_queue_settings.items():
         for _, compute_resource in queue.get("compute_resource_settings", {}).items():
             instance_type = compute_resource["instance_type"]

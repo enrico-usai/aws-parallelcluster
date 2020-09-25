@@ -112,6 +112,14 @@ class SITClusterModel(ClusterModel):
         try:
             latest_alinux_ami_id = self._get_latest_alinux_ami_id()
 
+            master_network_interfaces = self.build_launch_network_interfaces(
+                int(cluster_section.get_param_value("network_interfaces_count")[0]),
+                False,  # EFA is not supported on master node
+                security_groups_ids,
+                master_subnet,
+                vpc_section.get_param_value("use_public_ips"),
+            )
+
             # Test Master Instance Configuration
             self._ec2_run_instance(
                 pcluster_config,
@@ -119,12 +127,30 @@ class SITClusterModel(ClusterModel):
                 MinCount=1,
                 MaxCount=1,
                 ImageId=latest_alinux_ami_id,
-                SubnetId=master_subnet,
-                SecurityGroupIds=security_groups_ids,
                 CpuOptions=master_cpu_options,
+                NetworkInterfaces=master_network_interfaces,
                 Placement=master_placement_group,
                 DryRun=True,
             )
+
+            compute_network_interfaces_count = int(cluster_section.get_param_value("network_interfaces_count")[1])
+            enable_efa = "compute" == cluster_section.get_param_value("enable_efa")
+            # TODO: check if master == compute subnet condition is to take into account
+            use_public_ips = self.public_ips_in_compute_subnet(pcluster_config)
+            network_interfaces = []
+
+            for device_index in range(compute_network_interfaces_count):
+                network_interfaces.append(
+                    {
+                        "DeviceIndex": device_index,
+                        "NetworkCardIndex": device_index,
+                        "InterfaceType": "efa" if enable_efa else "interface",
+                        "Groups": security_groups_ids,
+                        "SubnetId": compute_subnet,
+                    }
+                )
+            if compute_network_interfaces_count > 1 and use_public_ips:
+                network_interfaces[0]["AssociatePublicIpAddress"] = True
 
             # Test Compute Instances Configuration
             self._ec2_run_instance(
@@ -133,10 +159,9 @@ class SITClusterModel(ClusterModel):
                 MinCount=1,
                 MaxCount=1,
                 ImageId=latest_alinux_ami_id,
-                SubnetId=compute_subnet,
-                SecurityGroupIds=security_groups_ids,
                 CpuOptions=compute_cpu_options,
                 Placement=compute_placement_group,
+                NetworkInterfaces=network_interfaces,
                 DryRun=True,
             )
         except ClientError:

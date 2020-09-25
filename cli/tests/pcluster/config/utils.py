@@ -111,6 +111,7 @@ def get_mock_pcluster_config_patches(scheduler, extra_patches=None):
         "pcluster.config.cfn_param_types.get_availability_zone_of_subnet": "mocked_avail_zone",
         "pcluster.config.cfn_param_types.get_supported_architectures_for_instance_type": architectures,
         "pcluster.config.validators.get_instance_vcpus": 1,
+        "pcluster.config.cfn_param_types.get_instance_network_interfaces": 1,
     }
     if extra_patches:
         patches = merge_dicts(patches, extra_patches)
@@ -239,8 +240,7 @@ def get_mocked_pcluster_config(mocker, auto_refresh=False):
     mocker.patch(
         "pcluster.config.cfn_param_types.get_supported_architectures_for_instance_type", return_value=["x86_64"]
     )
-    pcluster_config = PclusterConfig(config_file="wrong-file")
-    pcluster_config.auto_refresh = auto_refresh
+    pcluster_config = PclusterConfig(config_file="wrong-file", auto_refresh=auto_refresh)
     return pcluster_config
 
 

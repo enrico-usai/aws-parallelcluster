@@ -99,8 +99,8 @@ class ClusterModel(ABC):
                 )
             else:
                 pcluster_config.error(
-                    "Unable to validate configuration parameters. "
-                    "Please double check your cluster configuration.\n{0}".format(message)
+                    "Unable to validate configuration parameters for instance type '{0}'. "
+                    "Please double check your cluster configuration.\n{1}".format(kwargs["InstanceType"], message)
                 )
 
     def _get_latest_alinux_ami_id(self):
@@ -117,6 +117,36 @@ class ClusterModel(ABC):
             raise
 
         return alinux_ami_id
+
+    def public_ips_in_compute_subnet(self, pcluster_config):
+        """Tell if public IPs will be used in compute subnet."""
+        vpc_section = pcluster_config.get_section("vpc")
+        master_subnet_id = vpc_section.get_param_value("master_subnet_id")
+        compute_subnet_id = vpc_section.get_param_value("compute_subnet_id")
+        use_public_ips = vpc_section.get_param_value("use_public_ips") and (
+            (compute_subnet_id is None) or (compute_subnet_id == master_subnet_id)
+        )
+
+        return use_public_ips
+
+    def build_launch_network_interfaces(
+        self, network_interfaces_count, use_efa, security_group_ids, subnet, use_public_ips
+    ):
+        """Build the needed NetworkInterfaces to launch an instance."""
+        network_interfaces = []
+        for device_index in range(network_interfaces_count):
+            network_interfaces.append(
+                {
+                    "DeviceIndex": device_index,
+                    "NetworkCardIndex": device_index,
+                    "InterfaceType": "efa" if use_efa else "interface",
+                    "Groups": security_group_ids,
+                    "SubnetId": subnet,
+                }
+            )
+        if network_interfaces_count > 1 and use_public_ips:
+            network_interfaces[0]["AssociatePublicIpAddress"] = True
+        return network_interfaces
 
 
 def infer_cluster_model(config_parser=None, cluster_label=None, cfn_stack=None):
