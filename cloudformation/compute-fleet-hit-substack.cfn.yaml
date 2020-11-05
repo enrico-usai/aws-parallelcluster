@@ -120,6 +120,8 @@ Resources:
               - UseAssociatePublicIpAddress
               - true
               - !Ref 'AWS::NoValue'
+            {%- else %}
+            NetworkCardIndex: {{device_index}}
             {%- endif %}
             InterfaceType: {% if compute_resource.enable_efa %}'efa'{% else %}!Ref 'AWS::NoValue'{% endif %}
             Groups: !Ref 'ComputeSecurityGroups'
