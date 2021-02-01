@@ -28,3 +28,16 @@ class Param:
             self.value = value
             self.implied = False
         self.valid = valid
+
+
+class DynamicParam:
+    """Class to manage dynamic params that must be calculated at usage time."""
+
+    def __init__(self, value_calculator):
+        """Create MarkedValue object and add attributes."""
+        self.__value_calculator = value_calculator
+
+    @property
+    def value(self):
+        """Calculate and return the value."""
+        return self.__value_calculator()
